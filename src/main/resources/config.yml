@@ -1,0 +1,1123 @@
+# DynamicShop Configuration File
+# Created for Paper/Spigot servers with ProtocolLib
+
+# ================================================================
+# ECONOMY SETTINGS
+# ================================================================
+economy:
+  # Sell tax percentage (how much less players get when selling)
+  # 30 = players get 70% of item value when selling
+  sell_tax_percent: 30
+
+# ================================================================
+# GUI SETTINGS
+# ================================================================
+gui:
+  # Size of shop menu (must be multiple of 9: 27, 36, 45, 54)
+  # Bottom 9 slots are reserved for navigation
+  shop_menu_size: 54
+
+# ================================================================
+# WEB SERVER SETTINGS
+# ================================================================
+webserver:
+  enabled: true
+  port: 7713
+  bind: "0.0.0.0"
+
+  # Force re-extract web files from JAR on startup
+  force-update-files: false
+
+  # CORS settings for web API
+  cors:
+    enabled: true
+
+# ================================================================
+# TRANSACTION LOGGING
+# ================================================================
+logging:
+  # Maximum transactions to keep in memory for web dashboard
+  max_recent_transactions: 10000
+
+# ================================================================
+# DYNAMIC PRICING SYSTEM
+# ================================================================
+dynamic-pricing:
+  # Master toggle for all dynamic pricing features
+  enabled: true
+
+  # --- Stock-based pricing (positive stock only) ---
+  # When enabled, prices decrease as stock increases
+  use-stock-curve: true
+
+  # price = basePrice * (1 - (stock/maxStock * curveStrength))
+  curve-strength: 0.9          # 0.9 = price drops to 10% at max stock
+  max-stock: 500               # Normalized stock level (does NOT limit actual storage)
+
+  # Price multiplier limits
+  min-price-multiplier: 0.01   # Never cheaper than 1% of base price
+  max-price-multiplier: 20.0   # Never more than 20× base price
+
+  # --- Negative Stock Pricing ---
+  # Applies when players sell more than they buy (stock goes negative)
+  # Increases buy price for EACH item in negative stock
+  # Example: -10 stock with 5% = 50% price increase (10 × 5%)
+  negative-stock-percent-per-item: 5.0
+
+  # --- Time-based Inflation ---
+  # When enabled, prices increase over time when stock is <= 0
+  use-time-inflation: true
+
+  # Hourly price increase when stock is zero or negative
+  # Applies to BOTH zero stock AND negative stock
+  hourly-increase-percent: 2.0   # +2% per hour when out of stock
+
+  # --- Stock Control ---
+  # Prevent players from buying items when stock reaches zero
+  # When enabled, players cannot purchase items with stock <= 0
+  restrict-buying-at-zero-stock: false
+
+  # --- Demand-based Pricing ---
+  # Prices increase based on total purchase volume
+  use-demand: true
+  demand-factor: 0.01          # +1% price per 100 purchases
+  max-demand: 1000             # Maximum demand value considered
+
+  # --- Debug Logging ---
+  # Enable to see detailed pricing calculations in console
+  log-dynamic-pricing: false
+
+# ================================================================
+# PLAYER SHOPS
+# ================================================================
+player-shops:
+  # Maximum number of items a player can list in their shop
+  max-listings-per-player: 27
+
+  # Enable/disable player shops feature
+  enabled: true
+
+# ================================================================
+# CROSS-SERVER SYNC (P2P JeroMQ)
+# ================================================================
+cross-server:
+  # Enable P2P cross-server synchronization
+  enabled: false
+
+  # Port for this server's JeroMQ
+  # Each server needs a unique port if running on same machine
+  # If on different machines, all can use 5556
+  port: 5556
+
+  # List of peer servers to sync with
+  # Format: "host:port"
+  # Include ALL servers (mesh network)
+  peers:
+    - 192.168.1.10
+    - 192.168.1.11:5556
+    - 192.168.1.11:5557 # <-- port of each cross-server sync JeroMQ mesh network.
+
+  # How often to save backup to shopdata.yml (seconds)
+  save-interval-seconds: 600  # 10 minutes
+
+# ================================================================
+# EXAMPLE CONFIGURATIONS:
+# ================================================================
+
+# Example 1 - Different IPs
+# cross-server:
+#   enabled: true
+#   local-port: 5556
+#   username: "dynmap" <-- all must have same username; think of this as auth for the mesh network you're making
+#   password: "mySecurePass123" <-- all must have same password
+#   peers:
+#     - "skyblock.yourserver.com"
+#     - "creative.yourserver.com"
+#     - "survival.yourserver.com" <- THIS SERVER REQUIRED
+
+# Example 2 Multiple servers same IP
+# cross-server:
+#   enabled: true
+#   local-port: 5556
+#   username: "dynmap"
+#   password: "mySecurePass123"
+#   peers:
+#      - 192.168.1.0:5556 <- THIS SERVER REQUIRED
+##     - 192.168.1.0:5557
+##     - 192.168.1.0:5558
+
+# Example 3 - Mixed IPs
+# cross-server:
+#   enabled: true
+#   local-port: 5556
+#   username: "dynmap"
+#   password: "mySecurePass123"
+#   peers:
+#     - "skyblock.yourserver.com"
+#     - "creative.yourserver.com"
+#     - 192.168.0.1:5556 <- THIS SERVER REQUIRED
+#     - 192.168.0.1:5557
+
+# ================================================================
+# NOTES:
+# ================================================================
+# - Each server runs its own embedded JEROMQ (no installation!)
+# - All servers connect to each other (full mesh)
+# - Updates broadcast to all peers instantly (<100ms)
+# - No single point of failure (P2P network)
+# - YAML backup every X seconds + on shutdown
+# - If peer offline, continues working (syncs when reconnected)
+# - Make sure firewall allows local-port between servers
+
+# ================================================================
+# ITEM PRICES
+# ================================================================
+# Format: MATERIAL_NAME: { base: price }
+# base: -1 means item cannot be traded
+#
+# Final prices are calculated as:
+#   Buy price = base price × dynamic multiplier
+#   Sell price = (base price × dynamic multiplier) × (1 - sell_tax_percent/100)
+#
+# Example: STONE with base: 1.0 and sell_tax_percent: 30
+#   - Players BUY for $1.00 (if stock/demand is normal)
+#   - Players SELL for $0.70 (30% tax)
+# ================================================================
+
+items:
+  # ─────────────────────────────
+  # WOOD, STONES, GLASS, CONCRETE, TERRACOTTA
+  # ─────────────────────────────
+
+  # Stone / rock family
+  STONE:                  { base: 1.0 }
+  SMOOTH_STONE:           { base: 1.2 }
+  STONE_BRICKS:           { base: 1.5 }
+  MOSSY_STONE_BRICKS:     { base: 2.0 }
+  CRACKED_STONE_BRICKS:   { base: 1.5 }
+  CHISELED_STONE_BRICKS:  { base: 2.0 }
+  COBBLESTONE:            { base: 1.0 }
+  MOSSY_COBBLESTONE:      { base: 2.0 }
+  GRANITE:                { base: 1.0 }
+  POLISHED_GRANITE:       { base: 1.2 }
+  DIORITE:                { base: 1.0 }
+  POLISHED_DIORITE:       { base: 1.2 }
+  ANDESITE:               { base: 1.0 }
+  POLISHED_ANDESITE:      { base: 1.2 }
+  TUFF:                   { base: 1.0 }
+  POLISHED_TUFF:          { base: 1.2 }
+  TUFF_BRICKS:            { base: 1.5 }
+  CHISELED_TUFF:          { base: 2.0 }
+  CHISELED_TUFF_BRICKS:   { base: 2.0 }
+  CALCITE:                { base: 2.0 }
+  DRIPSTONE_BLOCK:        { base: 2.0 }
+  POINTED_DRIPSTONE:      { base: 2.0 }
+  DEEPSLATE:              { base: 1.5 }
+  COBBLED_DEEPSLATE:      { base: 1.5 }
+  POLISHED_DEEPSLATE:     { base: 1.8 }
+  DEEPSLATE_BRICKS:       { base: 2.0 }
+  DEEPSLATE_TILES:        { base: 2.0 }
+  CHISELED_DEEPSLATE:     { base: 2.5 }
+  CRACKED_DEEPSLATE_BRICKS: { base: 2.0 }
+  CRACKED_DEEPSLATE_TILES:  { base: 2.0 }
+
+  # Bricks
+  BRICKS:                 { base: 3.0 }
+  MUD_BRICKS:             { base: 2.5 }
+  PACKED_ICE:             { base: 3.0 }
+  BLUE_ICE:               { base: 5.0 }
+
+  # Prismarine
+  PRISMARINE:             { base: 4.0 }
+  PRISMARINE_BRICKS:      { base: 5.0 }
+  DARK_PRISMARINE:        { base: 5.0 }
+  SEA_LANTERN:            { base: 6.0 }
+
+  # Quartz
+  QUARTZ_BLOCK:           { base: 8.0 }
+  SMOOTH_QUARTZ:          { base: 8.0 }
+  QUARTZ_BRICKS:          { base: 8.0 }
+  CHISELED_QUARTZ_BLOCK:  { base: 8.0 }
+  QUARTZ_PILLAR:          { base: 8.0 }
+
+  # Amethyst
+  AMETHYST_BLOCK:         { base: 15.0 }
+  BUDDING_AMETHYST:       { base: 50.0 }
+  AMETHYST_CLUSTER:       { base: 10.0 }
+  LARGE_AMETHYST_BUD:     { base: 7.0 }
+  MEDIUM_AMETHYST_BUD:    { base: 5.0 }
+  SMALL_AMETHYST_BUD:     { base: 3.0 }
+
+  # Copper Blocks
+  COPPER_BLOCK:           { base: 25.0 }
+  EXPOSED_COPPER:         { base: 25.0 }
+  WEATHERED_COPPER:       { base: 25.0 }
+  OXIDIZED_COPPER:        { base: 25.0 }
+  CUT_COPPER:             { base: 25.0 }
+  EXPOSED_CUT_COPPER:     { base: 25.0 }
+  WEATHERED_CUT_COPPER:   { base: 25.0 }
+  OXIDIZED_CUT_COPPER:    { base: 25.0 }
+  CHISELED_COPPER:        { base: 25.0 }
+  EXPOSED_CHISELED_COPPER: { base: 25.0 }
+  WEATHERED_CHISELED_COPPER: { base: 25.0 }
+  OXIDIZED_CHISELED_COPPER: { base: 25.0 }
+  COPPER_GRATE:           { base: 25.0 }
+  EXPOSED_COPPER_GRATE:   { base: 25.0 }
+  WEATHERED_COPPER_GRATE: { base: 25.0 }
+  OXIDIZED_COPPER_GRATE:  { base: 25.0 }
+  COPPER_BULB:            { base: 30.0 }
+  EXPOSED_COPPER_BULB:    { base: 30.0 }
+  WEATHERED_COPPER_BULB:  { base: 30.0 }
+  OXIDIZED_COPPER_BULB:   { base: 30.0 }
+
+  # Obsidian
+  OBSIDIAN:               { base: 10.0 }
+  CRYING_OBSIDIAN:        { base: 25.0 }
+
+  # Dirt / soil / mud / clay
+  DIRT:                   { base: 1.0 }
+  COARSE_DIRT:            { base: 1.0 }
+  GRASS_BLOCK:            { base: 2.0 }
+  PODZOL:                 { base: 2.0 }
+  ROOTED_DIRT:            { base: 2.0 }
+  CLAY:                   { base: 2.0 }
+  MUD:                    { base: 1.0 }
+  PACKED_MUD:             { base: 2.0 }
+
+  # Sand / gravel
+  SAND:                   { base: 1.0 }
+  RED_SAND:               { base: 1.0 }
+  GRAVEL:                 { base: 1.0 }
+  SANDSTONE:              { base: 2.0 }
+  RED_SANDSTONE:          { base: 2.0 }
+
+  # Logs
+  OAK_LOG:                { base: 2.0 }
+  SPRUCE_LOG:             { base: 2.0 }
+  BIRCH_LOG:              { base: 2.0 }
+  JUNGLE_LOG:             { base: 2.0 }
+  ACACIA_LOG:             { base: 2.0 }
+  DARK_OAK_LOG:           { base: 2.0 }
+  MANGROVE_LOG:           { base: 2.0 }
+  CHERRY_LOG:             { base: 2.0 }
+
+  # Planks
+  OAK_PLANKS:             { base: 1.5 }
+  SPRUCE_PLANKS:          { base: 1.5 }
+  BIRCH_PLANKS:           { base: 1.5 }
+  JUNGLE_PLANKS:          { base: 1.5 }
+  ACACIA_PLANKS:          { base: 1.5 }
+  DARK_OAK_PLANKS:        { base: 1.5 }
+  MANGROVE_PLANKS:        { base: 1.5 }
+  CHERRY_PLANKS:          { base: 1.5 }
+  BAMBOO_PLANKS:          { base: 1.5 }
+  CRIMSON_PLANKS:         { base: 2.0 }
+  WARPED_PLANKS:          { base: 2.0 }
+
+  # Stripped Logs
+  STRIPPED_OAK_LOG:       { base: 2.0 }
+  STRIPPED_SPRUCE_LOG:    { base: 2.0 }
+  STRIPPED_BIRCH_LOG:     { base: 2.0 }
+  STRIPPED_JUNGLE_LOG:    { base: 2.0 }
+  STRIPPED_ACACIA_LOG:    { base: 2.0 }
+  STRIPPED_DARK_OAK_LOG:  { base: 2.0 }
+  STRIPPED_MANGROVE_LOG:  { base: 2.0 }
+  STRIPPED_CHERRY_LOG:    { base: 2.0 }
+  STRIPPED_CRIMSON_STEM:  { base: 2.0 }
+  STRIPPED_WARPED_STEM:   { base: 2.0 }
+  STRIPPED_BAMBOO_BLOCK:  { base: 2.0 }
+
+  # Wood Blocks
+  OAK_WOOD:               { base: 2.0 }
+  SPRUCE_WOOD:            { base: 2.0 }
+  BIRCH_WOOD:             { base: 2.0 }
+  JUNGLE_WOOD:            { base: 2.0 }
+  ACACIA_WOOD:            { base: 2.0 }
+  DARK_OAK_WOOD:          { base: 2.0 }
+  MANGROVE_WOOD:          { base: 2.0 }
+  CHERRY_WOOD:            { base: 2.0 }
+  CRIMSON_HYPHAE:         { base: 2.0 }
+  WARPED_HYPHAE:          { base: 2.0 }
+  BAMBOO_BLOCK:           { base: 2.0 }
+
+  # Stripped Wood Blocks
+  STRIPPED_OAK_WOOD:      { base: 2.0 }
+  STRIPPED_SPRUCE_WOOD:   { base: 2.0 }
+  STRIPPED_BIRCH_WOOD:    { base: 2.0 }
+  STRIPPED_JUNGLE_WOOD:   { base: 2.0 }
+  STRIPPED_ACACIA_WOOD:   { base: 2.0 }
+  STRIPPED_DARK_OAK_WOOD: { base: 2.0 }
+  STRIPPED_MANGROVE_WOOD: { base: 2.0 }
+  STRIPPED_CHERRY_WOOD:   { base: 2.0 }
+  STRIPPED_CRIMSON_HYPHAE: { base: 2.0 }
+  STRIPPED_WARPED_HYPHAE: { base: 2.0 }
+
+  # Stairs
+  OAK_STAIRS:             { base: 1.5 }
+  SPRUCE_STAIRS:          { base: 1.5 }
+  BIRCH_STAIRS:           { base: 1.5 }
+  JUNGLE_STAIRS:          { base: 1.5 }
+  ACACIA_STAIRS:          { base: 1.5 }
+  DARK_OAK_STAIRS:        { base: 1.5 }
+  MANGROVE_STAIRS:        { base: 1.5 }
+  CHERRY_STAIRS:          { base: 1.5 }
+  BAMBOO_STAIRS:          { base: 1.5 }
+  CRIMSON_STAIRS:         { base: 2.0 }
+  WARPED_STAIRS:          { base: 2.0 }
+
+  # Slabs
+  OAK_SLAB:               { base: 0.75 }
+  SPRUCE_SLAB:            { base: 0.75 }
+  BIRCH_SLAB:             { base: 0.75 }
+  JUNGLE_SLAB:            { base: 0.75 }
+  ACACIA_SLAB:            { base: 0.75 }
+  DARK_OAK_SLAB:          { base: 0.75 }
+  MANGROVE_SLAB:          { base: 0.75 }
+  CHERRY_SLAB:            { base: 0.75 }
+  BAMBOO_SLAB:            { base: 0.75 }
+  CRIMSON_SLAB:           { base: 1.0 }
+  WARPED_SLAB:            { base: 1.0 }
+  BAMBOO_MOSAIC_SLAB:     { base: 1.0 }
+
+  # Fences
+  OAK_FENCE:              { base: 1.5 }
+  SPRUCE_FENCE:           { base: 1.5 }
+  BIRCH_FENCE:            { base: 1.5 }
+  JUNGLE_FENCE:           { base: 1.5 }
+  ACACIA_FENCE:           { base: 1.5 }
+  DARK_OAK_FENCE:         { base: 1.5 }
+  MANGROVE_FENCE:         { base: 1.5 }
+  CHERRY_FENCE:           { base: 1.5 }
+  BAMBOO_FENCE:           { base: 1.5 }
+  CRIMSON_FENCE:          { base: 2.0 }
+  WARPED_FENCE:           { base: 2.0 }
+  NETHER_BRICK_FENCE:     { base: 2.5 }
+
+  # Fence Gates
+  OAK_FENCE_GATE:         { base: 2.0 }
+  SPRUCE_FENCE_GATE:      { base: 2.0 }
+  BIRCH_FENCE_GATE:       { base: 2.0 }
+  JUNGLE_FENCE_GATE:      { base: 2.0 }
+  ACACIA_FENCE_GATE:      { base: 2.0 }
+  DARK_OAK_FENCE_GATE:    { base: 2.0 }
+  MANGROVE_FENCE_GATE:    { base: 2.0 }
+  CHERRY_FENCE_GATE:      { base: 2.0 }
+  BAMBOO_FENCE_GATE:      { base: 2.0 }
+  CRIMSON_FENCE_GATE:     { base: 2.5 }
+  WARPED_FENCE_GATE:      { base: 2.5 }
+
+  # Doors
+  OAK_DOOR:               { base: 2.0 }
+  SPRUCE_DOOR:            { base: 2.0 }
+  BIRCH_DOOR:             { base: 2.0 }
+  JUNGLE_DOOR:            { base: 2.0 }
+  ACACIA_DOOR:            { base: 2.0 }
+  DARK_OAK_DOOR:          { base: 2.0 }
+  MANGROVE_DOOR:          { base: 2.0 }
+  CHERRY_DOOR:            { base: 2.0 }
+  BAMBOO_DOOR:            { base: 2.0 }
+  CRIMSON_DOOR:           { base: 2.5 }
+  WARPED_DOOR:            { base: 2.5 }
+  IRON_DOOR:              { base: 15.0 }
+  COPPER_DOOR:            { base: 12.0 }
+
+  # Trapdoors
+  OAK_TRAPDOOR:           { base: 2.0 }
+  SPRUCE_TRAPDOOR:        { base: 2.0 }
+  BIRCH_TRAPDOOR:         { base: 2.0 }
+  JUNGLE_TRAPDOOR:        { base: 2.0 }
+  ACACIA_TRAPDOOR:        { base: 2.0 }
+  DARK_OAK_TRAPDOOR:      { base: 2.0 }
+  MANGROVE_TRAPDOOR:      { base: 2.0 }
+  CHERRY_TRAPDOOR:        { base: 2.0 }
+  BAMBOO_TRAPDOOR:        { base: 2.0 }
+  CRIMSON_TRAPDOOR:       { base: 2.5 }
+  WARPED_TRAPDOOR:        { base: 2.5 }
+  IRON_TRAPDOOR:          { base: 15.0 }
+  COPPER_TRAPDOOR:        { base: 12.0 }
+
+  # Buttons
+  SPRUCE_BUTTON:          { base: 0.5 }
+  BIRCH_BUTTON:           { base: 0.5 }
+  JUNGLE_BUTTON:          { base: 0.5 }
+  ACACIA_BUTTON:          { base: 0.5 }
+  DARK_OAK_BUTTON:        { base: 0.5 }
+  MANGROVE_BUTTON:        { base: 0.5 }
+  CHERRY_BUTTON:          { base: 0.5 }
+  BAMBOO_BUTTON:          { base: 0.5 }
+  CRIMSON_BUTTON:         { base: 1.0 }
+  WARPED_BUTTON:          { base: 1.0 }
+  POLISHED_BLACKSTONE_BUTTON: { base: 1.5 }
+
+  # Pressure Plates
+  SPRUCE_PRESSURE_PLATE:  { base: 1.0 }
+  BIRCH_PRESSURE_PLATE:   { base: 1.0 }
+  JUNGLE_PRESSURE_PLATE:  { base: 1.0 }
+  ACACIA_PRESSURE_PLATE:  { base: 1.0 }
+  DARK_OAK_PRESSURE_PLATE:{ base: 1.0 }
+  MANGROVE_PRESSURE_PLATE:{ base: 1.0 }
+  CHERRY_PRESSURE_PLATE:  { base: 1.0 }
+  BAMBOO_PRESSURE_PLATE:  { base: 1.0 }
+  CRIMSON_PRESSURE_PLATE: { base: 1.5 }
+  WARPED_PRESSURE_PLATE:  { base: 1.5 }
+  POLISHED_BLACKSTONE_PRESSURE_PLATE: { base: 1.5 }
+  LIGHT_WEIGHTED_PRESSURE_PLATE: { base: 10.0 }
+  HEAVY_WEIGHTED_PRESSURE_PLATE: { base: 15.0 }
+
+  # Signs
+  OAK_SIGN:               { base: 1.5 }
+  SPRUCE_SIGN:            { base: 1.5 }
+  BIRCH_SIGN:             { base: 1.5 }
+  JUNGLE_SIGN:            { base: 1.5 }
+  ACACIA_SIGN:            { base: 1.5 }
+  DARK_OAK_SIGN:          { base: 1.5 }
+  MANGROVE_SIGN:          { base: 1.5 }
+  CHERRY_SIGN:            { base: 1.5 }
+  BAMBOO_SIGN:            { base: 1.5 }
+  CRIMSON_SIGN:           { base: 2.0 }
+  WARPED_SIGN:            { base: 2.0 }
+
+  # Hanging Signs
+  OAK_HANGING_SIGN:       { base: 2.0 }
+  SPRUCE_HANGING_SIGN:    { base: 2.0 }
+  BIRCH_HANGING_SIGN:     { base: 2.0 }
+  JUNGLE_HANGING_SIGN:    { base: 2.0 }
+  ACACIA_HANGING_SIGN:    { base: 2.0 }
+  DARK_OAK_HANGING_SIGN:  { base: 2.0 }
+  MANGROVE_HANGING_SIGN:  { base: 2.0 }
+  CHERRY_HANGING_SIGN:    { base: 2.0 }
+  BAMBOO_HANGING_SIGN:    { base: 2.0 }
+  CRIMSON_HANGING_SIGN:   { base: 2.5 }
+  WARPED_HANGING_SIGN:    { base: 2.5 }
+
+  # Boats
+  OAK_BOAT:               { base: 5.0 }
+  SPRUCE_BOAT:            { base: 5.0 }
+  BIRCH_BOAT:             { base: 5.0 }
+  JUNGLE_BOAT:            { base: 5.0 }
+  ACACIA_BOAT:            { base: 5.0 }
+  DARK_OAK_BOAT:          { base: 5.0 }
+  MANGROVE_BOAT:          { base: 5.0 }
+  CHERRY_BOAT:            { base: 5.0 }
+  BAMBOO_RAFT:            { base: 5.0 }
+  OAK_CHEST_BOAT:         { base: 8.0 }
+  SPRUCE_CHEST_BOAT:      { base: 8.0 }
+  BIRCH_CHEST_BOAT:       { base: 8.0 }
+  JUNGLE_CHEST_BOAT:      { base: 8.0 }
+  ACACIA_CHEST_BOAT:      { base: 8.0 }
+  DARK_OAK_CHEST_BOAT:    { base: 8.0 }
+  MANGROVE_CHEST_BOAT:    { base: 8.0 }
+  CHERRY_CHEST_BOAT:      { base: 8.0 }
+  BAMBOO_CHEST_RAFT:      { base: 8.0 }
+
+  # Glass
+  GLASS:                      { base: 2.0 }
+  TINTED_GLASS:               { base: 3.5 }
+  WHITE_STAINED_GLASS:        { base: 2.5 }
+  ORANGE_STAINED_GLASS:       { base: 2.5 }
+  MAGENTA_STAINED_GLASS:      { base: 2.5 }
+  LIGHT_BLUE_STAINED_GLASS:   { base: 2.5 }
+  YELLOW_STAINED_GLASS:       { base: 2.5 }
+  LIME_STAINED_GLASS:         { base: 2.5 }
+  PINK_STAINED_GLASS:         { base: 2.5 }
+  GRAY_STAINED_GLASS:         { base: 2.5 }
+  LIGHT_GRAY_STAINED_GLASS:   { base: 2.5 }
+  CYAN_STAINED_GLASS:         { base: 2.5 }
+  PURPLE_STAINED_GLASS:       { base: 2.5 }
+  BLUE_STAINED_GLASS:         { base: 2.5 }
+  BROWN_STAINED_GLASS:        { base: 2.5 }
+  GREEN_STAINED_GLASS:        { base: 2.5 }
+  RED_STAINED_GLASS:          { base: 2.5 }
+  BLACK_STAINED_GLASS:        { base: 2.5 }
+
+  # Terracotta
+  TERRACOTTA:                 { base: 3.0 }
+  WHITE_TERRACOTTA:           { base: 3.5 }
+  ORANGE_TERRACOTTA:          { base: 3.5 }
+  MAGENTA_TERRACOTTA:         { base: 3.5 }
+  LIGHT_BLUE_TERRACOTTA:      { base: 3.5 }
+  YELLOW_TERRACOTTA:          { base: 3.5 }
+  LIME_TERRACOTTA:            { base: 3.5 }
+  PINK_TERRACOTTA:            { base: 3.5 }
+  GRAY_TERRACOTTA:            { base: 3.5 }
+  LIGHT_GRAY_TERRACOTTA:      { base: 3.5 }
+  CYAN_TERRACOTTA:            { base: 3.5 }
+  PURPLE_TERRACOTTA:          { base: 3.5 }
+  BLUE_TERRACOTTA:            { base: 3.5 }
+  BROWN_TERRACOTTA:           { base: 3.5 }
+  GREEN_TERRACOTTA:           { base: 3.5 }
+  RED_TERRACOTTA:             { base: 3.5 }
+  BLACK_TERRACOTTA:           { base: 3.5 }
+
+  # Concrete
+  WHITE_CONCRETE:             { base: 4.0 }
+  ORANGE_CONCRETE:            { base: 4.0 }
+  MAGENTA_CONCRETE:           { base: 4.0 }
+  LIGHT_BLUE_CONCRETE:        { base: 4.0 }
+  YELLOW_CONCRETE:            { base: 4.0 }
+  LIME_CONCRETE:              { base: 4.0 }
+  PINK_CONCRETE:              { base: 4.0 }
+  GRAY_CONCRETE:              { base: 4.0 }
+  LIGHT_GRAY_CONCRETE:        { base: 4.0 }
+  CYAN_CONCRETE:              { base: 4.0 }
+  PURPLE_CONCRETE:            { base: 4.0 }
+  BLUE_CONCRETE:              { base: 4.0 }
+  BROWN_CONCRETE:             { base: 4.0 }
+  GREEN_CONCRETE:             { base: 4.0 }
+  RED_CONCRETE:               { base: 4.0 }
+  BLACK_CONCRETE:             { base: 4.0 }
+
+  # ─────────────────────────────
+  # PART 2 — ORES & METALS
+  # ─────────────────────────────
+
+  COAL_ORE:                 { base: 2.0 }
+  DEEPSLATE_COAL_ORE:       { base: 2.0 }
+  IRON_ORE:                 { base: 4.0 }
+  DEEPSLATE_IRON_ORE:       { base: 4.0 }
+  COPPER_ORE:               { base: 3.0 }
+  DEEPSLATE_COPPER_ORE:     { base: 3.0 }
+  GOLD_ORE:                 { base: 6.0 }
+  DEEPSLATE_GOLD_ORE:       { base: 6.0 }
+  REDSTONE_ORE:             { base: 4.0 }
+  DEEPSLATE_REDSTONE_ORE:   { base: 4.0 }
+  LAPIS_ORE:                { base: 5.0 }
+  DEEPSLATE_LAPIS_ORE:      { base: 5.0 }
+  DIAMOND_ORE:              { base: 50.0 }
+  DEEPSLATE_DIAMOND_ORE:    { base: 55.0 }
+  EMERALD_ORE:              { base: 45.0 }
+  DEEPSLATE_EMERALD_ORE:    { base: 50.0 }
+  NETHER_QUARTZ_ORE:        { base: 4.0 }
+  NETHER_GOLD_ORE:          { base: 5.0 }
+  ANCIENT_DEBRIS:           { base: 200.0 }
+
+  RAW_IRON:                 { base: 4.0 }
+  RAW_COPPER:               { base: 3.0 }
+  RAW_GOLD:                 { base: 6.0 }
+
+  IRON_INGOT:               { base: 8.0 }
+  COPPER_INGOT:             { base: 6.0 }
+  GOLD_INGOT:               { base: 12.0 }
+  NETHERITE_INGOT:          { base: 400.0 }
+  DIAMOND:                  { base: 100.0 }
+  EMERALD:                  { base: 90.0 }
+
+  COAL:                     { base: 2.0 }
+  CHARCOAL:                 { base: 1.5 }
+  REDSTONE:                 { base: 2.0 }
+  LAPIS_LAZULI:             { base: 3.0 }
+  QUARTZ:                   { base: 4.0 }
+  AMETHYST_SHARD:           { base: 10.0 }
+
+  # ─────────────────────────────
+  # PART 3 — TOOLS, WEAPONS, ARMOR
+  # ─────────────────────────────
+
+  # Tools
+  WOODEN_SWORD:             { base: 2.0 }
+  WOODEN_PICKAXE:           { base: 2.0 }
+  WOODEN_AXE:               { base: 2.0 }
+  WOODEN_SHOVEL:            { base: 1.5 }
+  WOODEN_HOE:               { base: 1.5 }
+
+  STONE_SWORD:              { base: 4.0 }
+  STONE_PICKAXE:            { base: 4.0 }
+  STONE_AXE:                { base: 4.0 }
+  STONE_SHOVEL:             { base: 2.5 }
+  STONE_HOE:                { base: 2.5 }
+
+  COPPER_SWORD:             { base: 8.0 }
+  COPPER_PICKAXE:           { base: 8.0 }
+  COPPER_AXE:               { base: 8.0 }
+  COPPER_SHOVEL:            { base: 6.0 }
+  COPPER_HOE:               { base: 6.0 }
+
+  IRON_SWORD:               { base: 15.0 }
+  IRON_PICKAXE:             { base: 15.0 }
+  IRON_AXE:                 { base: 15.0 }
+  IRON_SHOVEL:              { base: 10.0 }
+  IRON_HOE:                 { base: 10.0 }
+
+  GOLDEN_SWORD:             { base: 20.0 }
+  GOLDEN_PICKAXE:           { base: 20.0 }
+  GOLDEN_AXE:               { base: 20.0 }
+  GOLDEN_SHOVEL:            { base: 15.0 }
+  GOLDEN_HOE:               { base: 15.0 }
+
+  DIAMOND_SWORD:            { base: 60.0 }
+  DIAMOND_PICKAXE:          { base: 60.0 }
+  DIAMOND_AXE:              { base: 60.0 }
+  DIAMOND_SHOVEL:           { base: 40.0 }
+  DIAMOND_HOE:              { base: 40.0 }
+
+  NETHERITE_SWORD:          { base: 350.0 }
+  NETHERITE_PICKAXE:        { base: 350.0 }
+  NETHERITE_AXE:            { base: 350.0 }
+  NETHERITE_SHOVEL:         { base: 250.0 }
+  NETHERITE_HOE:            { base: 250.0 }
+
+  # Weapons / ranged
+  BOW:                      { base: 8.0 }
+  CROSSBOW:                 { base: 10.0 }
+  TRIDENT:                  { base: 120.0 }
+  SHIELD:                   { base: 5.0 }
+
+  # Armor
+  LEATHER_HELMET:           { base: 6.0 }
+  LEATHER_CHESTPLATE:       { base: 10.0 }
+  LEATHER_LEGGINGS:         { base: 8.0 }
+  LEATHER_BOOTS:            { base: 6.0 }
+
+  CHAINMAIL_HELMET:         { base: 12.0 }
+  CHAINMAIL_CHESTPLATE:     { base: 20.0 }
+  CHAINMAIL_LEGGINGS:       { base: 16.0 }
+  CHAINMAIL_BOOTS:          { base: 12.0 }
+
+  COPPER_HELMET:            { base: 18.0 }
+  COPPER_CHESTPLATE:        { base: 30.0 }
+  COPPER_LEGGINGS:          { base: 25.0 }
+  COPPER_BOOTS:             { base: 18.0 }
+
+  IRON_HELMET:              { base: 25.0 }
+  IRON_CHESTPLATE:          { base: 40.0 }
+  IRON_LEGGINGS:            { base: 35.0 }
+  IRON_BOOTS:               { base: 25.0 }
+
+  GOLDEN_HELMET:            { base: 30.0 }
+  GOLDEN_CHESTPLATE:        { base: 50.0 }
+  GOLDEN_LEGGINGS:          { base: 40.0 }
+  GOLDEN_BOOTS:             { base: 30.0 }
+
+  DIAMOND_HELMET:           { base: 160.0 }
+  DIAMOND_CHESTPLATE:       { base: 250.0 }
+  DIAMOND_LEGGINGS:         { base: 200.0 }
+  DIAMOND_BOOTS:            { base: 160.0 }
+
+  NETHERITE_HELMET:         { base: 500.0 }
+  NETHERITE_CHESTPLATE:     { base: 800.0 }
+  NETHERITE_LEGGINGS:       { base: 700.0 }
+  NETHERITE_BOOTS:          { base: 500.0 }
+
+  TURTLE_HELMET:            { base: 45.0 }
+
+  # Utility
+  BUCKET:                   { base: 8.0 }
+  WATER_BUCKET:             { base: 10.0 }
+  LAVA_BUCKET:              { base: 12.0 }
+  MILK_BUCKET:              { base: 10.0 }
+  SHEARS:                   { base: 8.0 }
+  FLINT_AND_STEEL:          { base: 6.0 }
+  COMPASS:                  { base: 10.0 }
+  CLOCK:                    { base: 12.0 }
+  SPYGLASS:                 { base: 12.0 }
+  LEAD:                     { base: 6.0 }
+  NAME_TAG:                 { base: 12.0 }
+  SADDLE:                   { base: 20.0 }
+  FISHING_ROD:              { base: 3.0 }
+
+  # Food
+  APPLE:                    { base: 2.0 }
+  GOLDEN_APPLE:             { base: 50.0 }
+  ENCHANTED_GOLDEN_APPLE:   { base: 500.0 }
+  BREAD:                    { base: 3.0 }
+  COOKIE:                   { base: 1.0 }
+  MELON_SLICE:              { base: 1.0 }
+  SWEET_BERRIES:            { base: 2.0 }
+  GLOW_BERRIES:             { base: 3.0 }
+  CHORUS_FRUIT:             { base: 4.0 }
+
+  # Raw meats
+  BEEF:                     { base: 3.0 }
+  PORKCHOP:                 { base: 3.0 }
+  CHICKEN:                  { base: 2.0 }
+  MUTTON:                   { base: 2.0 }
+  RABBIT:                   { base: 2.0 }
+
+  # Cooked meats
+  COOKED_BEEF:              { base: 5.0 }
+  COOKED_PORKCHOP:          { base: 5.0 }
+  COOKED_CHICKEN:           { base: 4.0 }
+  COOKED_MUTTON:            { base: 4.0 }
+  COOKED_RABBIT:            { base: 4.0 }
+
+  # Fish
+  COD:                      { base: 2.0 }
+  SALMON:                   { base: 2.0 }
+  TROPICAL_FISH:            { base: 3.0 }
+  PUFFERFISH:               { base: 4.0 }
+  COOKED_COD:               { base: 4.0 }
+  COOKED_SALMON:            { base: 4.0 }
+
+  # Vegetables
+  CARROT:                   { base: 2.0 }
+  POTATO:                   { base: 2.0 }
+  BAKED_POTATO:             { base: 3.0 }
+  POISONOUS_POTATO:         { base: 1.0 }
+  BEETROOT:                 { base: 2.0 }
+
+  # Soups/Stews
+  MUSHROOM_STEW:            { base: 6.0 }
+  RABBIT_STEW:              { base: 8.0 }
+  BEETROOT_SOUP:            { base: 6.0 }
+  SUSPICIOUS_STEW:          { base: 10.0 }
+
+  # Combat Items
+  ARROW:                    { base: 0.5 }
+  SPECTRAL_ARROW:           { base: 2.0 }
+  TIPPED_ARROW:             { base: 3.0 }
+  TOTEM_OF_UNDYING:         { base: 500.0 }
+
+  # Books & Enchanting
+  BOOK:                     { base: 3.0 }
+  WRITABLE_BOOK:            { base: 5.0 }
+  ENCHANTED_BOOK:           { base: 50.0 }
+  EXPERIENCE_BOTTLE:        { base: 20.0 }
+
+  # Fireworks & Rockets
+  FIREWORK_ROCKET:          { base: 5.0 }
+  FIREWORK_STAR:            { base: 3.0 }
+
+  # Maps & Navigation
+  MAP:                      { base: 8.0 }
+  FILLED_MAP:               { base: 10.0 }
+
+  # Banners & Dyes
+  WHITE_BANNER:             { base: 5.0 }
+  BLACK_BANNER:             { base: 5.0 }
+  RED_BANNER:               { base: 5.0 }
+  BLUE_BANNER:              { base: 5.0 }
+  GREEN_BANNER:             { base: 5.0 }
+  YELLOW_BANNER:            { base: 5.0 }
+
+  WHITE_DYE:                { base: 1.0 }
+  BLACK_DYE:                { base: 1.0 }
+  RED_DYE:                  { base: 1.0 }
+  BLUE_DYE:                 { base: 1.0 }
+  GREEN_DYE:                { base: 1.0 }
+  YELLOW_DYE:               { base: 1.0 }
+  ORANGE_DYE:               { base: 1.0 }
+  PINK_DYE:                 { base: 1.0 }
+  PURPLE_DYE:               { base: 1.0 }
+  LIME_DYE:                 { base: 1.0 }
+  CYAN_DYE:                 { base: 1.0 }
+  LIGHT_BLUE_DYE:           { base: 1.0 }
+  MAGENTA_DYE:              { base: 1.0 }
+  GRAY_DYE:                 { base: 1.0 }
+  LIGHT_GRAY_DYE:           { base: 1.0 }
+  BROWN_DYE:                { base: 1.0 }
+
+  # Plants & Flowers
+  OAK_SAPLING:              { base: 1.0 }
+  SPRUCE_SAPLING:           { base: 1.0 }
+  BIRCH_SAPLING:            { base: 1.0 }
+  JUNGLE_SAPLING:           { base: 1.0 }
+  ACACIA_SAPLING:           { base: 1.0 }
+  DARK_OAK_SAPLING:         { base: 1.0 }
+  CHERRY_SAPLING:           { base: 2.0 }
+  MANGROVE_PROPAGULE:       { base: 2.0 }
+
+  DANDELION:                { base: 0.5 }
+  POPPY:                    { base: 0.5 }
+  BLUE_ORCHID:              { base: 1.0 }
+  ALLIUM:                   { base: 1.0 }
+  AZURE_BLUET:              { base: 0.5 }
+  TULIP:                    { base: 1.0 }
+  OXEYE_DAISY:              { base: 0.5 }
+  SUNFLOWER:                { base: 1.0 }
+  LILAC:                    { base: 1.0 }
+  ROSE_BUSH:                { base: 1.0 }
+  PEONY:                    { base: 1.0 }
+
+  SUGAR_CANE:               { base: 1.0 }
+  CACTUS:                   { base: 1.0 }
+  BAMBOO:                   { base: 0.5 }
+  KELP:                     { base: 0.5 }
+
+  # Nether Items
+  NETHERRACK:               { base: 0.5 }
+  SOUL_SAND:                { base: 2.0 }
+  SOUL_SOIL:                { base: 2.0 }
+  BASALT:                   { base: 1.0 }
+  BLACKSTONE:               { base: 1.5 }
+  NETHER_WART:              { base: 3.0 }
+  NETHER_WART_BLOCK:        { base: 10.0 }
+  WARPED_FUNGUS:            { base: 2.0 }
+  CRIMSON_FUNGUS:           { base: 2.0 }
+  WARPED_ROOTS:             { base: 1.0 }
+  CRIMSON_ROOTS:            { base: 1.0 }
+  SHROOMLIGHT:              { base: 5.0 }
+  GLOWSTONE:                { base: 4.0 }
+  MAGMA_BLOCK:              { base: 3.0 }
+
+  # End Items
+  END_STONE:                { base: 2.0 }
+  PURPUR_BLOCK:             { base: 3.0 }
+  CHORUS_PLANT:             { base: 2.0 }
+  CHORUS_FLOWER:            { base: 3.0 }
+  SHULKER_SHELL:            { base: 100.0 }
+  ELYTRA:                   { base: 1000.0 }
+  DRAGON_HEAD:              { base: 500.0 }
+  DRAGON_EGG:               { base: 5000.0 }
+
+  # Deep Dark Items
+  SCULK:                    { base: 5.0 }
+  SCULK_SENSOR:             { base: 10.0 }
+  SCULK_CATALYST:           { base: 15.0 }
+  SCULK_SHRIEKER:           { base: 20.0 }
+  SCULK_VEIN:               { base: 2.0 }
+  ECHO_SHARD:               { base: 100.0 }
+  DISC_FRAGMENT_5:          { base: 50.0 }
+
+  # Music Discs
+  MUSIC_DISC_PIGSTEP:       { base: 30.0 }
+
+  # ─────────────────────────────
+  # PART 4 — REDSTONE, MOB DROPS, MISC, SPAWN EGGS
+  # ─────────────────────────────
+
+  # Redstone components
+  REDSTONE_TORCH:            { base: 2.0 }
+  REDSTONE_LAMP:             { base: 6.0 }
+  REPEATER:                  { base: 3.0 }
+  COMPARATOR:                { base: 4.0 }
+  OBSERVER:                  { base: 6.0 }
+  HOPPER:                    { base: 10.0 }
+  DROPPER:                   { base: 4.0 }
+  DISPENSER:                 { base: 5.0 }
+  PISTON:                    { base: 5.0 }
+  STICKY_PISTON:             { base: 6.0 }
+  NOTE_BLOCK:                { base: 4.0 }
+  TARGET:                    { base: 4.0 }
+  TRIPWIRE_HOOK:             { base: 2.0 }
+  DAYLIGHT_DETECTOR:         { base: 5.0 }
+  LEVER:                     { base: 1.0 }
+  STONE_BUTTON:              { base: 1.0 }
+  OAK_BUTTON:                { base: 1.0 }
+  STONE_PRESSURE_PLATE:      { base: 1.0 }
+  OAK_PRESSURE_PLATE:        { base: 1.0 }
+  LIGHTNING_ROD:             { base: 3.0 }
+
+  # Machines / workstations
+  FURNACE:                   { base: 4.0 }
+  BLAST_FURNACE:             { base: 12.0 }
+  SMOKER:                    { base: 8.0 }
+  CRAFTING_TABLE:            { base: 2.0 }
+  ANVIL:                     { base: 50.0 }
+  GRINDSTONE:                { base: 4.0 }
+  SMITHING_TABLE:            { base: 6.0 }
+  CARTOGRAPHY_TABLE:         { base: 4.0 }
+  ENCHANTING_TABLE:          { base: 50.0 }
+  BREWING_STAND:             { base: 6.0 }
+  STONECUTTER:               { base: 4.0 }
+  COMPOSTER:                 { base: 1.0 }
+  BARREL:                    { base: 3.0 }
+  CHEST:                     { base: 4.0 }
+  ENDER_CHEST:               { base: 80.0 }
+
+  # Mob drops
+  BONE:                      { base: 2.0 }
+  BONE_MEAL:                 { base: 0.5 }
+  STRING:                    { base: 2.0 }
+  GUNPOWDER:                 { base: 4.0 }
+  ENDER_PEARL:               { base: 12.0 }
+  BLAZE_ROD:                 { base: 20.0 }
+  BLAZE_POWDER:              { base: 10.0 }
+  GHAST_TEAR:                { base: 25.0 }
+  SLIME_BALL:                { base: 8.0 }
+  MAGMA_CREAM:               { base: 10.0 }
+  PHANTOM_MEMBRANE:          { base: 15.0 }
+  RABBIT_FOOT:               { base: 6.0 }
+  RABBIT_HIDE:               { base: 1.0 }
+  HONEYCOMB:                 { base: 3.0 }
+  HONEY_BOTTLE:              { base: 5.0 }
+  FEATHER:                   { base: 1.0 }
+  LEATHER:                   { base: 2.0 }
+  INK_SAC:                   { base: 2.0 }
+  GLOW_INK_SAC:              { base: 4.0 }
+  NAUTILUS_SHELL:            { base: 15.0 }
+  HEART_OF_THE_SEA:          { base: 100.0 }
+  SCUTE:                     { base: 10.0 }
+  SPIDER_EYE:                { base: 2.0 }
+  FERMENTED_SPIDER_EYE:      { base: 5.0 }
+  ROTTEN_FLESH:              { base: 1.0 }
+  ENDER_EYE:                 { base: 25.0 }
+  NETHER_STAR:               { base: 1000.0 }
+  WITHER_SKELETON_SKULL:     { base: 50.0 }
+  SKELETON_SKULL:            { base: 20.0 }
+  ZOMBIE_HEAD:               { base: 20.0 }
+  CREEPER_HEAD:              { base: 20.0 }
+  PIGLIN_HEAD:               { base: 25.0 }
+  PLAYER_HEAD:               { base: 50.0 }
+
+  # Farming & Seeds
+  WHEAT_SEEDS:               { base: 0.5 }
+  WHEAT:                     { base: 1.0 }
+  BEETROOT_SEEDS:            { base: 0.5 }
+  PUMPKIN_SEEDS:             { base: 1.0 }
+  MELON_SEEDS:               { base: 1.0 }
+  TORCHFLOWER_SEEDS:         { base: 2.0 }
+  PITCHER_POD:               { base: 2.0 }
+  COCOA_BEANS:               { base: 1.0 }
+  PUMPKIN:                   { base: 2.0 }
+  CARVED_PUMPKIN:            { base: 3.0 }
+  JACK_O_LANTERN:            { base: 4.0 }
+  MELON:                     { base: 2.0 }
+  HAY_BLOCK:                 { base: 3.0 }
+  DRIED_KELP_BLOCK:          { base: 2.0 }
+  DRIED_KELP:                { base: 0.5 }
+
+  # Mushrooms & Fungi
+  BROWN_MUSHROOM:            { base: 1.0 }
+  RED_MUSHROOM:              { base: 1.0 }
+  BROWN_MUSHROOM_BLOCK:      { base: 2.0 }
+  RED_MUSHROOM_BLOCK:        { base: 2.0 }
+  MUSHROOM_STEM:             { base: 1.5 }
+
+  # Vines & Plants
+  VINE:                      { base: 0.5 }
+  GLOW_LICHEN:               { base: 1.0 }
+  HANGING_ROOTS:             { base: 0.5 }
+  BIG_DRIPLEAF:              { base: 2.0 }
+  SMALL_DRIPLEAF:            { base: 1.0 }
+  SPORE_BLOSSOM:             { base: 3.0 }
+  MOSS_CARPET:               { base: 0.5 }
+  MOSS_BLOCK:                { base: 1.0 }
+  AZALEA:                    { base: 2.0 }
+  FLOWERING_AZALEA:          { base: 2.5 }
+  AZALEA_LEAVES:             { base: 0.5 }
+  FLOWERING_AZALEA_LEAVES:   { base: 0.8 }
+
+  # Water Plants
+  LILY_PAD:                  { base: 0.5 }
+  SEAGRASS:                  { base: 0.2 }
+  TALL_SEAGRASS:             { base: 0.3 }
+  SEA_PICKLE:                { base: 1.0 }
+  TURTLE_EGG:                { base: 15.0 }
+  SNIFFER_EGG:               { base: 50.0 }
+  FROGSPAWN:                 { base: 5.0 }
+
+  # Other Organic
+  SPONGE:                    { base: 10.0 }
+  WET_SPONGE:                { base: 10.0 }
+  CORAL_BLOCK:               { base: 5.0 }
+  DEAD_CORAL_BLOCK:          { base: 2.0 }
+  TUBE_CORAL:                { base: 2.0 }
+  BRAIN_CORAL:               { base: 2.0 }
+  BUBBLE_CORAL:              { base: 2.0 }
+  FIRE_CORAL:                { base: 2.0 }
+  HORN_CORAL:                { base: 2.0 }
+  TUBE_CORAL_FAN:            { base: 2.0 }
+  BRAIN_CORAL_FAN:           { base: 2.0 }
+  BUBBLE_CORAL_FAN:          { base: 2.0 }
+  FIRE_CORAL_FAN:            { base: 2.0 }
+  HORN_CORAL_FAN:            { base: 2.0 }
+
+  # Crafting Materials
+  STICK:                     { base: 0.1 }
+  FLINT:                     { base: 1.0 }
+  CLAY_BALL:                 { base: 1.0 }
+  BRICK:                     { base: 1.5 }
+  NETHER_BRICK:              { base: 2.0 }
+  PRISMARINE_SHARD:          { base: 4.0 }
+  PRISMARINE_CRYSTALS:       { base: 5.0 }
+  SUGAR:                     { base: 1.0 }
+  SNOWBALL:                  { base: 0.5 }
+  EGG:                       { base: 1.0 }
+  WOOL:                      { base: 2.0 }
+
+  # Netherite Upgrade Materials
+  NETHERITE_SCRAP:           { base: 100.0 }
+  NETHERITE_UPGRADE_SMITHING_TEMPLATE: { base: 200.0 }
+
+  # Smithing Templates
+  COAST_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  DUNE_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  EYE_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  RIB_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 75.0 }
+  SNOUT_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  TIDE_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  VEX_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  WARD_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 75.0 }
+  WAYFINDER_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+  WILD_ARMOR_TRIM_SMITHING_TEMPLATE: { base: 50.0 }
+
+  # Nether stuff
+  GILDED_BLACKSTONE:         { base: 10.0 }
+  WARPED_STEM:               { base: 2.0 }
+  CRIMSON_STEM:              { base: 2.0 }
+  NETHER_BRICKS:             { base: 2.0 }
+
+  # End stuff
+  END_STONE_BRICKS:          { base: 4.0 }
+  PURPUR_PILLAR:             { base: 4.0 }
+  END_ROD:                   { base: 6.0 }
+  DRAGON_BREATH:             { base: 25.0 }
+
+  # Potions base
+  GLASS_BOTTLE:              { base: 1.0 }
+  POTION:                    { base: 5.0 }
+  SPLASH_POTION:             { base: 8.0 }
+  LINGERING_POTION:          { base: 12.0 }
+
+  # Music discs
+  MUSIC_DISC_13:             { base: 20.0 }
+  MUSIC_DISC_CAT:            { base: 20.0 }
+  MUSIC_DISC_BLOCKS:         { base: 25.0 }
+  MUSIC_DISC_CHIRP:          { base: 25.0 }
+  MUSIC_DISC_FAR:            { base: 25.0 }
+  MUSIC_DISC_MALL:           { base: 25.0 }
+  MUSIC_DISC_MELLOHI:        { base: 25.0 }
+  MUSIC_DISC_STAL:           { base: 25.0 }
+  MUSIC_DISC_STRAD:          { base: 25.0 }
+  MUSIC_DISC_WARD:           { base: 25.0 }
+  MUSIC_DISC_11:             { base: 35.0 }
+  MUSIC_DISC_WAIT:           { base: 25.0 }
+  MUSIC_DISC_OTHERSIDE:      { base: 50.0 }
+  MUSIC_DISC_5:              { base: 50.0 }
+  MUSIC_DISC_RELIC:          { base: 60.0 }
+
+  # Books / maps
+  PAPER:                     { base: 2.0 }
+
+  # Misc utilities / decor
+  TORCH:                     { base: 1.0 }
+  LANTERN:                   { base: 6.0 }
+  SOUL_LANTERN:              { base: 7.0 }
+  FLOWER_POT:                { base: 1.0 }
+  PAINTING:                  { base: 4.0 }
+  ITEM_FRAME:                { base: 4.0 }
+  ARMOR_STAND:               { base: 3.0 }
+  SCAFFOLDING:               { base: 2.0 }
+  SLIME_BLOCK:               { base: 20.0 }
+  HONEY_BLOCK:               { base: 10.0 }
+  TNT:                       { base: 12.0 }
+  FIRE_CHARGE:               { base: 4.0 }
+  END_CRYSTAL:               { base: 200.0 }
+
+  # Spawn eggs — ALL untradeable by default
+  ZOMBIE_SPAWN_EGG:          { base: -1 }
+  SKELETON_SPAWN_EGG:        { base: -1 }
+  CREEPER_SPAWN_EGG:         { base: -1 }
+  SPIDER_SPAWN_EGG:          { base: -1 }
+  ENDERMAN_SPAWN_EGG:        { base: -1 }
+  VILLAGER_SPAWN_EGG:        { base: -1 }
+  COW_SPAWN_EGG:             { base: -1 }
+  PIG_SPAWN_EGG:             { base: -1 }
+  SHEEP_SPAWN_EGG:           { base: -1 }
+  CHICKEN_SPAWN_EGG:         { base: -1 }
+  HORSE_SPAWN_EGG:           { base: -1 }
+  WOLF_SPAWN_EGG:            { base: -1 }
+  OCELOT_SPAWN_EGG:          { base: -1 }
+  GHAST_SPAWN_EGG:           { base: -1 }
+  BLAZE_SPAWN_EGG:           { base: -1 }
+  SLIME_SPAWN_EGG:           { base: -1 }
+
+# ================================================================
+# SPECIAL SHOP ITEMS (permissions and server-shop)
+# ================================================================
+# These are added dynamically via /shopadmin commands
+# Format is automatically generated
+special_items: {}

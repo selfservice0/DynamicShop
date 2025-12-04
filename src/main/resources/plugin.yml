@@ -1,0 +1,34 @@
+# plugin.yml
+name: DynamicShop
+version: 2.1.1
+main: org.minecraftsmp.dynamicshop.DynamicShop
+api-version: 1.20
+author: selfservice0
+description: A dynamic economy shop with player-interactive GUI
+website: https://minecraftsmp.org
+
+# Change this line:
+# depend: [Vault, ProtocolLib]
+softdepend: [Vault, ProtocolLib, PlaceholderAPI]   # ← Added PlaceholderAPI here
+# depend stays only for hard requirements
+depend: [Vault, ProtocolLib]
+
+commands:
+  shop:
+    description: Open the dynamic shop GUI
+    usage: /shop [sell <price>]
+    aliases: [ dshop, market ]
+    permission: dynamicshop.use
+  shopadmin:
+    description: Admin commands for managing the shop
+    usage: /shopadmin <reload|save|reset|setstock|info>
+    aliases: [dsa, shopadm]
+    permission: dynamicshop.admin
+
+permissions:
+  dynamicshop.use:
+    description: Allows using the shop
+    default: true
+  dynamicshop.admin:
+    description: Allows managing the shop
+    default: op

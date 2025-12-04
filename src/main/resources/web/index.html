@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DynamicShop Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🛒 DynamicShop Dashboard</h1>
+            <p class="subtitle">Real-time shop analytics and transaction monitoring</p>
+            <div class="header-actions">
+                <button class="refresh-btn" onclick="refreshData()">
+                    <span class="refresh-icon">↻</span> Refresh
+                </button>
+                <div class="last-updated">Last updated: <span id="lastUpdate">--</span></div>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📦</div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Transactions</div>
+                    <div class="stat-value" id="totalTransactions">--</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Volume</div>
+                    <div class="stat-value" id="totalMoney">--</div>
+                </div>
+            </div>
+
+            <div class="stat-card buy">
+                <div class="stat-icon">📈</div>
+                <div class="stat-content">
+                    <div class="stat-label">Purchases</div>
+                    <div class="stat-value" id="totalBuys">--</div>
+                </div>
+            </div>
+
+            <div class="stat-card sell">
+                <div class="stat-icon">📉</div>
+                <div class="stat-content">
+                    <div class="stat-label">Sales</div>
+                    <div class="stat-value" id="totalSells">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+            <h2>🔍 Filters</h2>
+            <div class="filters">
+                <input type="text" id="playerFilter" placeholder="Search by player..." class="filter-input">
+                <input type="text" id="itemFilter" placeholder="Search by item..." class="filter-input">
+                <select id="typeFilter" class="filter-select">
+                    <option value="">All Types</option>
+                    <option value="BUY">Purchases Only</option>
+                    <option value="SELL">Sales Only</option>
+                </select>
+                <button class="filter-btn" onclick="applyFilters()">Apply Filters</button>
+                <button class="clear-btn" onclick="clearFilters()">Clear</button>
+            </div>
+        </div>
+
+        <!-- Transactions Table -->
+        <div class="transactions-section">
+            <div class="section-header">
+                <h2>📋 Recent Transactions</h2>
+                <div class="pagination">
+                    <button class="page-btn" onclick="previousPage()" id="prevBtn">← Previous</button>
+                    <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+                    <button class="page-btn" onclick="nextPage()" id="nextBtn">Next →</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('timestamp')">Time <span class="sort-icon">⇅</span></th>
+                            <th onclick="sortTable('playerName')">Player <span class="sort-icon">⇅</span></th>
+                            <th onclick="sortTable('type')">Type <span class="sort-icon">⇅</span></th>
+                            <th onclick="sortTable('item')">Item <span class="sort-icon">⇅</span></th>
+                            <th onclick="sortTable('amount')">Amount <span class="sort-icon">⇅</span></th>
+                            <th onclick="sortTable('price')">Price <span class="sort-icon">⇅</span></th>
+                            <th onclick="sortTable('category')">Category <span class="sort-icon">⇅</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsBody">
+                        <tr>
+                            <td colspan="7" class="loading">Loading transactions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Top Items & Players -->
+        <div class="insights-grid">
+            <div class="insight-card">
+                <h3>🔥 Top Items Traded</h3>
+                <div id="topItems" class="insight-list">Loading...</div>
+            </div>
+
+            <div class="insight-card">
+                <h3>👥 Most Active Players</h3>
+                <div id="topPlayers" class="insight-list">Loading...</div>
+            </div>
+
+            <div class="insight-card">
+                <h3>📊 Category Distribution</h3>
+                <div id="categoryStats" class="insight-list">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>DynamicShop v2.0 • Made by selfservice0 • <a href="https://minecraftsmp.org" target="_blank">MinecraftSMP</a></p>
+        </footer>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

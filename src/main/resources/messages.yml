@@ -1,0 +1,151 @@
+# DynamicShop Messages Configuration
+# Supports color codes using & (e.g., &a = green, &c = red)
+# Supports placeholders using {placeholder_name}
+
+messages:
+  # Prefix shown before most messages
+  prefix: "&6&lDynamicShop &7» "
+
+  # General messages
+  no-permission: "&cYou don't have permission to do that."
+  reloaded: "&aPlugin configuration reloaded successfully!"
+  invalid-number: "&cInvalid number provided."
+
+  # Purchase messages
+  purchase-success: "&aYou purchased &e{item} &afor &e{price}&a!"
+  purchase-failed: "&cPurchase failed. Please try again."
+  not-enough-money: "&cYou don't have enough money! Need: &e{price}"
+  cannot-purchase: "&cThis item cannot be purchased."
+  out-of-stock: "&cThis item is out of stock!"
+
+  # Sell messages
+  sold-item: "&aYou sold &e{item} &afor &e{price}&a!"
+  cannot-sell: "&cThis item cannot be sold."
+  no-item-to-sell: "&cYou don't have any &e{item} &cto sell."
+
+  # Category messages
+  category-opened: "&aOpened category: &e{category}"
+  category-empty: "&cThis category has no items available for purchase."
+  unknown-category: "&cUnknown category: &e{category}"
+  list-categories: "&7Valid categories:"
+  cannot-access-special-category: "&cYou cannot access this category directly."
+
+  # Search messages
+  search-no-results: "&cNo items found matching your search."
+
+  # Special shop messages (permissions & server-shop)
+  special-permission-success: "&aPermission granted: &e{permission}"
+  special-permission-failed: "&cFailed to grant permission. Please contact an administrator."
+  special-permission-already-owned: "&cYou already have this permission."
+
+  special-server-item-success: "&aYou received: &e{identifier}"
+  special-server-item-failed: "&cFailed to give item. Please contact an administrator."
+
+  unknown-special-item: "&cUnknown special shop item type."
+  cannot-sell-special-item: "&cYou cannot sell special items!"
+
+  # Inventory messages
+  inventory-full: "&cYour inventory is full!"
+  item-added: "&aAdded &e{amount}x {item} &ato your inventory."
+
+  # Shop transaction messages
+  bought-item: "&aBought &e{amount}x &a{item} &7for &e{price}&a!"
+  sold-item-success: "&aSold &e{amount}x &a{item} &7for &e{price}"
+  not-enough-items: "&cYou don't have any &e{item} &cto sell!"
+  not-enough-money-need: "&cNot enough money! Need &e{price}"
+  search-enter-term: "&cPlease enter a search term!"
+
+  # Inventory lore (shown on items in player inventory when shop is open)
+  lore-buy-price: "&7Buy: &e{price}"
+  lore-sell-price: "&7Sell: &e{price}"
+  lore-stock: "&7Stock: &a{stock}"
+  lore-stock-negative: "&7Stock: &c{stock}"
+  lore-out-of-stock: "&c&lOUT OF STOCK"
+  lore-click-to-sell-1: "&aRight-Click to SELL 1"
+  lore-shift-click-to-sell-64: "&aShift+Right-Click to SELL 64"
+
+  # Shop GUI lore (shown on items in shop menus)
+  shop-lore-buy-price: "&7Buy Price: &e{price}"
+  shop-lore-sell-price: "&7Sell Price: &e{price}"
+  shop-lore-price-increase: "&7Price Increase: &c+{percent}% (&c2% per hour&7)"
+  shop-lore-low-stock: "&eLow Stock Warning!"
+  shop-lore-left-click-buy: "&bLeft Click: &7Buy 1"
+  shop-lore-shift-left-click-buy: "&bShift+Left Click: &7Buy 64"
+  shop-lore-right-click-sell: "&bRight Click: &7Sell 1"
+  shop-lore-shift-right-click-sell: "&bShift+Right Click: &7Sell 64"
+  shop-lore-left-click-buy-arrow: "&bLeft Click → Buy 1"
+  shop-lore-shift-left-click-buy-arrow: "&bShift+Left Click → Buy 64"
+  shop-lore-right-click-sell-arrow: "&bRight Click → Sell 1"
+  shop-lore-shift-right-click-sell-arrow: "&bShift+Right Click → Sell 64"
+  shop-lore-price-increase-note: "&7(2% per hour while out of stock)"
+  shop-lore-low-stock-emphasis: "&e&lLOW STOCK!"
+
+  # Admin messages
+  admin-item-added: "&aAdded &e{item} &ato category &e{category} &awith price &e${price}"
+  admin-item-removed: "&aRemoved &e{item} &afrom shop."
+  admin-permission-added: "&aAdded permission shop item: &e{permission} &7(${price})"
+  admin-server-shop-added: "&aAdded server-shop item: &e{identifier} &7(${price})"
+  admin-must-hold-item: "&cYou must be holding an item."
+  admin-unknown-category: "&cUnknown category: &e{category}"
+  admin-list-categories: "&7Valid categories:"
+  admin-price-negative: "&cPrice must be greater than or equal to 0."
+
+  # Admin command usage
+  admin-help-header: "&e&lDynamicShop Admin Commands:"
+  admin-help-reload: "&7/shopadmin reload"
+  admin-help-add-item: "&7/shopadmin add item <price>"
+  admin-help-add-perm: "&7/shopadmin add perm <price> <permission.node>"
+  admin-help-add-server-shop: "&7/shopadmin add server-shop <price> <id>"
+
+  admin-add-usage-header: "&eUsage:"
+  admin-usage-add-item: "&cUsage: /shopadmin add item <price>"
+  admin-usage-add-perm: "&cUsage: /shopadmin add perm <price> <permission.node>"
+  admin-usage-add-server-shop: "&cUsage: /shopadmin add server-shop <price> <identifier>"
+
+  # Player Shop messages
+  playershop-listed: "&a✓ &7Listed &f{item} &7x{amount} &7for &a${price}"
+  playershop-listed-success: "&7Players can now buy this from your shop!"
+  playershop-reclaimed: "&a✓ &7Reclaimed &f{item} &7x{amount}"
+  playershop-purchased: "&a✓ &7Purchased &f{item} &7x{amount} &7for &a${price}"
+  playershop-sold-notification: "&a✓ &7Your &f{item} &7x{amount} &7was purchased by &e{buyer} &7for &a${price}"
+  playershop-max-listings: "&c✗ &7You've reached the maximum of &c{max} &7listings!"
+  playershop-remove-items-first: "&7Remove some items from your shop first."
+  playershop-shop-empty: "&7Your shop is now empty."
+  playershop-other-shop-empty: "&7This shop is now empty."
+  playershop-hold-item: "&c✗ &7Hold an item in your hand to list it!"
+  playershop-invalid-price: "&c✗ &7Invalid price! Usage: &e/shop sell <price>"
+  playershop-price-example: "&7Example: &e/shop sell 100"
+  playershop-price-must-be-positive: "&c✗ &7Price must be greater than 0!"
+  playershop-no-permission-sell: "&c✗ &7You don't have permission to sell items!"
+  playershop-listing-failed: "&c✗ &7Failed to list item!"
+  playershop-not-enough-money: "&c✗ &7You need &c${price} &7to buy this item!"
+  playershop-not-enough-space: "&c✗ &7Not enough inventory space!"
+
+# ================================================================
+# Translation Guide
+# ================================================================
+# To translate this file to another language:
+# 1. Translate the text after the colons (keep {placeholders} as-is)
+# 2. Keep the color codes (&a, &c, etc.) or change them as desired
+# 3. DO NOT change the message keys (the text before the colon)
+#
+# Example Spanish translation:
+# purchase-success: "&aCompraste &e{item} &apor &e{price}&a!"
+# ================================================================
+
+# ================================================================
+# Color Code Reference
+# ================================================================
+# &0 = Black          &8 = Dark Gray
+# &1 = Dark Blue      &9 = Blue
+# &2 = Dark Green     &a = Green
+# &3 = Dark Aqua      &b = Aqua
+# &4 = Dark Red       &c = Red
+# &5 = Dark Purple    &d = Light Purple
+# &6 = Gold           &e = Yellow
+# &7 = Gray           &f = White
+#
+# &l = Bold           &o = Italic
+# &n = Underline      &m = Strikethrough
+# &k = Magic          &r = Reset
+# ================================================================
