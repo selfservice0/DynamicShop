@@ -155,6 +155,92 @@ body {
     color: var(--text-primary);
 }
 
+/* Economy Health Section */
+.health-section {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.health-section h2 {
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.health-card {
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.health-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.health-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.health-value.positive {
+    color: var(--success);
+}
+
+.health-value.negative {
+    color: var(--danger);
+}
+
+/* Time Range Section */
+.time-range-section {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.time-range-section h3 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.time-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.time-btn {
+    padding: 0.5rem 1rem;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.time-btn:hover {
+    background: var(--border);
+}
+
+.time-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
 /* Filters Section */
 .filters-section {
     background: var(--bg-secondary);
@@ -244,6 +330,18 @@ body {
     font-size: 1.5rem;
 }
 
+.section-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.result-count {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
 .pagination {
     display: flex;
     align-items: center;
@@ -308,8 +406,22 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
+.transactions-table tbody tr {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
 .transactions-table tbody tr:hover {
     background: var(--bg-tertiary);
+}
+
+.item-cell {
+    font-weight: 500;
+}
+
+.high-value {
+    color: var(--warning);
+    font-weight: bold;
 }
 
 .type-badge {
@@ -334,6 +446,150 @@ body {
     text-align: center;
     padding: 2rem;
     color: var(--text-muted);
+}
+
+/* Trends Section */
+.trends-section {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.trends-section h2 {
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.trends-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.trend-card {
+    background: var(--bg-tertiary);
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.trend-card h3 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.trend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.trend-item {
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.trend-item:hover {
+    transform: translateX(4px);
+    background: var(--border);
+}
+
+.trend-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.trend-name {
+    font-weight: 600;
+}
+
+.trend-change {
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.trend-change.positive {
+    color: var(--success);
+}
+
+.trend-change.negative {
+    color: var(--danger);
+}
+
+.trend-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Leaderboards Section */
+.leaderboards-section {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.leaderboards-section h2 {
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.leaderboards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.leaderboard-card {
+    background: var(--bg-tertiary);
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.leaderboard-card h3 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+}
+
+.rank {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary);
+    min-width: 2rem;
+}
+
+.player-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.player-value {
+    color: var(--success);
+    font-weight: 600;
 }
 
 /* Insights Grid */
@@ -370,6 +626,7 @@ body {
     background: var(--bg-tertiary);
     border-radius: 8px;
     transition: transform 0.2s;
+    cursor: pointer;
 }
 
 .insight-item:hover {
@@ -383,6 +640,88 @@ body {
 .insight-value {
     color: var(--primary);
     font-weight: 600;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    margin: auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 8px 16px var(--shadow);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.modal-close {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.modal-section {
+    margin-bottom: 1.5rem;
+}
+
+.modal-section h3 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.modal-transactions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.modal-tx {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    font-size: 0.9rem;
 }
 
 /* Footer */
@@ -425,7 +764,36 @@ body {
         align-items: flex-start;
     }
 
-    .insights-grid {
+    .section-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pagination {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .insights-grid,
+    .trends-grid,
+    .leaderboards-grid {
         grid-template-columns: 1fr;
+    }
+
+    .health-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .time-buttons {
+        width: 100%;
+    }
+
+    .time-btn {
+        flex: 1;
+    }
+
+    .modal-content {
+        width: 95%;
     }
 }
