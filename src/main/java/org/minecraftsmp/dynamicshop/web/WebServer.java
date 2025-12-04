@@ -52,16 +52,25 @@ public class WebServer {
                 }
             }).start(host, port);
 
+            // Basic endpoints
             app.get("/", ctx -> ctx.redirect("/index.html"));
-            app.get("/api/recent",       this::handleRecent);
-            app.get("/api/player/{name}",    this::handlePlayer);
-            app.get("/api/item/{item}",  this::handleItem);
-            app.get("/api/date/{date}",  this::handleDate);
-            app.get("/api/stats",        this::handleStats);
+            app.get("/api/recent", this::handleRecent);
+            app.get("/api/player/{name}", this::handlePlayer);
+            app.get("/api/item/{item}", this::handleItem);
+            app.get("/api/date/{date}", this::handleDate);
+            app.get("/api/stats", this::handleStats);
+
+            // NEW ANALYTICS ENDPOINTS
+            app.get("/api/analytics/economy", this::handleEconomyHealth);
+            app.get("/api/analytics/price-history/{item}", this::handlePriceHistory);
+            app.get("/api/analytics/leaderboard", this::handleLeaderboard);
+            app.get("/api/analytics/trends", this::handleTrends);
+            app.get("/api/analytics/time-distribution", this::handleTimeDistribution);
+            app.get("/api/analytics/items", this::handleItemList);
 
             plugin.getLogger().info("Web dashboard → http://" + host + ":" + port);
         } catch (Exception e) {
-            plugin.getLogger().severe("═══════════════════════════════════════════════════════");
+            plugin.getLogger().severe("╔═══════════════════════════════════════════════════╗");
             plugin.getLogger().severe("FAILED TO START WEB SERVER! Port locked?");
             plugin.getLogger().severe("The plugin will continue without the web dashboard.");
             plugin.getLogger().severe("");
@@ -70,8 +79,8 @@ public class WebServer {
             plugin.getLogger().severe("    enabled: false");
             plugin.getLogger().severe("");
             plugin.getLogger().severe("Error: " + e.getMessage());
-            plugin.getLogger().severe("═══════════════════════════════════════════════════════");
-            app = null; // Make sure it's null so stop() doesn't crash
+            plugin.getLogger().severe("╚═══════════════════════════════════════════════════╝");
+            app = null;
         }
     }
 
@@ -79,10 +88,6 @@ public class WebServer {
         if (app != null) app.stop();
     }
 
-    /**
-     * Extract web dashboard files from JAR to the web directory.
-     * Only extracts if files don't exist or if force-update is enabled.
-     */
     private void extractWebFiles(File webDir) {
         String[] webFiles = {"index.html", "style.css", "dashboard.js"};
         boolean forceUpdate = plugin.getConfig().getBoolean("webserver.force-update-files", false);
@@ -90,7 +95,6 @@ public class WebServer {
         for (String fileName : webFiles) {
             File targetFile = new File(webDir, fileName);
 
-            // Skip if file exists and not forcing update
             if (targetFile.exists() && !forceUpdate) {
                 continue;
             }
@@ -101,7 +105,6 @@ public class WebServer {
                     continue;
                 }
 
-                // Copy file from JAR to disk
                 java.nio.file.Files.copy(input, targetFile.toPath(),
                         java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
@@ -120,11 +123,25 @@ public class WebServer {
         return mapper;
     }
 
-    // All handlers use safe list
-    private void handleRecent(Context ctx)   { send(ctx, 100, null); }
-    private void handlePlayer(Context ctx) { send(ctx, 200, t -> t.getPlayerName().equalsIgnoreCase(ctx.pathParam("name"))); }
-    private void handleItem(Context ctx)     { send(ctx, 200, t -> t.getItem().equalsIgnoreCase(ctx.pathParam("item"))); }
-    private void handleDate(Context ctx)     { send(ctx, 500, t -> t.getDate().equals(ctx.pathParam("date"))); }
+    // ═══════════════════════════════════════════════════════════════
+    // BASIC ENDPOINTS
+    // ═══════════════════════════════════════════════════════════════
+
+    private void handleRecent(Context ctx) {
+        send(ctx, 100, null);
+    }
+
+    private void handlePlayer(Context ctx) {
+        send(ctx, 200, t -> t.getPlayerName().equalsIgnoreCase(ctx.pathParam("name")));
+    }
+
+    private void handleItem(Context ctx) {
+        send(ctx, 200, t -> t.getItem().equalsIgnoreCase(ctx.pathParam("item")));
+    }
+
+    private void handleDate(Context ctx) {
+        send(ctx, 500, t -> t.getDate().equals(ctx.pathParam("date")));
+    }
 
     private void send(Context ctx, int defLimit, Predicate<Transaction> filter) {
         int limit = parseLimit(ctx.queryParam("limit"), defLimit);
@@ -132,7 +149,7 @@ public class WebServer {
                 .filter(filter == null ? t -> true : filter)
                 .sorted((a, b) -> b.getTimestampRaw().compareTo(a.getTimestampRaw()))
                 .limit(limit)
-                .map(t -> new TransactionDTO(t))  // THIS LINE NOW COMPILES
+                .map(TransactionDTO::new)
                 .collect(Collectors.toList());
         ctx.json(safeList);
     }
@@ -142,6 +159,7 @@ public class WebServer {
         long buys = txs.stream().filter(t -> t.getType() == Transaction.TransactionType.BUY).count();
         long sells = txs.stream().filter(t -> t.getType() == Transaction.TransactionType.SELL).count();
         double money = txs.stream().mapToDouble(Transaction::getPrice).sum();
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("total", txs.size());
         stats.put("buys", buys);
@@ -149,6 +167,57 @@ public class WebServer {
         stats.put("totalMoney", money);
 
         ctx.json(stats);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // NEW ANALYTICS ENDPOINTS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * GET /api/analytics/economy
+     * Returns overall economy health metrics
+     */
+    private void handleEconomyHealth(Context ctx) {
+        var txs = plugin.getTransactionLogger().getRecentTransactions();
+
+        long buys = txs.stream().filter(t -> t.getType() == Transaction.TransactionType.BUY).count();
+        long sells = txs.stream().filter(t -> t.getType() == Transaction.TransactionType.SELL).count();
+
+        double totalBuyValue = txs.stream()
+                .filter(t -> t.getType() == Transaction.TransactionType.BUY)
+                .mapToDouble(Transaction::getPrice).sum();
+
+        double totalSellValue = txs.stream()
+                .filter(t -> t.getType() == Transaction.TransactionType.SELL)
+                .mapToDouble(Transaction::getPrice).sum();
+
+        double avgTransaction = txs.isEmpty() ? 0 :
+                txs.stream().mapToDouble(Transaction::getPrice).average().orElse(0);
+
+        // Calculate velocity (txs per hour)
+        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+        long recentTxs = txs.stream()
+                .filter(t -> t.getTimestampRaw().isAfter(oneHourAgo))
+                .count();
+
+        // Get unique items and players
+        long uniqueItems = txs.stream().map(Transaction::getItem).distinct().count();
+        long uniquePlayers = txs.stream().map(Transaction::getPlayerName).distinct().count();
+
+        Map<String, Object> health = new HashMap<>();
+        health.put("totalTransactions", txs.size());
+        health.put("buyCount", buys);
+        health.put("sellCount", sells);
+        health.put("buyRatio", txs.isEmpty() ? 0 : (double) buys / txs.size());
+        health.put("totalBuyValue", totalBuyValue);
+        health.put("totalSellValue", totalSellValue);
+        health.put("netFlow", totalSellValue - totalBuyValue);
+        health.put("avgTransaction", avgTransaction);
+        health.put("velocity", recentTxs);
+        health.put("uniqueItems", uniqueItems);
+        health.put("uniquePlayers", uniquePlayers);
+
+        ctx.json(health);
     }
 
     /**
@@ -362,13 +431,22 @@ public class WebServer {
         ctx.json(items);
     }
 
-    //Utility
+    // ═══════════════════════════════════════════════════════════════
+    // UTILITY METHODS
+    // ═══════════════════════════════════════════════════════════════
+
     private int parseLimit(String s, int def) {
-        try { return s == null ? def : Math.min(Integer.parseInt(s), 1000); }
-        catch (Exception e) { return def; }
+        try {
+            return s == null ? def : Math.min(Integer.parseInt(s), 1000);
+        } catch (Exception e) {
+            return def;
+        }
     }
 
-    // SAFE DTO
+    // ═══════════════════════════════════════════════════════════════
+    // DTOs (Data Transfer Objects)
+    // ═══════════════════════════════════════════════════════════════
+
     private record TransactionDTO(
             String timestamp,
             String playerName,
