@@ -88,7 +88,7 @@ DynamicShop allows control over:
 Installation
 ------------------------------------------------------------
 
-1. Install Java 17 or newer.
+1. Install Java 21 or newer.
 2. Drop the plugin JAR into the /plugins folder.
 3. Start the server to generate configuration files.
 4. Adjust config.yml for desired economic behavior.
