@@ -7,10 +7,10 @@ author: selfservice0
 description: A dynamic economy shop with player-interactive GUI
 website: https://minecraftsmp.org
 
-# Change this line:
+
 # depend: [Vault, ProtocolLib]
-softdepend: [Vault, ProtocolLib, PlaceholderAPI]   # ← Added PlaceholderAPI here
-# depend stays only for hard requirements
+softdepend: [Vault, ProtocolLib, PlaceholderAPI]
+
 depend: [Vault, ProtocolLib]
 
 commands:
