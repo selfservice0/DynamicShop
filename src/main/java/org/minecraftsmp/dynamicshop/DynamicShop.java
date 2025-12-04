@@ -40,7 +40,7 @@ public class DynamicShop extends JavaPlugin {
         getLogger().info("§aDynamicShop is enabling...");
 
         // --------------------------------------------------------------------
-        // CONFIG CACHE (MUST BE FIRST)
+        // CONFIG CACHE
         // --------------------------------------------------------------------
         ConfigCacheManager.init(this);
 

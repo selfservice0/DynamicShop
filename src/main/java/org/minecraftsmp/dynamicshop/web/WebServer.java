@@ -111,11 +111,10 @@ public class WebServer {
         }
     }
 
-    // THIS METHOD IS THE FINAL FIX — DO NOT CHANGE IT
     private ObjectMapper createFixedMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-        // THIS LINE KILLS THE INFINITE RECURSION FOREVER
+
         mapper.configOverride(DynamicShop.class).setIsIgnoredType(true);
         mapper.configOverride(JavaPlugin.class).setIsIgnoredType(true);
         return mapper;
