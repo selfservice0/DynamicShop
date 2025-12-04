@@ -7,7 +7,7 @@ A fully dynamic, supply-and-demand driven economy system for Minecraft servers.
 Project Information
 ------------------------------------------------------------
 
-Java Version: 17+
+Java Version: 21+
 License: All Rights Reserved
 Repository: https://github.com/selfservice0/DynamicShop
 
