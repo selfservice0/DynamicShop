@@ -42,12 +42,12 @@ public class SearchResultsGUI {
         open();
     }
 
-    private void open() {
+    public void open() {
         // VALID TITLE SO SHOPLISTENER DETECTS IT
         inventory = pm.createVirtualInventory(
                 player,
                 54,
-                "§8Search Results: §f" + results.size()
+                "Â§8Search Results: Â§f" + results.size()
         );
 
         render();
@@ -66,17 +66,17 @@ public class SearchResultsGUI {
             pm.sendSlot(inventory, i, null);
         }
 
-        // Items (0–44)
+        // Items
         int limit = Math.min(45, results.size());
         for (int i = 0; i < limit; i++) {
             pm.sendSlot(inventory, i, buildResultItem(results.get(i)));
         }
 
-        // NAVIGATION — BACK BUTTON
+        // NAVIGATION BACK BUTTON
         ItemStack back = ShopItemBuilder.navItem(
-                "§c§lBack to Categories",
+                "Â§cÂ§lBack to Categories",
                 Material.BARRIER,
-                "§7Return to main menu"
+                "Â§7Return to main menu"
         );
         pm.sendSlot(inventory, 49, back);
     }
@@ -86,7 +86,7 @@ public class SearchResultsGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        meta.setDisplayName("§e" + mat.name().toLowerCase().replace("_", " "));
+        meta.setDisplayName("Â§e" + mat.name().toLowerCase().replace("_", " "));
 
         double buy = ShopDataManager.getTotalBuyCost(mat, 1);
         double sell = ShopDataManager.getTotalSellValue(mat, 1);
@@ -95,26 +95,26 @@ public class SearchResultsGUI {
         List<String> lore = new ArrayList<>();
 
         // BUY
-        lore.add("§aBuy: §f" + plugin.getEconomyManager().format(buy));
+        lore.add("Â§aBuy: Â§f" + plugin.getEconomyManager().format(buy));
 
         // SELL
-        lore.add("§cSell: §f" + plugin.getEconomyManager().format(sell));
+        lore.add("Â§cSell: Â§f" + plugin.getEconomyManager().format(sell));
         lore.add("");
 
         // STOCK
         if (stock < 0) {
-            lore.add("§cStock: " + (int) stock + " (negative)");
+            lore.add("Â§cStock: " + (int) stock + " (negative)");
         } else if (stock == 0) {
-            lore.add("§eOut of stock");
+            lore.add("Â§eOut of stock");
         } else {
-            lore.add("§7Stock: §f" + (int) stock);
+            lore.add("Â§7Stock: Â§f" + (int) stock);
         }
 
         lore.add("");
-        lore.add("§eLeft-Click: §7Buy 1");
-        lore.add("§eShift+Left: §7Buy 64");
-        lore.add("§cRight-Click: §7Sell 1");
-        lore.add("§cShift+Right: §7Sell 64");
+        lore.add("Â§eLeft-Click: Â§7Buy 1");
+        lore.add("Â§eShift+Left: Â§7Buy 64");
+        lore.add("Â§cRight-Click: Â§7Sell 1");
+        lore.add("Â§cShift+Right: Â§7Sell 64");
 
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -153,7 +153,7 @@ public class SearchResultsGUI {
             }
 
             if (amount <= 0) {
-                player.sendMessage("§cYou have no §f" + mat.name() + "§c to sell!");
+                player.sendMessage("Â§cYou have no Â§f" + mat.name() + "Â§c to sell!");
                 return;
             }
 

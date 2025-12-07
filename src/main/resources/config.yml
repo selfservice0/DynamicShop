@@ -990,7 +990,6 @@ items:
   # Water Plants
   LILY_PAD:                  { base: 0.5 }
   SEAGRASS:                  { base: 0.2 }
-  TALL_SEAGRASS:             { base: 0.3 }
   SEA_PICKLE:                { base: 1.0 }
   TURTLE_EGG:                { base: 15.0 }
   SNIFFER_EGG:               { base: 50.0 }

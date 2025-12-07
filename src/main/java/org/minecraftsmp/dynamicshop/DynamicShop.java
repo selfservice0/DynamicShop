@@ -6,6 +6,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.minecraftsmp.dynamicshop.commands.ShopAdminCommand;
 import org.minecraftsmp.dynamicshop.commands.ShopCommand;
 
+import org.minecraftsmp.dynamicshop.gui.SearchResultsGUI;
 import org.minecraftsmp.dynamicshop.managers.*;
 import org.minecraftsmp.dynamicshop.listeners.ShopListener;
 import org.minecraftsmp.dynamicshop.placeholder.DynamicShopExpansion;
@@ -26,6 +27,7 @@ public class DynamicShop extends JavaPlugin {
     private WebServer webServer;
     private MessageManager messageManager;
     private PlayerShopManager playerShopManager;
+    private SearchResultsGUI searchResultsGUI;
     private PlayerShopListener playerShopListener;
     private EmbeddedP2PManager p2pCrossServerManager;
 
@@ -63,6 +65,9 @@ public class DynamicShop extends JavaPlugin {
 
         transactionLogger = new TransactionLogger(this);
         transactionLogger.init();
+
+        this.shopListener = new ShopListener(this);
+        getServer().getPluginManager().registerEvents(shopListener, this);
 
         // Data manager (loads items & categories)
         this.p2pCrossServerManager = new EmbeddedP2PManager(this);
@@ -187,6 +192,10 @@ public class DynamicShop extends JavaPlugin {
 
     public PlayerShopListener getPlayerShopListener() {
         return playerShopListener;
+    }
+
+    public SearchResultsGUI getSearchResultsGUI() {
+        return searchResultsGUI;
     }
 
     public EmbeddedP2PManager getP2PCrossServerManager() {
