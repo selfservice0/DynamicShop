@@ -22,15 +22,15 @@ import java.util.Map;
 /**
  * /shopadmin command
  *
- *  Supported:
- *   /shopadmin reload
- *   /shopadmin add item <price>
- *   /shopadmin add perm <price> <permission.node>
- *   /shopadmin add server-shop <price> <identifier>
+ * Supported:
+ * /shopadmin reload
+ * /shopadmin add item <price>
+ * /shopadmin add perm <price> <permission.node>
+ * /shopadmin add server-shop <price> <identifier>
  *
- *   Notes:
- *    - For server shop NBT items:
- *      /shopadmin add server-shop <price> <id> nbt <material> <nbt string...>
+ * Notes:
+ * - For server shop NBT items:
+ * /shopadmin add server-shop <price> <id> nbt <material> <nbt string...>
  */
 public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
@@ -64,9 +64,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
             // /shopadmin reload
             // --------------------------------------------------------------
             case "reload" -> {
-                plugin.reloadConfig();
-                ShopDataManager.reload();
-                plugin.getSpecialShopManager().reload(); // Reload special items too
+                plugin.reload(); // Use centralized reload method
                 sender.sendMessage(plugin.getMessageManager().getMessage("reloaded"));
                 return true;
             }
@@ -99,7 +97,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                     }
 
                     double price = parsePrice(sender, args[2]);
-                    if (price < 0) return true;
+                    if (price < 0)
+                        return true;
 
                     ItemStack held = p.getInventory().getItemInMainHand();
                     if (held == null || held.getType() == Material.AIR) {
@@ -128,7 +127,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
                 // ----------------------------------------------------------
                 // ADD PERMISSION ITEM
-                // /shopadmin add perm <price> <permission.node> [requiresperm <required.permission>]
+                // /shopadmin add perm <price> <permission.node> [requiresperm
+                // <required.permission>]
                 // ----------------------------------------------------------
                 if (type.equalsIgnoreCase("perm")) {
 
@@ -138,7 +138,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                     }
 
                     double price = parsePrice(sender, args[2]);
-                    if (price < 0) return true;
+                    if (price < 0)
+                        return true;
 
                     String perm = args[3];
 
@@ -172,7 +173,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
                 // --------------------------------------------------------------
                 // ADD CUSTOM SERVER-SHOP ITEM
-                // /shopadmin add server-shop <price> <identifier> [requiresperm <required.permission>]
+                // /shopadmin add server-shop <price> <identifier> [requiresperm
+                // <required.permission>]
                 //
                 // Spawner shortcut:
                 // /shopadmin add server-shop <price> <id> spawner <mob_type>
@@ -180,7 +182,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                 //
                 // Command mode:
                 // /shopadmin add server-shop <price> <id> command <command...>
-                // Example: /shopadmin add server-shop 1000 kit_vip command essentials:kit vip {player}
+                // Example: /shopadmin add server-shop 1000 kit_vip command essentials:kit vip
+                // {player}
                 //
                 // Component mode (1.21+):
                 // /shopadmin add server-shop <price> <id> component <material> <component_data>
@@ -193,7 +196,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                     }
 
                     double price = parsePrice(sender, args[2]);
-                    if (price < 0) return true;
+                    if (price < 0)
+                        return true;
 
                     String id = args[3];
 
@@ -226,7 +230,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                             String mobType = args[modeStartIndex + 1].toLowerCase();
 
                             // Build 1.21 component data
-                            String componentData = "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"minecraft:" + mobType + "\"}}}";
+                            String componentData = "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"minecraft:"
+                                    + mobType + "\"}}}";
 
                             plugin.getConfig().set(basePath + ".delivery_method", "component");
                             plugin.getConfig().set(basePath + ".material", "SPAWNER");
@@ -243,7 +248,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
                         // COMMAND MODE (run any command when purchased)
                         if (mode.equals("command")) {
-                            String command = String.join(" ", Arrays.copyOfRange(args, modeStartIndex + 1, args.length));
+                            String command = String.join(" ",
+                                    Arrays.copyOfRange(args, modeStartIndex + 1, args.length));
 
                             plugin.getConfig().set(basePath + ".delivery_method", "command");
                             plugin.getConfig().set(basePath + ".nbt", command); // Store command in NBT field
@@ -261,12 +267,14 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                         // COMPONENT MODE (generic 1.21 components)
                         if (mode.equals("component")) {
                             if (args.length < modeStartIndex + 3) {
-                                sender.sendMessage("§cUsage: /shopadmin add server-shop <price> <id> component <material> <component_data>");
+                                sender.sendMessage(
+                                        "§cUsage: /shopadmin add server-shop <price> <id> component <material> <component_data>");
                                 return true;
                             }
 
                             String materialName = args[modeStartIndex + 1];
-                            String componentData = String.join(" ", Arrays.copyOfRange(args, modeStartIndex + 2, args.length));
+                            String componentData = String.join(" ",
+                                    Arrays.copyOfRange(args, modeStartIndex + 2, args.length));
 
                             plugin.getConfig().set(basePath + ".delivery_method", "component");
                             plugin.getConfig().set(basePath + ".material", materialName.toUpperCase());
@@ -280,7 +288,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                         // OLD NBT MODE (kept for backwards compatibility, will auto-convert)
                         if (mode.equals("nbt")) {
                             if (args.length < 7) {
-                                sender.sendMessage("§cUsage: /shopadmin add server-shop <price> <id> nbt <material> <nbt_string>");
+                                sender.sendMessage(
+                                        "§cUsage: /shopadmin add server-shop <price> <id> nbt <material> <nbt_string>");
                                 return true;
                             }
 

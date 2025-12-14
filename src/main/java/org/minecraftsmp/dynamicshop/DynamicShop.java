@@ -144,9 +144,12 @@ public class DynamicShop extends JavaPlugin {
     // RELOAD
     // ------------------------------------------------------------------------
     public void reload() {
+        getLogger().info("[DEBUG] DynamicShop.reload() method called!");
         ShopDataManager.flushQueue();
         reloadConfig();
         ConfigCacheManager.reload();
+        ShopDataManager.reload();
+        messageManager.reload();
         economyManager.reload();
         specialShopManager.reload();
     }
