@@ -42,9 +42,9 @@ messages:
   search-lore-stock-negative: "&cStock: {stock} (negative)"
   search-lore-out-of-stock: "&eOut of stock"
   search-lore-buy-1: "&eLeft-Click: &7Buy 1"
-  search-lore-buy-64: "&eShift+Left: &7Buy 64"
+  search-lore-buy-64: "&eShift+Left Click: &7Buy 64"
   search-lore-sell-1: "&cRight-Click: &7Sell 1"
-  search-lore-sell-64: "&cShift+Right: &7Sell 64"
+  search-lore-sell-64: "&cShift+Right Click: &7Sell 64"
   search-message-no-item-sell: "&cYou have no &f{item} &cto sell!"
 
   # Special shop messages (permissions & server-shop)
