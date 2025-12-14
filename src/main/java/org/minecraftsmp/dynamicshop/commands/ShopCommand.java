@@ -24,8 +24,8 @@ import java.util.Map;
  * /shop command
  *
  * Supported:
- *   /shop
- *   /shop <category>
+ * /shop
+ * /shop <category>
  *
  * If no category is provided, opens the CategorySelectionGUI.
  * If category is provided, skip category GUI and go straight to ShopGUI.
@@ -45,8 +45,8 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 
         if (!(sender instanceof Player p)) {
-            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', 
-                "&cOnly players can open the shop."));
+            sender.sendMessage(ChatColor.translateAlternateColorCodes('&',
+                    "&cOnly players can open the shop."));
             return true;
         }
 
@@ -82,7 +82,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             }
             return true;
         }
-        
+
         // Don't allow direct access to special categories
         if (cat == ItemCategory.PERMISSIONS || cat == ItemCategory.SERVER_SHOP || cat == ItemCategory.PLAYER_SHOPS) {
             p.sendMessage(plugin.getMessageManager().getMessage("cannot-access-special-category"));
@@ -109,7 +109,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             p.sendMessage(plugin.getMessageManager().categoryEmpty());
             return;
         }
-        
+
         ShopGUI gui = new ShopGUI(plugin, p, cat);
         plugin.getShopListener().registerShop(p, gui);
         gui.open();
@@ -121,7 +121,8 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     private ItemCategory matchCategory(String raw) {
         raw = raw.trim().toUpperCase();
         for (ItemCategory c : ItemCategory.values()) {
-            if (c.name().equalsIgnoreCase(raw)) return c;
+            if (c.name().equalsIgnoreCase(raw))
+                return c;
         }
         return null;
     }
@@ -140,7 +141,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
                 if (c == ItemCategory.PERMISSIONS || c == ItemCategory.SERVER_SHOP || c == ItemCategory.PLAYER_SHOPS) {
                     continue;
                 }
-                
+
                 if (c.name().toLowerCase().startsWith(args[0].toLowerCase())) {
                     out.add(c.name().toLowerCase());
                 }
@@ -180,6 +181,11 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (isDamaged(heldItem)) {
+            player.sendMessage(plugin.getMessageManager().cannotSellDamaged());
+            return true;
+        }
+
         // Check max listings
         int maxListings = plugin.getConfig().getInt("player-shops.max-listings-per-player", 27);
         int currentListings = plugin.getPlayerShopManager().getListingCount(player.getUniqueId());
@@ -209,5 +215,15 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
 
         return true;
+    }
+
+    private boolean isDamaged(ItemStack item) {
+        if (item == null || !item.hasItemMeta())
+            return false;
+        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+        if (meta instanceof org.bukkit.inventory.meta.Damageable damageable) {
+            return damageable.hasDamage();
+        }
+        return false;
     }
 }

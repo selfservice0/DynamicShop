@@ -47,8 +47,7 @@ public class MessageManager {
         InputStream defaultStream = plugin.getResource("messages.yml");
         if (defaultStream != null) {
             YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(
-                    new InputStreamReader(defaultStream)
-            );
+                    new InputStreamReader(defaultStream));
             messagesConfig.setDefaults(defaultConfig);
         }
 
@@ -112,6 +111,10 @@ public class MessageManager {
 
     public String cannotSell() {
         return getMessageWithPrefix("cannot-sell");
+    }
+
+    public String cannotSellDamaged() {
+        return getMessageWithPrefix("cannot-sell-damaged");
     }
 
     public String categoryEmpty() {

@@ -454,8 +454,8 @@ items:
   BIRCH_PRESSURE_PLATE:   { base: 1.0 }
   JUNGLE_PRESSURE_PLATE:  { base: 1.0 }
   ACACIA_PRESSURE_PLATE:  { base: 1.0 }
-  DARK_OAK_PRESSURE_PLATE:{ base: 1.0 }
-  MANGROVE_PRESSURE_PLATE:{ base: 1.0 }
+  DARK_OAK_PRESSURE_PLATE: { base: 1.0 }
+  MANGROVE_PRESSURE_PLATE: { base: 1.0 }
   CHERRY_PRESSURE_PLATE:  { base: 1.0 }
   BAMBOO_PRESSURE_PLATE:  { base: 1.0 }
   CRIMSON_PRESSURE_PLATE: { base: 1.5 }
@@ -821,7 +821,6 @@ items:
   BLUE_ORCHID:              { base: 1.0 }
   ALLIUM:                   { base: 1.0 }
   AZURE_BLUET:              { base: 0.5 }
-  TULIP:                    { base: 1.0 }
   OXEYE_DAISY:              { base: 0.5 }
   SUNFLOWER:                { base: 1.0 }
   LILAC:                    { base: 1.0 }
@@ -936,7 +935,6 @@ items:
   GLOW_INK_SAC:              { base: 4.0 }
   NAUTILUS_SHELL:            { base: 15.0 }
   HEART_OF_THE_SEA:          { base: 100.0 }
-  SCUTE:                     { base: 10.0 }
   SPIDER_EYE:                { base: 2.0 }
   FERMENTED_SPIDER_EYE:      { base: 5.0 }
   ROTTEN_FLESH:              { base: 1.0 }
@@ -998,8 +996,6 @@ items:
   # Other Organic
   SPONGE:                    { base: 10.0 }
   WET_SPONGE:                { base: 10.0 }
-  CORAL_BLOCK:               { base: 5.0 }
-  DEAD_CORAL_BLOCK:          { base: 2.0 }
   TUBE_CORAL:                { base: 2.0 }
   BRAIN_CORAL:               { base: 2.0 }
   BUBBLE_CORAL:              { base: 2.0 }
@@ -1022,7 +1018,6 @@ items:
   SUGAR:                     { base: 1.0 }
   SNOWBALL:                  { base: 0.5 }
   EGG:                       { base: 1.0 }
-  WOOL:                      { base: 2.0 }
 
   # Netherite Upgrade Materials
   NETHERITE_SCRAP:           { base: 100.0 }

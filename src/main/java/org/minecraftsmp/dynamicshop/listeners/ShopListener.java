@@ -10,6 +10,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
@@ -70,8 +71,10 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     @EventHandler
     public void onClick(InventoryClickEvent e) {
-        if (!(e.getWhoClicked() instanceof Player p)) return;
-        if (e.getClickedInventory() == null) return;
+        if (!(e.getWhoClicked() instanceof Player p))
+            return;
+        if (e.getClickedInventory() == null)
+            return;
 
         // -------------------------
         // SEARCH GUI
@@ -124,10 +127,17 @@ public class ShopListener implements Listener {
     // SELLING FROM PLAYER INVENTORY (Right-click)
     // ------------------------------------------------------------------
     private void handlePlayerInventoryClick(Player p, ItemStack clicked, boolean isRightClick, boolean isShift) {
-        if (clicked == null || clicked.getType() == Material.AIR) return;
+        if (clicked == null || clicked.getType() == Material.AIR)
+            return;
 
         // Only sell on RIGHT-click
-        if (!isRightClick) return;
+        if (!isRightClick)
+            return;
+
+        if (isDamaged(clicked)) {
+            p.sendMessage(plugin.getMessageManager().cannotSellDamaged());
+            return;
+        }
 
         Material mat = clicked.getType();
 
@@ -158,7 +168,6 @@ public class ShopListener implements Listener {
         }
     }
 
-
     // ------------------------------------------------------------------
     // CLICK INSIDE SHOP GUI
     // ------------------------------------------------------------------
@@ -173,7 +182,8 @@ public class ShopListener implements Listener {
         // SPECIAL SHOP ITEMS
         if (cat == ItemCategory.PERMISSIONS || cat == ItemCategory.SERVER_SHOP) {
             SpecialShopItem sItem = gui.getSpecialItemFromSlot(slot);
-            if (sItem == null) return;
+            if (sItem == null)
+                return;
 
             if (right) {
                 p.sendMessage(plugin.getMessageManager().getMessage("cannot-sell-special-item"));
@@ -186,7 +196,8 @@ public class ShopListener implements Listener {
 
         // REGULAR ITEM
         Material mat = gui.getItemFromSlot(slot);
-        if (mat == null) return;
+        if (mat == null)
+            return;
 
         int amount = shift ? 64 : 1;
 
@@ -195,7 +206,7 @@ public class ShopListener implements Listener {
             int has = 0;
             if (shift) {
                 for (ItemStack item : p.getInventory().getContents()) {
-                    if (item != null && item.getType() == mat) {
+                    if (item != null && item.getType() == mat && !isDamaged(item)) {
                         has += item.getAmount();
                     }
                 }
@@ -203,8 +214,8 @@ public class ShopListener implements Listener {
             }
 
             if (amount <= 0) {
-                Map<String,String> ph = new HashMap<>();
-                ph.put("item", mat.name().replace("_"," ").toLowerCase());
+                Map<String, String> ph = new HashMap<>();
+                ph.put("item", mat.name().replace("_", " ").toLowerCase());
                 p.sendMessage(plugin.getMessageManager().getMessage("not-enough-items", ph));
                 return;
             }
@@ -224,8 +235,14 @@ public class ShopListener implements Listener {
         int navStart = gui.getSize() - 9;
         int local = raw - navStart;
 
-        if (local == 0) { gui.prevPage(); return; }
-        if (local == 8) { gui.nextPage(); return; }
+        if (local == 0) {
+            gui.prevPage();
+            return;
+        }
+        if (local == 8) {
+            gui.nextPage();
+            return;
+        }
 
         if (local == 4) {
             unregisterShop(p);
@@ -278,7 +295,7 @@ public class ShopListener implements Listener {
                 return;
             }
             if (s0 < amount) {
-                amount = (int)Math.max(0, s0);
+                amount = (int) Math.max(0, s0);
                 if (amount <= 0) {
                     p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
                     return;
@@ -289,7 +306,7 @@ public class ShopListener implements Listener {
         double totalCost = ShopDataManager.getTotalBuyCost(mat, amount);
 
         if (!plugin.getEconomyManager().hasEnough(p, totalCost)) {
-            Map<String,String> ph = new HashMap<>();
+            Map<String, String> ph = new HashMap<>();
             ph.put("price", plugin.getEconomyManager().format(totalCost));
             p.sendMessage(plugin.getMessageManager().getMessage("not-enough-money-need", ph));
             return;
@@ -305,9 +322,9 @@ public class ShopListener implements Listener {
 
         ShopDataManager.updateStock(mat, -amount);
 
-        Map<String,String> ph = new HashMap<>();
+        Map<String, String> ph = new HashMap<>();
         ph.put("amount", String.valueOf(amount));
-        ph.put("item", mat.name().replace("_"," ").toLowerCase());
+        ph.put("item", mat.name().replace("_", " ").toLowerCase());
         ph.put("price", plugin.getEconomyManager().format(totalCost));
         p.sendMessage(plugin.getMessageManager().getMessage("bought-item", ph));
 
@@ -318,11 +335,12 @@ public class ShopListener implements Listener {
                 amount,
                 totalCost,
                 ShopDataManager.detectCategory(mat).name(),
-                ""
-        ));
+                ""));
 
-        if (gui instanceof ShopGUI) ((ShopGUI)gui).render();
-        if (gui instanceof SearchResultsGUI) ((SearchResultsGUI)gui).render();
+        if (gui instanceof ShopGUI)
+            ((ShopGUI) gui).render();
+        if (gui instanceof SearchResultsGUI)
+            ((SearchResultsGUI) gui).render();
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
     }
@@ -334,14 +352,14 @@ public class ShopListener implements Listener {
 
         int removed = 0;
         for (ItemStack item : p.getInventory().getContents()) {
-            if (item != null && item.getType() == mat && removed < amount) {
+            if (item != null && item.getType() == mat && removed < amount && !isDamaged(item)) {
                 removed += Math.min(item.getAmount(), amount - removed);
             }
         }
 
         if (removed == 0) {
-            Map<String,String> ph = new HashMap<>();
-            ph.put("item", mat.name().replace("_"," ").toLowerCase());
+            Map<String, String> ph = new HashMap<>();
+            ph.put("item", mat.name().replace("_", " ").toLowerCase());
             p.sendMessage(plugin.getMessageManager().getMessage("not-enough-items", ph));
             return;
         }
@@ -352,7 +370,7 @@ public class ShopListener implements Listener {
 
         int actuallyRemoved = 0;
         for (ItemStack item : p.getInventory().getContents()) {
-            if (item != null && item.getType() == mat && actuallyRemoved < removed) {
+            if (item != null && item.getType() == mat && actuallyRemoved < removed && !isDamaged(item)) {
                 int take = Math.min(item.getAmount(), removed - actuallyRemoved);
                 item.setAmount(item.getAmount() - take);
                 actuallyRemoved += take;
@@ -363,9 +381,9 @@ public class ShopListener implements Listener {
 
         plugin.getEconomyManager().deposit(p, totalPayout);
 
-        Map<String,String> ph = new HashMap<>();
+        Map<String, String> ph = new HashMap<>();
         ph.put("amount", String.valueOf(actuallyRemoved));
-        ph.put("item", mat.name().replace("_"," ").toLowerCase());
+        ph.put("item", mat.name().replace("_", " ").toLowerCase());
         ph.put("price", plugin.getEconomyManager().format(totalPayout));
         p.sendMessage(plugin.getMessageManager().getMessage("sold-item-success", ph));
 
@@ -376,14 +394,16 @@ public class ShopListener implements Listener {
                 actuallyRemoved,
                 totalPayout,
                 ShopDataManager.detectCategory(mat).name(),
-                ""
-        ));
+                ""));
 
-        if (gui instanceof ShopGUI) ((ShopGUI)gui).render();
-        if (gui instanceof SearchResultsGUI) ((SearchResultsGUI)gui).render();
+        if (gui instanceof ShopGUI)
+            ((ShopGUI) gui).render();
+        if (gui instanceof SearchResultsGUI)
+            ((SearchResultsGUI) gui).render();
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
     }
+
     // ------------------------------------------------------------------
     // UPDATE PLAYER INVENTORY LORE (ALL SLOTS)
     // ------------------------------------------------------------------
@@ -392,23 +412,25 @@ public class ShopListener implements Listener {
     }
 
     public void updatePlayerInventoryLore(Player player, long delay) {
-        if (!openShop.containsKey(player) && !openSearch.containsKey(player)) return;
+        if (!openShop.containsKey(player) && !openSearch.containsKey(player))
+            return;
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             try {
-                com.comphenix.protocol.ProtocolManager pm =
-                        com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
+                com.comphenix.protocol.ProtocolManager pm = com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
 
                 Map<Material, List<String>> loreCache = new HashMap<>();
 
                 // main inv (0–35)
                 for (int i = 0; i < 36; i++) {
                     ItemStack item = player.getInventory().getItem(i);
-                    if (item == null || item.getType() == Material.AIR) continue;
+                    if (item == null || item.getType() == Material.AIR)
+                        continue;
 
                     Material mat = item.getType();
                     double buyPrice = ShopDataManager.getPrice(mat);
-                    if (buyPrice < 0) continue; // not in shop
+                    if (buyPrice < 0)
+                        continue; // not in shop
 
                     sendFakeItemWithLore(pm, player, i, item, mat, loreCache);
                 }
@@ -423,16 +445,17 @@ public class ShopListener implements Listener {
     // UPDATE LORE FOR ONE MATERIAL
     // ------------------------------------------------------------------
     private void updateSingleItemLore(Player player, Material targetMat) {
-        if (!openShop.containsKey(player) && !openSearch.containsKey(player)) return;
+        if (!openShop.containsKey(player) && !openSearch.containsKey(player))
+            return;
 
         try {
-            com.comphenix.protocol.ProtocolManager pm =
-                    com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
+            com.comphenix.protocol.ProtocolManager pm = com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
             Map<Material, List<String>> loreCache = new HashMap<>();
 
             for (int i = 0; i < 36; i++) {
                 ItemStack item = player.getInventory().getItem(i);
-                if (item == null || item.getType() != targetMat) continue;
+                if (item == null || item.getType() != targetMat)
+                    continue;
 
                 sendFakeItemWithLore(pm, player, i, item, targetMat, loreCache);
             }
@@ -445,11 +468,11 @@ public class ShopListener implements Listener {
     // PROTOCOLLIB: SEND FAKE ITEM WITH DYNAMIC LORE
     // ------------------------------------------------------------------
     private void sendFakeItemWithLore(com.comphenix.protocol.ProtocolManager pm,
-                                      Player player,
-                                      int slot,
-                                      ItemStack item,
-                                      Material mat,
-                                      Map<Material, List<String>> loreCache) throws Exception {
+            Player player,
+            int slot,
+            ItemStack item,
+            Material mat,
+            Map<Material, List<String>> loreCache) throws Exception {
 
         List<String> lore = loreCache.get(mat);
         if (lore == null) {
@@ -460,26 +483,26 @@ public class ShopListener implements Listener {
             lore = new ArrayList<>();
 
             // buy price
-            Map<String,String> buyPh = new HashMap<>();
+            Map<String, String> buyPh = new HashMap<>();
             buyPh.put("price", plugin.getEconomyManager().format(buyPrice));
             lore.add(plugin.getMessageManager().getMessage("lore-buy-price", buyPh));
 
             // sell price
             if (sellPrice > 0) {
-                Map<String,String> sellPh = new HashMap<>();
+                Map<String, String> sellPh = new HashMap<>();
                 sellPh.put("price", plugin.getEconomyManager().format(sellPrice));
                 lore.add(plugin.getMessageManager().getMessage("lore-sell-price", sellPh));
             }
 
             // stock info
             if (stock < 0) {
-                Map<String,String> stPh = new HashMap<>();
+                Map<String, String> stPh = new HashMap<>();
                 stPh.put("stock", String.format("%.0f", stock));
                 lore.add(plugin.getMessageManager().getMessage("lore-stock-negative", stPh));
             } else if (stock == 0) {
                 lore.add(plugin.getMessageManager().getMessage("lore-out-of-stock"));
             } else {
-                Map<String,String> stPh = new HashMap<>();
+                Map<String, String> stPh = new HashMap<>();
                 stPh.put("stock", String.format("%.0f", stock));
                 lore.add(plugin.getMessageManager().getMessage("lore-stock", stPh));
             }
@@ -494,12 +517,13 @@ public class ShopListener implements Listener {
 
         ItemStack fake = item.clone();
         ItemMeta meta = fake.getItemMeta();
-        if (meta == null) return;
+        if (meta == null)
+            return;
         meta.setLore(lore);
         fake.setItemMeta(meta);
 
-        com.comphenix.protocol.events.PacketContainer packet =
-                pm.createPacket(com.comphenix.protocol.PacketType.Play.Server.SET_SLOT);
+        com.comphenix.protocol.events.PacketContainer packet = pm
+                .createPacket(com.comphenix.protocol.PacketType.Play.Server.SET_SLOT);
 
         int containerSize = 0;
         if (openShop.containsKey(player)) {
@@ -558,5 +582,15 @@ public class ShopListener implements Listener {
     public void onClose(InventoryCloseEvent e) {
         Player p = (Player) e.getPlayer();
         clear(p);
+    }
+
+    private boolean isDamaged(ItemStack item) {
+        if (item == null || !item.hasItemMeta())
+            return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta instanceof Damageable damageable) {
+            return damageable.hasDamage();
+        }
+        return false;
     }
 }

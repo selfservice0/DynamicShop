@@ -44,11 +44,13 @@ public class SearchResultsGUI {
 
     public void open() {
         // VALID TITLE SO SHOPLISTENER DETECTS IT
+        java.util.Map<String, String> placeholders = new java.util.HashMap<>();
+        placeholders.put("count", String.valueOf(results.size()));
+
         inventory = pm.createVirtualInventory(
                 player,
                 54,
-                "Â§8Search Results: Â§f" + results.size()
-        );
+                plugin.getMessageManager().getMessage("search-gui-title", placeholders));
 
         render();
         player.openInventory(inventory);
@@ -58,7 +60,7 @@ public class SearchResultsGUI {
     }
 
     // --------------------------------------------------------
-    //  RENDER GUI
+    // RENDER GUI
     // --------------------------------------------------------
     public void render() {
         // Clear GUI
@@ -74,19 +76,19 @@ public class SearchResultsGUI {
 
         // NAVIGATION BACK BUTTON
         ItemStack back = ShopItemBuilder.navItem(
-                "Â§cÂ§lBack to Categories",
+                plugin.getMessageManager().getMessage("search-gui-back-name"),
                 Material.BARRIER,
-                "Â§7Return to main menu"
-        );
+                plugin.getMessageManager().getMessage("search-gui-back-lore"));
         pm.sendSlot(inventory, 49, back);
     }
 
     private ItemStack buildResultItem(Material mat) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
+        if (meta == null)
+            return item;
 
-        meta.setDisplayName("Â§e" + mat.name().toLowerCase().replace("_", " "));
+        meta.setDisplayName("§e" + mat.name().toLowerCase().replace("_", " "));
 
         double buy = ShopDataManager.getTotalBuyCost(mat, 1);
         double sell = ShopDataManager.getTotalSellValue(mat, 1);
@@ -95,26 +97,34 @@ public class SearchResultsGUI {
         List<String> lore = new ArrayList<>();
 
         // BUY
-        lore.add("Â§aBuy: Â§f" + plugin.getEconomyManager().format(buy));
+        java.util.Map<String, String> buyPlaceholders = new java.util.HashMap<>();
+        buyPlaceholders.put("price", plugin.getEconomyManager().format(buy));
+        lore.add(plugin.getMessageManager().getMessage("search-lore-buy", buyPlaceholders));
 
         // SELL
-        lore.add("Â§cSell: Â§f" + plugin.getEconomyManager().format(sell));
+        java.util.Map<String, String> sellPlaceholders = new java.util.HashMap<>();
+        sellPlaceholders.put("price", plugin.getEconomyManager().format(sell));
+        lore.add(plugin.getMessageManager().getMessage("search-lore-sell", sellPlaceholders));
         lore.add("");
 
         // STOCK
         if (stock < 0) {
-            lore.add("Â§cStock: " + (int) stock + " (negative)");
+            java.util.Map<String, String> stockPlaceholders = new java.util.HashMap<>();
+            stockPlaceholders.put("stock", String.valueOf((int) stock));
+            lore.add(plugin.getMessageManager().getMessage("search-lore-stock-negative", stockPlaceholders));
         } else if (stock == 0) {
-            lore.add("Â§eOut of stock");
+            lore.add(plugin.getMessageManager().getMessage("search-lore-out-of-stock"));
         } else {
-            lore.add("Â§7Stock: Â§f" + (int) stock);
+            java.util.Map<String, String> stockPlaceholders = new java.util.HashMap<>();
+            stockPlaceholders.put("stock", String.valueOf((int) stock));
+            lore.add(plugin.getMessageManager().getMessage("search-lore-stock", stockPlaceholders));
         }
 
         lore.add("");
-        lore.add("Â§eLeft-Click: Â§7Buy 1");
-        lore.add("Â§eShift+Left: Â§7Buy 64");
-        lore.add("Â§cRight-Click: Â§7Sell 1");
-        lore.add("Â§cShift+Right: Â§7Sell 64");
+        lore.add(plugin.getMessageManager().getMessage("search-lore-buy-1"));
+        lore.add(plugin.getMessageManager().getMessage("search-lore-buy-64"));
+        lore.add(plugin.getMessageManager().getMessage("search-lore-sell-1"));
+        lore.add(plugin.getMessageManager().getMessage("search-lore-sell-64"));
 
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -122,7 +132,7 @@ public class SearchResultsGUI {
     }
 
     // --------------------------------------------------------
-    //  CLICK HANDLING (forwarded from ShopListener)
+    // CLICK HANDLING (forwarded from ShopListener)
     // --------------------------------------------------------
     public void handleClick(int slot, boolean rightClick, boolean shiftClick) {
 
@@ -136,8 +146,10 @@ public class SearchResultsGUI {
             return;
         }
 
-        if (slot < 0 || slot >= 45) return;
-        if (slot >= results.size()) return;
+        if (slot < 0 || slot >= 45)
+            return;
+        if (slot >= results.size())
+            return;
 
         Material mat = results.get(slot);
         int amount = shiftClick ? 64 : 1;
@@ -147,13 +159,17 @@ public class SearchResultsGUI {
             if (shiftClick) {
                 int has = 0;
                 for (ItemStack it : player.getInventory().getContents()) {
-                    if (it != null && it.getType() == mat) has += it.getAmount();
+                    if (it != null && it.getType() == mat)
+                        has += it.getAmount();
                 }
                 amount = Math.min(has, 64);
             }
 
             if (amount <= 0) {
-                player.sendMessage("Â§cYou have no Â§f" + mat.name() + "Â§c to sell!");
+                java.util.Map<String, String> sellPlaceholders = new java.util.HashMap<>();
+                sellPlaceholders.put("item", mat.name());
+                player.sendMessage(
+                        plugin.getMessageManager().getMessage("search-message-no-item-sell", sellPlaceholders));
                 return;
             }
 

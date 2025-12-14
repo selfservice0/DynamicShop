@@ -8,15 +8,19 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
+import org.minecraftsmp.dynamicshop.DynamicShop;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Modern implementation using Bukkit inventories with ProtocolLib packet interception
+ * Modern implementation using Bukkit inventories with ProtocolLib packet
+ * interception
  * for click security.
  * 
- * In Minecraft 1.14+, we can't create fully virtual inventories via packets alone.
+ * In Minecraft 1.14+, we can't create fully virtual inventories via packets
+ * alone.
  * Instead, we:
  * 1. Create real Bukkit inventories (but with a NULL holder for security)
  * 2. Use event listeners to intercept clicks and prevent item duplication
@@ -24,12 +28,14 @@ import java.util.Map;
  */
 public class ProtocolShopManager {
 
+    private final DynamicShop plugin;
     private final ProtocolManager pm;
-    
+
     // Track which inventories are "shop" inventories
     private final Map<Inventory, Boolean> shopInventories = new HashMap<>();
 
-    public ProtocolShopManager() {
+    public ProtocolShopManager(DynamicShop plugin) {
+        this.plugin = plugin;
         this.pm = ProtocolLibrary.getProtocolManager();
     }
 
@@ -41,10 +47,10 @@ public class ProtocolShopManager {
         // Size must be multiple of 9
         int rows = Math.max(3, Math.min(6, (size + 8) / 9));
         Inventory inv = Bukkit.createInventory(null, rows * 9, title);
-        
+
         // Register as shop inventory
         shopInventories.put(inv, true);
-        
+
         return inv;
     }
 
@@ -66,7 +72,8 @@ public class ProtocolShopManager {
     // Update a single slot
     // -----------------------------------------------------------
     public void sendSlot(Inventory inv, int slot, ItemStack item) {
-        if (slot < 0 || slot >= inv.getSize()) return;
+        if (slot < 0 || slot >= inv.getSize())
+            return;
         inv.setItem(slot, item);
     }
 
@@ -93,7 +100,7 @@ public class ProtocolShopManager {
     public void clearWindow(Inventory inv, int size) {
         inv.clear();
     }
-    
+
     // -----------------------------------------------------------
     // Get total registered shop inventories (for debugging)
     // -----------------------------------------------------------

@@ -52,7 +52,7 @@ public class DynamicShop extends JavaPlugin {
         messageManager = new MessageManager(this);
         messageManager.init();
 
-        protocolShopManager = new ProtocolShopManager();
+        protocolShopManager = new ProtocolShopManager(this);
 
         economyManager = new MultiCurrencyEconomyManager(this);
         economyManager.init();
@@ -201,6 +201,7 @@ public class DynamicShop extends JavaPlugin {
     public EmbeddedP2PManager getP2PCrossServerManager() {
         return p2pCrossServerManager;
     }
+
     public static DynamicShop getInstance() {
         return instance;
     }

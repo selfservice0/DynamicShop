@@ -36,7 +36,7 @@ public class ShopGUI {
     private final int itemsPerPage;
     private Inventory inventory; // Store the inventory reference
 
-    private List<Material> items;       // Flattened items in this category (for regular items)
+    private List<Material> items; // Flattened items in this category (for regular items)
     private List<SpecialShopItem> specialItems; // Special items (for PERMISSIONS/SERVER_SHOP)
     private int page = 0;
     private int maxPage = 0;
@@ -48,7 +48,7 @@ public class ShopGUI {
 
         this.size = plugin.getConfig().getInt("gui.shop_menu_size", 54);
         this.pm = plugin.getProtocolShopManager();
-        this.itemsPerPage = size - 9;  // Reserve bottom row for navigation
+        this.itemsPerPage = size - 9; // Reserve bottom row for navigation
 
         // Load items based on category type
         if (category == ItemCategory.PERMISSIONS || category == ItemCategory.SERVER_SHOP) {
@@ -63,7 +63,8 @@ public class ShopGUI {
         } else {
             // Load regular items from ShopDataManager
             this.items = ShopDataManager.getItemsInCategory(category);
-            if (items == null) items = List.of();
+            if (items == null)
+                items = List.of();
             this.specialItems = List.of(); // Empty special items
 
             // Fixed calculation: ceil division
@@ -178,13 +179,31 @@ public class ShopGUI {
         return item;
     }
 
-    //build the item with lore
+    // build the item with lore
     private ItemStack buildShopItem(Material mat) {
         double price = ShopDataManager.getTotalBuyCost(mat, 1);
         double sellPrice = ShopDataManager.getTotalSellValue(mat, 1);
         double stock = ShopDataManager.getStock(mat);
 
-        ItemStack item = new ItemStack(mat, 1);
+        ItemStack item;
+        try {
+            item = new ItemStack(mat, 1);
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().warning("Invalid shop item material skipped: " + mat);
+            // Return a placeholder item so the GUI doesn't break entirely
+            item = new ItemStack(Material.BARRIER);
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName("§c§lINVALID ITEM");
+                List<String> lore = new ArrayList<>();
+                lore.add("§7Material: " + mat);
+                lore.add("§cThis item is invalid");
+                lore.add("§cin this version.");
+                meta.setLore(lore);
+                item.setItemMeta(meta);
+            }
+            return item;
+        }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName("§e§l" + mat.name().replace("_", " "));
@@ -262,32 +281,28 @@ public class ShopGUI {
         ItemStack prevPage = ShopItemBuilder.navItem(
                 "§ePrevious Page",
                 Material.ARROW,
-                page > 0 ? "§7Click to go back" : "§cNo previous page"
-        );
+                page > 0 ? "§7Click to go back" : "§cNo previous page");
         pm.sendSlot(inventory, navRow + 0, prevPage);
 
         // Right Arrow - Next Page
         ItemStack nextPage = ShopItemBuilder.navItem(
                 "§eNext Page",
                 Material.ARROW,
-                page < maxPage ? "§7Click to go forward" : "§cNo next page"
-        );
+                page < maxPage ? "§7Click to go forward" : "§cNo next page");
         pm.sendSlot(inventory, navRow + 8, nextPage);
 
         // X - Back to Categories (Red X)
         ItemStack backToCategories = ShopItemBuilder.navItem(
                 "§c§lBack to Categories",
                 Material.BARRIER,
-                "§7Return to category selection"
-        );
+                "§7Return to category selection");
         pm.sendSlot(inventory, navRow + 4, backToCategories);
 
         // Compass - Search (Anvil GUI)
         ItemStack search = ShopItemBuilder.navItem(
                 "§b§lSearch Items",
                 Material.COMPASS,
-                "§7Open search menu"
-        );
+                "§7Open search menu");
         pm.sendSlot(inventory, navRow + 3, search);
 
         // Page Info
@@ -297,8 +312,7 @@ public class ShopGUI {
         ItemStack pageInfo = ShopItemBuilder.navItem(
                 "§ePage §f" + (page + 1) + " §7/ §f" + (maxPage + 1),
                 Material.PAPER,
-                "§7Total items: §e" + totalItems
-        );
+                "§7Total items: §e" + totalItems);
         pm.sendSlot(inventory, navRow + 5, pageInfo);
     }
 
@@ -339,29 +353,38 @@ public class ShopGUI {
     }
 
     /**
-     * Returns the Material that corresponds to the clicked slot (for regular items).
-     * IMPORTANT: Because this is a virtual GUI, we compute it instead of reading inventory.
+     * Returns the Material that corresponds to the clicked slot (for regular
+     * items).
+     * IMPORTANT: Because this is a virtual GUI, we compute it instead of reading
+     * inventory.
      */
     public Material getItemFromSlot(int clickedSlot) {
-        if (isNavigationSlot(clickedSlot)) return null;
-        if (category == ItemCategory.PERMISSIONS || category == ItemCategory.SERVER_SHOP) return null;
+        if (isNavigationSlot(clickedSlot))
+            return null;
+        if (category == ItemCategory.PERMISSIONS || category == ItemCategory.SERVER_SHOP)
+            return null;
 
         int index = (page * itemsPerPage) + clickedSlot;
 
-        if (index < 0 || index >= items.size()) return null;
+        if (index < 0 || index >= items.size())
+            return null;
         return items.get(index);
     }
 
     /**
-     * Returns the SpecialShopItem that corresponds to the clicked slot (for special categories).
+     * Returns the SpecialShopItem that corresponds to the clicked slot (for special
+     * categories).
      */
     public SpecialShopItem getSpecialItemFromSlot(int clickedSlot) {
-        if (isNavigationSlot(clickedSlot)) return null;
-        if (category != ItemCategory.PERMISSIONS && category != ItemCategory.SERVER_SHOP) return null;
+        if (isNavigationSlot(clickedSlot))
+            return null;
+        if (category != ItemCategory.PERMISSIONS && category != ItemCategory.SERVER_SHOP)
+            return null;
 
         int index = (page * itemsPerPage) + clickedSlot;
 
-        if (index < 0 || index >= specialItems.size()) return null;
+        if (index < 0 || index >= specialItems.size())
+            return null;
         return specialItems.get(index);
     }
 

@@ -22,6 +22,7 @@ messages:
   sold-item: "&aYou sold &e{item} &afor &e{price}&a!"
   cannot-sell: "&cThis item cannot be sold."
   no-item-to-sell: "&cYou don't have any &e{item} &cto sell."
+  cannot-sell-damaged: "&cYou cannot sell damaged items."
 
   # Category messages
   category-opened: "&aOpened category: &e{category}"
@@ -32,6 +33,19 @@ messages:
 
   # Search messages
   search-no-results: "&cNo items found matching your search."
+  search-gui-title: "&8Search Results: &f{count}"
+  search-gui-back-name: "&c&lBack to Categories"
+  search-gui-back-lore: "&7Return to main menu"
+  search-lore-buy: "&aBuy: &f{price}"
+  search-lore-sell: "&cSell: &f{price}"
+  search-lore-stock: "&7Stock: &f{stock}"
+  search-lore-stock-negative: "&cStock: {stock} (negative)"
+  search-lore-out-of-stock: "&eOut of stock"
+  search-lore-buy-1: "&eLeft-Click: &7Buy 1"
+  search-lore-buy-64: "&eShift+Left: &7Buy 64"
+  search-lore-sell-1: "&cRight-Click: &7Sell 1"
+  search-lore-sell-64: "&cShift+Right: &7Sell 64"
+  search-message-no-item-sell: "&cYou have no &f{item} &cto sell!"
 
   # Special shop messages (permissions & server-shop)
   special-permission-success: "&aPermission granted: &e{permission}"
