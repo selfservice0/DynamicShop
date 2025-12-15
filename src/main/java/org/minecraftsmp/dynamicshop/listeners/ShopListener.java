@@ -371,7 +371,7 @@ public class ShopListener implements Listener {
         double s0 = ShopDataManager.getStock(mat);
 
         // Optional restriction
-        if (ConfigCacheManager.restrictBuyingAtZeroStock) {
+        if (ConfigCacheManager.restrictBuyingAtZeroStock && !p.hasPermission("dynamicshop.bypass.stock")) {
             if (s0 <= 0) {
                 p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
                 return;
