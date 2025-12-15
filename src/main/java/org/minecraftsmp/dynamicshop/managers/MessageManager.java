@@ -72,6 +72,11 @@ public class MessageManager {
     public String getMessage(String key, Map<String, String> placeholders) {
         String message = messagesConfig.getString("messages." + key, "&cMessage not found: " + key);
 
+        // If message is empty, return null to indicate it should be skipped
+        if (message.isEmpty()) {
+            return null;
+        }
+
         // Replace placeholders
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
             message = message.replace("{" + entry.getKey() + "}", entry.getValue());
@@ -83,6 +88,18 @@ public class MessageManager {
         return message;
     }
 
+    /**
+     * Helper method to add a lore line only if the message is not disabled (null).
+     * 
+     * @param lore    The lore list to add to
+     * @param message The message (can be null if disabled)
+     */
+    public static void addLoreIfNotEmpty(java.util.List<String> lore, String message) {
+        if (message != null) {
+            lore.add(message);
+        }
+    }
+
     // ------------------------------------------------------------
     // GET MESSAGE WITH PREFIX
     // ------------------------------------------------------------
@@ -91,8 +108,12 @@ public class MessageManager {
     }
 
     public String getMessageWithPrefix(String key, Map<String, String> placeholders) {
+        String message = getMessage(key, placeholders);
+        if (message == null) {
+            return null; // Message is disabled
+        }
         String prefixColored = ChatColor.translateAlternateColorCodes('&', prefix);
-        return prefixColored + getMessage(key, placeholders);
+        return prefixColored + message;
     }
 
     // ------------------------------------------------------------
