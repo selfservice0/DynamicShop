@@ -25,9 +25,6 @@ public class ConfigCacheManager {
     public static double negativeStockPercentPerItem = 5.0;
     public static boolean useTimeInflation = true;
     public static double hourlyIncreasePercent = 2.0;
-    public static boolean useDemand = true;
-    public static double demandFactor = 0.01;
-    public static double maxDemand = 100.0;
     public static boolean restrictBuyingAtZeroStock = false;
     public static boolean logDynamicPricing = false;
 
@@ -91,9 +88,6 @@ public class ConfigCacheManager {
                 5.0);
         useTimeInflation = plugin.getConfig().getBoolean("dynamic-pricing.use-time-inflation", true);
         hourlyIncreasePercent = plugin.getConfig().getDouble("dynamic-pricing.hourly-increase-percent", 2.0);
-        useDemand = plugin.getConfig().getBoolean("dynamic-pricing.use-demand", true);
-        demandFactor = plugin.getConfig().getDouble("dynamic-pricing.demand-factor", 0.01);
-        maxDemand = plugin.getConfig().getDouble("dynamic-pricing.max-demand", 100.0);
 
         // Debug logging
         plugin.getLogger().info("[DEBUG] Reading restrict-buying-at-zero-stock from config...");

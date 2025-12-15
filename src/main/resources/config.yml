@@ -77,12 +77,6 @@ dynamic-pricing:
   # When enabled, players cannot purchase items with stock <= 0
   restrict-buying-at-zero-stock: false
 
-  # --- Demand-based Pricing ---
-  # Prices increase based on total purchase volume
-  use-demand: true
-  demand-factor: 0.01          # +1% price per 100 purchases
-  max-demand: 1000             # Maximum demand value considered
-
   # --- Debug Logging ---
   # Enable to see detailed pricing calculations in console
   log-dynamic-pricing: false

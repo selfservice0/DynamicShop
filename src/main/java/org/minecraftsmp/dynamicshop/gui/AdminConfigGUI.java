@@ -41,9 +41,6 @@ public class AdminConfigGUI {
     private static final int MIN_PRICE_MULT = 19;
     private static final int MAX_PRICE_MULT = 20;
     private static final int SELL_TAX = 21;
-    private static final int USE_DEMAND = 22;
-    private static final int DEMAND_FACTOR = 23;
-    private static final int MAX_DEMAND = 24;
 
     // Row 3: Player Shops
     private static final int PLAYER_SHOPS_ENABLED = 28;
@@ -98,12 +95,6 @@ public class AdminConfigGUI {
                 ConfigCacheManager.maxPriceMultiplier, "dynamic-pricing.max-price-multiplier", Material.GOLD_NUGGET));
         inventory.setItem(SELL_TAX, createNumberItem("Sell Tax %",
                 ConfigCacheManager.sellTaxPercent * 100, "economy.sell_tax_percent", Material.PAPER));
-        inventory.setItem(USE_DEMAND, createToggleItem("Use Demand",
-                ConfigCacheManager.useDemand, "dynamic-pricing.use-demand"));
-        inventory.setItem(DEMAND_FACTOR, createNumberItem("Demand Factor",
-                ConfigCacheManager.demandFactor, "dynamic-pricing.demand-factor", Material.COMPASS));
-        inventory.setItem(MAX_DEMAND, createNumberItem("Max Demand",
-                ConfigCacheManager.maxDemand, "dynamic-pricing.max-demand", Material.EXPERIENCE_BOTTLE));
 
         // Player Shops
         inventory.setItem(PLAYER_SHOPS_ENABLED, createToggleItem("Player Shops Enabled",
@@ -199,7 +190,6 @@ public class AdminConfigGUI {
             case USE_STOCK_CURVE -> toggleBoolean("dynamic-pricing.use-stock-curve");
             case RESTRICT_BUYING -> toggleBoolean("dynamic-pricing.restrict-buying-at-zero-stock");
             case USE_TIME_INFLATION -> toggleBoolean("dynamic-pricing.use-time-inflation");
-            case USE_DEMAND -> toggleBoolean("dynamic-pricing.use-demand");
             case PLAYER_SHOPS_ENABLED -> toggleBoolean("player-shops.enabled");
             case CROSS_SERVER_ENABLED -> toggleBoolean("cross-server.enabled");
 
@@ -210,8 +200,6 @@ public class AdminConfigGUI {
             case MIN_PRICE_MULT -> editDouble("Min Price Multiplier", "dynamic-pricing.min-price-multiplier");
             case MAX_PRICE_MULT -> editDouble("Max Price Multiplier", "dynamic-pricing.max-price-multiplier");
             case SELL_TAX -> editDouble("Sell Tax %", "economy.sell_tax_percent");
-            case DEMAND_FACTOR -> editDouble("Demand Factor", "dynamic-pricing.demand-factor");
-            case MAX_DEMAND -> editDouble("Max Demand", "dynamic-pricing.max-demand");
 
             // Integer options
             case MAX_LISTINGS -> editInt("Max Listings", "player-shops.max-listings-per-player");
