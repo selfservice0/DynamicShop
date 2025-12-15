@@ -236,7 +236,10 @@ public class ShopDataManager {
             total += integrateHighPositiveRegion(B, k, highA, highB);
         }
 
-        return total;
+        // Clamp to min/max price multiplier limits
+        double maxTotal = B * amount * ConfigCacheManager.maxPriceMultiplier;
+        double minTotal = B * amount * ConfigCacheManager.minPriceMultiplier;
+        return Math.max(minTotal, Math.min(total, maxTotal));
     }
 
     // ============================================================================
@@ -292,10 +295,15 @@ public class ShopDataManager {
             total += integrateHighPositiveRegion(B, k, highA, highB);
         }
 
+        // Clamp to min/max price multiplier limits (before tax)
+        double maxTotal = B * amount * ConfigCacheManager.maxPriceMultiplier;
+        double minTotal = B * amount * ConfigCacheManager.minPriceMultiplier;
+        double clamped = Math.max(minTotal, Math.min(total, maxTotal));
+
         // FINAL SELL TAX
         double tax = ConfigCacheManager.sellTaxPercent;
 
-        return Math.max(0.0, total * (1.0 - tax));
+        return Math.max(0.0, clamped * (1.0 - tax));
     }
 
     // ============================================================================

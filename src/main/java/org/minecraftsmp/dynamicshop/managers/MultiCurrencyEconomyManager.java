@@ -1,7 +1,6 @@
 package org.minecraftsmp.dynamicshop.managers;
 
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -36,9 +35,6 @@ public class MultiCurrencyEconomyManager {
     private final Map<Material, String> itemCurrencyCache = new ConcurrentHashMap<>();
     private final Map<ItemCategory, String> categoryCurrencyCache = new ConcurrentHashMap<>();
     private final Map<String, Currency> coinEngineCurrencyCache = new ConcurrentHashMap<>();
-
-    // CACHED CONFIG VALUES
-    private int sellTaxPercent = 30;
 
     public MultiCurrencyEconomyManager(DynamicShop plugin) {
         this.plugin = plugin;
@@ -112,9 +108,6 @@ public class MultiCurrencyEconomyManager {
         itemCurrencyCache.clear();
         categoryCurrencyCache.clear();
         coinEngineCurrencyCache.clear();
-
-        // Cache tax percentage
-        sellTaxPercent = plugin.getConfig().getInt("economy.sell_tax_percent", 30);
 
         if (!useCoinEngine) return;
 

@@ -154,11 +154,19 @@ public class AdminShopBrowseGUI {
         // Category selector (slot 3)
         inventory.setItem(navRow + 3, createCategorySelector());
 
-        // Page info (slot 4)
-        inventory.setItem(navRow + 4, ShopItemBuilder.navItem(
-                "§7Page §f" + (page + 1) + " §7/ §f" + (maxPage + 1),
-                Material.PAPER,
-                "§7Items: §e" + items.size()));
+        // Page info / Config edit (slot 4)
+        ItemStack pageItem = new ItemStack(Material.PAPER);
+        ItemMeta pageMeta = pageItem.getItemMeta();
+        if (pageMeta != null) {
+            pageMeta.setDisplayName("§7Page §f" + (page + 1) + " §7/ §f" + (maxPage + 1));
+            List<String> pageLore = new ArrayList<>();
+            pageLore.add("§7Items: §e" + items.size());
+            pageLore.add("");
+            pageLore.add("§e§lClick to edit Config");
+            pageMeta.setLore(pageLore);
+            pageItem.setItemMeta(pageMeta);
+        }
+        inventory.setItem(navRow + 4, pageItem);
 
         // Close button (slot 5)
         inventory.setItem(navRow + 5, ShopItemBuilder.navItem(
@@ -222,6 +230,7 @@ public class AdminShopBrowseGUI {
                 case 0 -> prevPage(); // Previous page
                 case 8 -> nextPage(); // Next page
                 case 3 -> cycleCategory(); // Category selector
+                case 4 -> openConfigEditor(); // Config editor
                 case 5 -> player.closeInventory(); // Close
             }
             return;
@@ -254,6 +263,13 @@ public class AdminShopBrowseGUI {
             page--;
             render();
         }
+    }
+
+    private void openConfigEditor() {
+        plugin.getShopListener().unregisterAdminBrowse(player);
+        AdminConfigGUI configGUI = new AdminConfigGUI(plugin, player, this);
+        plugin.getShopListener().registerAdminConfig(player, configGUI);
+        configGUI.open();
     }
 
     private void cycleCategory() {

@@ -29,15 +29,15 @@ public class CategorySelectionGUI {
     private final Inventory inv;
 
     // Slot positions
-    private static final int MISC_SLOT = 11;       // Row 2, position 3
-    private static final int BLOCKS_SLOT = 12;     // Row 2, position 4
-    private static final int REDSTONE_SLOT = 13;   // Row 2, position 5
-    private static final int TOOLS_SLOT = 14;      // Row 2, position 6
-    private static final int ARMOR_SLOT = 15;      // Row 2, position 7
+    private static final int MISC_SLOT = 11; // Row 2, position 3
+    private static final int BLOCKS_SLOT = 12; // Row 2, position 4
+    private static final int REDSTONE_SLOT = 13; // Row 2, position 5
+    private static final int TOOLS_SLOT = 14; // Row 2, position 6
+    private static final int ARMOR_SLOT = 15; // Row 2, position 7
 
-    private static final int FOOD_SLOT = 20;       // Row 3, position 3
-    private static final int FARMING_SLOT = 21;    // Row 3, position 4
-    private static final int WOOD_SLOT = 22;       // Row 3, position 5
+    private static final int FOOD_SLOT = 20; // Row 3, position 3
+    private static final int FARMING_SLOT = 21; // Row 3, position 4
+    private static final int WOOD_SLOT = 22; // Row 3, position 5
     private static final int PERMISSIONS_SLOT = 23;// Row 3, position 6
     private static final int SERVER_SHOP_SLOT = 24;// Row 3, position 7
 
@@ -75,16 +75,16 @@ public class CategorySelectionGUI {
         }
 
         // Fill empty slots in row 2
-        inv.setItem(9, filler);   // Row 2, pos 1
-        inv.setItem(10, filler);  // Row 2, pos 2
-        inv.setItem(16, filler);  // Row 2, pos 8
-        inv.setItem(17, filler);  // Row 2, pos 9
+        inv.setItem(9, filler); // Row 2, pos 1
+        inv.setItem(10, filler); // Row 2, pos 2
+        inv.setItem(16, filler); // Row 2, pos 8
+        inv.setItem(17, filler); // Row 2, pos 9
 
         // Fill empty slots in row 3
-        inv.setItem(18, filler);  // Row 3, pos 1
-        inv.setItem(19, filler);  // Row 3, pos 2
-        inv.setItem(25, filler);  // Row 3, pos 8
-        inv.setItem(26, filler);  // Row 3, pos 9
+        inv.setItem(18, filler); // Row 3, pos 1
+        inv.setItem(19, filler); // Row 3, pos 2
+        inv.setItem(25, filler); // Row 3, pos 8
+        inv.setItem(26, filler); // Row 3, pos 9
 
         // Add category items
         inv.setItem(MISC_SLOT, createCategoryItem(ItemCategory.MISC));
@@ -175,8 +175,8 @@ public class CategorySelectionGUI {
 
         // Handle Player Shops category specially
         if (category == ItemCategory.PLAYER_SHOPS) {
-            org.minecraftsmp.dynamicshop.gui.PlayerShopBrowserGUI browserGUI = 
-                new org.minecraftsmp.dynamicshop.gui.PlayerShopBrowserGUI(plugin, p);
+            org.minecraftsmp.dynamicshop.gui.PlayerShopBrowserGUI browserGUI = new org.minecraftsmp.dynamicshop.gui.PlayerShopBrowserGUI(
+                    plugin, p);
             plugin.getPlayerShopListener().registerBrowserGUI(p, browserGUI);
             browserGUI.open();
             return;
@@ -203,5 +203,9 @@ public class CategorySelectionGUI {
             case PLAYER_SHOPS_SLOT -> ItemCategory.PLAYER_SHOPS;
             default -> null;
         };
+    }
+
+    public Inventory getInventory() {
+        return inv;
     }
 }

@@ -13,7 +13,6 @@ import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.managers.ProtocolShopManager;
 import org.minecraftsmp.dynamicshop.managers.MessageManager;
 import org.minecraftsmp.dynamicshop.util.ShopItemBuilder;
-import org.minecraftsmp.dynamicshop.gui.PlayerShopBrowserGUI;
 
 import java.util.ArrayList;
 import java.util.List;

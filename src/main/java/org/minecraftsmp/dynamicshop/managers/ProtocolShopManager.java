@@ -28,7 +28,9 @@ import java.util.Map;
  */
 public class ProtocolShopManager {
 
+    @SuppressWarnings("unused")
     private final DynamicShop plugin;
+    @SuppressWarnings("unused")
     private final ProtocolManager pm;
 
     // Track which inventories are "shop" inventories

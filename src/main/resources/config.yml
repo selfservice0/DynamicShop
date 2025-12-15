@@ -128,8 +128,6 @@ cross-server:
 # cross-server:
 #   enabled: true
 #   local-port: 5556
-#   username: "dynmap" <-- all must have same username; think of this as auth for the mesh network you're making
-#   password: "mySecurePass123" <-- all must have same password
 #   peers:
 #     - "skyblock.yourserver.com"
 #     - "creative.yourserver.com"
@@ -139,8 +137,6 @@ cross-server:
 # cross-server:
 #   enabled: true
 #   local-port: 5556
-#   username: "dynmap"
-#   password: "mySecurePass123"
 #   peers:
 #      - 192.168.1.0:5556 <- THIS SERVER REQUIRED
 ##     - 192.168.1.0:5557
@@ -150,8 +146,6 @@ cross-server:
 # cross-server:
 #   enabled: true
 #   local-port: 5556
-#   username: "dynmap"
-#   password: "mySecurePass123"
 #   peers:
 #     - "skyblock.yourserver.com"
 #     - "creative.yourserver.com"

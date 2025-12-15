@@ -9,12 +9,14 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
+import org.minecraftsmp.dynamicshop.gui.AdminConfigGUI;
 import org.minecraftsmp.dynamicshop.gui.AdminItemEditGUI;
 import org.minecraftsmp.dynamicshop.gui.AdminShopBrowseGUI;
 import org.minecraftsmp.dynamicshop.gui.CategorySelectionGUI;
@@ -35,6 +37,7 @@ public class ShopListener implements Listener {
     private final Map<Player, SearchResultsGUI> openSearch = new HashMap<>();
     private final Map<Player, AdminShopBrowseGUI> openAdminBrowse = new HashMap<>();
     private final Map<Player, AdminItemEditGUI> openAdminEdit = new HashMap<>();
+    private final Map<Player, AdminConfigGUI> openAdminConfig = new HashMap<>();
 
     public ShopListener(DynamicShop plugin) {
         this.plugin = plugin;
@@ -70,6 +73,7 @@ public class ShopListener implements Listener {
         openSearch.remove(p);
         openAdminBrowse.remove(p);
         openAdminEdit.remove(p);
+        openAdminConfig.remove(p);
     }
 
     // Admin GUI registration
@@ -89,6 +93,14 @@ public class ShopListener implements Listener {
         openAdminEdit.remove(p);
     }
 
+    public void registerAdminConfig(Player p, AdminConfigGUI gui) {
+        openAdminConfig.put(p, gui);
+    }
+
+    public void unregisterAdminConfig(Player p) {
+        openAdminConfig.remove(p);
+    }
+
     // ------------------------------------------------------------------
     // CLICK LISTENER
     // ------------------------------------------------------------------
@@ -105,6 +117,15 @@ public class ShopListener implements Listener {
         if (openAdminEdit.containsKey(p)) {
             e.setCancelled(true);
             openAdminEdit.get(p).handleClick(e.getRawSlot());
+            return;
+        }
+
+        // -------------------------
+        // ADMIN CONFIG GUI
+        // -------------------------
+        if (openAdminConfig.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminConfig.get(p).handleClick(e.getRawSlot());
             return;
         }
 
@@ -610,7 +631,7 @@ public class ShopListener implements Listener {
     public void onDrag(InventoryDragEvent e) {
         Player p = (Player) e.getWhoClicked();
         if (!openShop.containsKey(p) && !openCategory.containsKey(p) && !openSearch.containsKey(p)
-                && !openAdminBrowse.containsKey(p) && !openAdminEdit.containsKey(p))
+                && !openAdminBrowse.containsKey(p) && !openAdminEdit.containsKey(p) && !openAdminConfig.containsKey(p))
             return;
         e.setCancelled(true);
     }
@@ -621,7 +642,33 @@ public class ShopListener implements Listener {
     @EventHandler
     public void onClose(InventoryCloseEvent e) {
         Player p = (Player) e.getPlayer();
-        clear(p);
+
+        // Only clear the GUI that matches the closed inventory
+        // This prevents clearing the edit GUI when browse GUI closes to open edit
+        if (openAdminEdit.containsKey(p) && openAdminEdit.get(p).getInventory().equals(e.getInventory())) {
+            openAdminEdit.remove(p);
+            return;
+        }
+        if (openAdminBrowse.containsKey(p) && openAdminBrowse.get(p).getInventory().equals(e.getInventory())) {
+            openAdminBrowse.remove(p);
+            return;
+        }
+        if (openShop.containsKey(p) && openShop.get(p).getInventory().equals(e.getInventory())) {
+            openShop.remove(p);
+            return;
+        }
+        if (openCategory.containsKey(p) && openCategory.get(p).getInventory().equals(e.getInventory())) {
+            openCategory.remove(p);
+            return;
+        }
+        if (openSearch.containsKey(p) && openSearch.get(p).getInventory().equals(e.getInventory())) {
+            openSearch.remove(p);
+            return;
+        }
+        if (openAdminConfig.containsKey(p) && openAdminConfig.get(p).getInventory().equals(e.getInventory())) {
+            openAdminConfig.remove(p);
+            return;
+        }
     }
 
     private boolean isDamaged(ItemStack item) {
@@ -632,5 +679,13 @@ public class ShopListener implements Listener {
             return damageable.hasDamage();
         }
         return false;
+    }
+
+    // ------------------------------------------------------------------
+    // CLEANUP ON PLAYER QUIT (prevents stale registrations)
+    // ------------------------------------------------------------------
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        clear(e.getPlayer());
     }
 }

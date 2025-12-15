@@ -39,9 +39,10 @@ public class AdminItemEditGUI {
     private static final int STOCK_PLUS_10 = 15;
     private static final int STOCK_PLUS_64 = 16;
 
-    private static final int PRICE_EDIT_SLOT = 21; // Row 3
+    private static final int PRICE_EDIT_SLOT = 20; // Row 3
+    private static final int PRICE_INCREASE_SLOT = 21; // Row 3 - price increase %
     private static final int CATEGORY_EDIT_SLOT = 22; // Row 3
-    private static final int TOGGLE_ENABLED_SLOT = 23; // Row 3
+    private static final int TOGGLE_ENABLED_SLOT = 24; // Row 3
 
     private static final int BACK_BUTTON_SLOT = 40; // Bottom center
 
@@ -82,6 +83,7 @@ public class AdminItemEditGUI {
 
         // Action buttons
         inventory.setItem(PRICE_EDIT_SLOT, createPriceButton());
+        inventory.setItem(PRICE_INCREASE_SLOT, createPriceIncreaseButton());
         inventory.setItem(CATEGORY_EDIT_SLOT, createCategoryButton());
         inventory.setItem(TOGGLE_ENABLED_SLOT, createToggleButton());
 
@@ -147,6 +149,31 @@ public class AdminItemEditGUI {
             lore.add("§7Current: §e$" + String.format("%.2f", currentPrice));
             lore.add("");
             lore.add("§eClick to change");
+
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private ItemStack createPriceIncreaseButton() {
+        long lastUpdate = ShopDataManager.getLastUpdate(material);
+        long hours = (System.currentTimeMillis() - lastUpdate) / (3600 * 1000);
+        long priceIncrease = hours * 2; // 2% per hour
+
+        ItemStack item = new ItemStack(Material.CLOCK);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§6§lPrice Increase %");
+
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Hours since update: §f" + hours);
+            lore.add("§7Current increase: §c+" + priceIncrease + "%");
+            lore.add("");
+            lore.add("§7This increases buy price when");
+            lore.add("§7stock is at 0 or negative.");
+            lore.add("");
+            lore.add("§eClick to set % (resets timer)");
 
             meta.setLore(lore);
             item.setItemMeta(meta);
@@ -237,6 +264,7 @@ public class AdminItemEditGUI {
 
             // Actions
             case PRICE_EDIT_SLOT -> openPriceEditor();
+            case PRICE_INCREASE_SLOT -> openPriceIncreaseEditor();
             case CATEGORY_EDIT_SLOT -> cycleCategory();
             case TOGGLE_ENABLED_SLOT -> toggleEnabled();
             case BACK_BUTTON_SLOT -> goBack();
@@ -269,6 +297,51 @@ public class AdminItemEditGUI {
 
                         ShopDataManager.setBasePrice(material, newPrice);
                         player.sendMessage("§a✓ §7Base price set to §e$" + String.format("%.2f", newPrice));
+
+                        // Reopen this GUI
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            plugin.getShopListener().registerAdminEdit(player, this);
+                            open();
+                        }, 2L);
+
+                    } catch (NumberFormatException e) {
+                        player.sendMessage("§c✗ §7Invalid number!");
+                    }
+                    return Arrays.asList(AnvilGUI.ResponseAction.close());
+                })
+                .plugin(plugin)
+                .open(player);
+    }
+
+    private void openPriceIncreaseEditor() {
+        player.closeInventory();
+
+        // Calculate current price increase %
+        long hours = (System.currentTimeMillis() - ShopDataManager.getLastUpdate(material)) / (3600 * 1000);
+        long currentPercent = hours * 2;
+
+        new AnvilGUI.Builder()
+                .title("§8Enter Price Increase %")
+                .text(String.valueOf(currentPercent))
+                .itemLeft(new ItemStack(Material.CLOCK))
+                .onClick((clickSlot, state) -> {
+                    String input = state.getText().trim();
+                    try {
+                        int percent = Integer.parseInt(input);
+                        if (percent < 0) {
+                            player.sendMessage("§c✗ §7Percentage cannot be negative!");
+                            return Arrays.asList(AnvilGUI.ResponseAction.close());
+                        }
+
+                        // Calculate the timestamp that would result in this percentage
+                        // percent = hours * 2, so hours = percent / 2
+                        // hours = (now - lastUpdate) / 3600000
+                        // lastUpdate = now - (hours * 3600000)
+                        long hoursNeeded = percent / 2;
+                        long newLastUpdate = System.currentTimeMillis() - (hoursNeeded * 3600 * 1000);
+
+                        ShopDataManager.setLastUpdate(material, newLastUpdate);
+                        player.sendMessage("§a✓ §7Price increase set to §c+" + percent + "%");
 
                         // Reopen this GUI
                         Bukkit.getScheduler().runTaskLater(plugin, () -> {
