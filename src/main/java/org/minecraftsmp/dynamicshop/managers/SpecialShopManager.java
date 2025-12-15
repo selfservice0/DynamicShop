@@ -45,14 +45,17 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     // ADD PERMISSION SHOP ITEM
     // ------------------------------------------------------------
-    public void addPermissionItem(String permission, double price, Material displayMaterial, String requiredPermission) {
+    public void addPermissionItem(String permission, double price, Material displayMaterial,
+            String requiredPermission) {
         String id = permission.toLowerCase().replace(".", "_");
         String displayName = permission.replace(".", "_");
         addPermissionItem(id, displayName, price, permission, displayMaterial, requiredPermission, true);
     }
 
-    private void addPermissionItem(String id, String displayName, double price, String permission, Material displayMaterial, String requiredPermission, boolean save) {
-        SpecialShopItem item = SpecialShopItem.forPermission(id, displayName, price, permission, displayMaterial, requiredPermission);
+    private void addPermissionItem(String id, String displayName, double price, String permission,
+            Material displayMaterial, String requiredPermission, boolean save) {
+        SpecialShopItem item = SpecialShopItem.forPermission(id, displayName, price, permission, displayMaterial,
+                requiredPermission);
         registry.put(id, item);
 
         if (save) {
@@ -72,16 +75,19 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     // ADD SERVER-SHOP ITEM
     // ------------------------------------------------------------
-    public void addServerShopItem(String identifier, double price, Material displayMaterial, String requiredPermission) {
+    public void addServerShopItem(String identifier, double price, Material displayMaterial,
+            String requiredPermission) {
         String id = identifier.toLowerCase().replace(" ", "_");
         String displayName = identifier;
         addServerShopItem(id, displayName, price, identifier, displayMaterial, requiredPermission, true);
     }
 
-    private void addServerShopItem(String id, String displayName, double price, String identifier, Material displayMaterial, String requiredPermission, boolean save) {
+    private void addServerShopItem(String id, String displayName, double price, String identifier,
+            Material displayMaterial, String requiredPermission, boolean save) {
         String path = "special_items." + id;
 
-        SpecialShopItem item = SpecialShopItem.forServerShop(id, displayName, price, identifier, displayMaterial, requiredPermission);
+        SpecialShopItem item = SpecialShopItem.forServerShop(id, displayName, price, identifier, displayMaterial,
+                requiredPermission);
 
         if (!save) {
             // Loading from config
@@ -159,14 +165,16 @@ public class SpecialShopManager {
                 try {
                     displayMaterial = Material.valueOf(materialName);
                 } catch (IllegalArgumentException e) {
-                    plugin.getLogger().warning("Invalid display_material '" + materialName + "' for " + id + ", using CHEST");
+                    plugin.getLogger()
+                            .warning("Invalid display_material '" + materialName + "' for " + id + ", using CHEST");
                 }
             }
 
             // Load required permission (optional)
             String requiredPermission = plugin.getConfig().getString(basePath + "required_permission");
 
-            if (type == null) continue;
+            if (type == null)
+                continue;
 
             switch (type.toLowerCase()) {
                 case "perm" -> {
@@ -190,6 +198,114 @@ public class SpecialShopManager {
 
     public SpecialShopItem getSpecialItem(String id) {
         return registry.get(id);
+    }
+
+    /**
+     * Get a permission item by its index (0-based) in the permission items list.
+     * Returns null if index is out of bounds.
+     */
+    public SpecialShopItem getPermissionItemByIndex(int index) {
+        java.util.List<SpecialShopItem> permItems = registry.values().stream()
+                .filter(item -> item.getCategory() == ItemCategory.PERMISSIONS)
+                .toList();
+        if (index < 0 || index >= permItems.size()) {
+            return null;
+        }
+        return permItems.get(index);
+    }
+
+    /**
+     * Get the total count of permission items.
+     */
+    public int getPermissionItemCount() {
+        return (int) registry.values().stream()
+                .filter(item -> item.getCategory() == ItemCategory.PERMISSIONS)
+                .count();
+    }
+
+    // ------------------------------------------------------------
+    // REMOVE SPECIAL ITEM
+    // ------------------------------------------------------------
+    /**
+     * Remove a special item by its ID.
+     * 
+     * @param id The ID of the item to remove
+     * @return true if removed, false if not found
+     */
+    public boolean removeSpecialItem(String id) {
+        if (!registry.containsKey(id)) {
+            return false;
+        }
+
+        registry.remove(id);
+
+        // Remove from config
+        String path = "special_items." + id;
+        plugin.getConfig().set(path, null);
+        plugin.saveConfig();
+
+        plugin.getLogger().info("[DynamicShop] Removed special item: " + id);
+        return true;
+    }
+
+    // ------------------------------------------------------------
+    // UPDATE SPECIAL ITEM PROPERTIES
+    // ------------------------------------------------------------
+
+    /**
+     * Update the price of a special item.
+     */
+    public boolean updateItemPrice(String id, double newPrice) {
+        if (!registry.containsKey(id)) {
+            return false;
+        }
+
+        String path = "special_items." + id + ".price";
+        plugin.getConfig().set(path, newPrice);
+        plugin.saveConfig();
+
+        // Reload to update in-memory registry
+        reload();
+        return true;
+    }
+
+    /**
+     * Update the display material of a special item.
+     */
+    public boolean updateItemDisplayMaterial(String id, org.bukkit.Material newMaterial) {
+        if (!registry.containsKey(id)) {
+            return false;
+        }
+
+        String path = "special_items." + id + ".display_material";
+        plugin.getConfig().set(path, newMaterial.name());
+        plugin.saveConfig();
+
+        // Reload to update in-memory registry
+        reload();
+        return true;
+    }
+
+    /**
+     * Update the required permission of a special item.
+     * Pass null to remove the requirement.
+     */
+    public boolean updateItemRequiredPermission(String id, String newPermission) {
+        if (!registry.containsKey(id)) {
+            return false;
+        }
+
+        String path = "special_items." + id + ".required_permission";
+        if (newPermission == null || newPermission.isEmpty()) {
+            plugin.getConfig().set(path, null);
+        } else {
+            plugin.getConfig().set(path, newPermission);
+        }
+        plugin.saveConfig();
+
+        // Reload to update in-memory registry
+        reload();
+        return true;
     }
 
     // ------------------------------------------------------------
@@ -343,7 +459,8 @@ public class SpecialShopManager {
                 }
 
                 String componentData = item.getNbt(); // Using NBT field for component data
-                if (componentData == null) componentData = "";
+                if (componentData == null)
+                    componentData = "";
                 componentData = componentData.trim();
 
                 // Minecraft 1.21+ syntax: /give player item[component=value]
@@ -360,7 +477,8 @@ public class SpecialShopManager {
                     // For spawners, convert old NBT format to 1.21 component format
                     if (m == Material.SPAWNER && componentData.contains("BlockEntityTag")) {
                         // Old format: {BlockEntityTag:{SpawnData:{id:"minecraft:pig"}}}
-                        // New format: block_entity_data={id:"minecraft:mob_spawner",SpawnData:{entity:{id:"minecraft:pig"}}}
+                        // New format:
+                        // block_entity_data={id:"minecraft:mob_spawner",SpawnData:{entity:{id:"minecraft:pig"}}}
 
                         // Extract the mob ID from old format
                         if (componentData.contains("\"minecraft:")) {
@@ -369,13 +487,15 @@ public class SpecialShopManager {
                             String mobId = componentData.substring(startIdx, endIdx);
 
                             // Build new format
-                            componentData = "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"" + mobId + "\"}}}";
+                            componentData = "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\""
+                                    + mobId + "\"}}}";
                         }
                     } else if (m == Material.SPAWNER && !componentData.contains("block_entity_data")) {
                         // Assume it's just the mob type like "pig"
                         // Already in correct format, just wrap it
                         if (!componentData.startsWith("block_entity_data=")) {
-                            componentData = "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"minecraft:" + componentData + "\"}}}";
+                            componentData = "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"minecraft:"
+                                    + componentData + "\"}}}";
                         }
                     }
 

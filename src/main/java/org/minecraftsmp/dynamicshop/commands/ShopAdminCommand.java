@@ -329,6 +329,62 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            // --------------------------------------------------------------
+            // /shopadmin remove ...
+            // --------------------------------------------------------------
+            case "remove" -> {
+                if (args.length < 2) {
+                    sender.sendMessage("§cUsage: /shopadmin remove perm <slot>");
+                    return true;
+                }
+
+                String removeType = args[1].toLowerCase();
+
+                // /shopadmin remove perm <slot>
+                if (removeType.equals("perm")) {
+                    if (args.length < 3) {
+                        sender.sendMessage("§cUsage: /shopadmin remove perm <slot>");
+                        sender.sendMessage("§7Slot numbers start at 1");
+                        return true;
+                    }
+
+                    int slot;
+                    try {
+                        slot = Integer.parseInt(args[2]);
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage("§cInvalid slot number: " + args[2]);
+                        return true;
+                    }
+
+                    int count = plugin.getSpecialShopManager().getPermissionItemCount();
+                    if (slot < 1 || slot > count) {
+                        sender.sendMessage("§cInvalid slot. There are only §e" + count + " §cpermission items.");
+                        return true;
+                    }
+
+                    // Convert 1-based slot to 0-based index
+                    var item = plugin.getSpecialShopManager().getPermissionItemByIndex(slot - 1);
+                    if (item == null) {
+                        sender.sendMessage("§cCould not find permission item at slot " + slot);
+                        return true;
+                    }
+
+                    String itemId = item.getId();
+                    String permission = item.getPermission();
+                    boolean removed = plugin.getSpecialShopManager().removeSpecialItem(itemId);
+
+                    if (removed) {
+                        sender.sendMessage("§a✓ §7Removed permission item: §e" + permission);
+                    } else {
+                        sender.sendMessage("§cFailed to remove permission item.");
+                    }
+                    return true;
+                }
+
+                sender.sendMessage("§cUnknown remove type. Use: /shopadmin remove perm <slot>");
+                return true;
+            }
+
             default -> {
                 sendHelp(sender);
                 return true;
@@ -345,6 +401,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-add-item"));
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-add-perm"));
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-add-server-shop"));
+        sender.sendMessage("§7/shopadmin remove perm <slot>");
     }
 
     private void sendAddHelp(CommandSender sender) {
@@ -383,6 +440,20 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             out.add("reload");
             out.add("add");
+            out.add("remove");
+            return out;
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("remove")) {
+            out.add("perm");
+            return out;
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("remove") && args[1].equalsIgnoreCase("perm")) {
+            int count = plugin.getSpecialShopManager().getPermissionItemCount();
+            for (int i = 1; i <= count; i++) {
+                out.add(String.valueOf(i));
+            }
             return out;
         }
 

@@ -19,6 +19,7 @@ import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
 import org.minecraftsmp.dynamicshop.gui.AdminConfigGUI;
 import org.minecraftsmp.dynamicshop.gui.AdminItemEditGUI;
 import org.minecraftsmp.dynamicshop.gui.AdminShopBrowseGUI;
+import org.minecraftsmp.dynamicshop.gui.AdminSpecialItemEditGUI;
 import org.minecraftsmp.dynamicshop.gui.CategorySelectionGUI;
 import org.minecraftsmp.dynamicshop.gui.SearchResultsGUI;
 import org.minecraftsmp.dynamicshop.gui.ShopGUI;
@@ -38,6 +39,7 @@ public class ShopListener implements Listener {
     private final Map<Player, AdminShopBrowseGUI> openAdminBrowse = new HashMap<>();
     private final Map<Player, AdminItemEditGUI> openAdminEdit = new HashMap<>();
     private final Map<Player, AdminConfigGUI> openAdminConfig = new HashMap<>();
+    private final Map<Player, AdminSpecialItemEditGUI> openAdminSpecialEdit = new HashMap<>();
 
     public ShopListener(DynamicShop plugin) {
         this.plugin = plugin;
@@ -74,6 +76,7 @@ public class ShopListener implements Listener {
         openAdminBrowse.remove(p);
         openAdminEdit.remove(p);
         openAdminConfig.remove(p);
+        openAdminSpecialEdit.remove(p);
     }
 
     // Admin GUI registration
@@ -101,6 +104,14 @@ public class ShopListener implements Listener {
         openAdminConfig.remove(p);
     }
 
+    public void registerAdminSpecialEdit(Player p, AdminSpecialItemEditGUI gui) {
+        openAdminSpecialEdit.put(p, gui);
+    }
+
+    public void unregisterAdminSpecialEdit(Player p) {
+        openAdminSpecialEdit.remove(p);
+    }
+
     // ------------------------------------------------------------------
     // CLICK LISTENER
     // ------------------------------------------------------------------
@@ -110,6 +121,15 @@ public class ShopListener implements Listener {
             return;
         if (e.getClickedInventory() == null)
             return;
+
+        // -------------------------
+        // ADMIN SPECIAL EDIT GUI
+        // -------------------------
+        if (openAdminSpecialEdit.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminSpecialEdit.get(p).handleClick(e.getRawSlot(), e.isShiftClick());
+            return;
+        }
 
         // -------------------------
         // ADMIN EDIT GUI
@@ -631,7 +651,8 @@ public class ShopListener implements Listener {
     public void onDrag(InventoryDragEvent e) {
         Player p = (Player) e.getWhoClicked();
         if (!openShop.containsKey(p) && !openCategory.containsKey(p) && !openSearch.containsKey(p)
-                && !openAdminBrowse.containsKey(p) && !openAdminEdit.containsKey(p) && !openAdminConfig.containsKey(p))
+                && !openAdminBrowse.containsKey(p) && !openAdminEdit.containsKey(p) && !openAdminConfig.containsKey(p)
+                && !openAdminSpecialEdit.containsKey(p))
             return;
         e.setCancelled(true);
     }
@@ -645,6 +666,11 @@ public class ShopListener implements Listener {
 
         // Only clear the GUI that matches the closed inventory
         // This prevents clearing the edit GUI when browse GUI closes to open edit
+        if (openAdminSpecialEdit.containsKey(p)
+                && openAdminSpecialEdit.get(p).getInventory().equals(e.getInventory())) {
+            openAdminSpecialEdit.remove(p);
+            return;
+        }
         if (openAdminEdit.containsKey(p) && openAdminEdit.get(p).getInventory().equals(e.getInventory())) {
             openAdminEdit.remove(p);
             return;

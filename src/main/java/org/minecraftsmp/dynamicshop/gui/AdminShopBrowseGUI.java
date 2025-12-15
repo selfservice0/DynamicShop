@@ -8,6 +8,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
+import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.util.ShopItemBuilder;
 
@@ -30,6 +31,7 @@ public class AdminShopBrowseGUI {
 
     private ItemCategory currentCategory;
     private List<Material> items;
+    private List<SpecialShopItem> specialItems; // For PERMISSIONS/SERVER_SHOP
     private int page = 0;
     private int maxPage = 0;
 
@@ -42,20 +44,30 @@ public class AdminShopBrowseGUI {
         loadItemsForCategory();
     }
 
-    private void loadItemsForCategory() {
-        // Skip special categories - they have their own management
+    public void loadItemsForCategory() {
+        // Special categories use special items
         if (currentCategory == ItemCategory.PERMISSIONS ||
-                currentCategory == ItemCategory.SERVER_SHOP ||
-                currentCategory == ItemCategory.PLAYER_SHOPS) {
+                currentCategory == ItemCategory.SERVER_SHOP) {
             this.items = List.of();
+            this.specialItems = plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
+                    .filter(item -> item.getCategory() == currentCategory)
+                    .toList();
+            this.page = 0;
+            this.maxPage = specialItems.isEmpty() ? 0 : (specialItems.size() - 1) / ITEMS_PER_PAGE;
+        } else if (currentCategory == ItemCategory.PLAYER_SHOPS) {
+            // Skip player shops entirely
+            this.items = List.of();
+            this.specialItems = List.of();
+            this.page = 0;
+            this.maxPage = 0;
         } else {
+            this.specialItems = List.of();
             this.items = ShopDataManager.getItemsInCategoryIncludeDisabled(currentCategory);
             if (items == null)
                 items = List.of();
+            this.page = 0;
+            this.maxPage = items.isEmpty() ? 0 : (items.size() - 1) / ITEMS_PER_PAGE;
         }
-
-        this.page = 0;
-        this.maxPage = items.isEmpty() ? 0 : (items.size() - 1) / ITEMS_PER_PAGE;
     }
 
     public void open() {
@@ -66,18 +78,64 @@ public class AdminShopBrowseGUI {
     public void render() {
         inventory.clear();
 
-        // Render items for current page
-        int start = page * ITEMS_PER_PAGE;
-        int end = Math.min(start + ITEMS_PER_PAGE, items.size());
+        // Check if we're in a special category
+        if (currentCategory == ItemCategory.PERMISSIONS || currentCategory == ItemCategory.SERVER_SHOP) {
+            // Render special items
+            int start = page * ITEMS_PER_PAGE;
+            int end = Math.min(start + ITEMS_PER_PAGE, specialItems.size());
 
-        for (int i = start; i < end; i++) {
-            Material mat = items.get(i);
-            int slot = i - start;
-            inventory.setItem(slot, buildAdminItem(mat));
+            for (int i = start; i < end; i++) {
+                SpecialShopItem sItem = specialItems.get(i);
+                int slot = i - start;
+                inventory.setItem(slot, buildSpecialItem(sItem));
+            }
+        } else {
+            // Render regular items for current page
+            int start = page * ITEMS_PER_PAGE;
+            int end = Math.min(start + ITEMS_PER_PAGE, items.size());
+
+            for (int i = start; i < end; i++) {
+                Material mat = items.get(i);
+                int slot = i - start;
+                inventory.setItem(slot, buildAdminItem(mat));
+            }
         }
 
         // Render navigation bar
         renderNavigation();
+    }
+
+    private ItemStack buildSpecialItem(SpecialShopItem sItem) {
+        ItemStack item = new ItemStack(sItem.getDisplayMaterial());
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§e§l" + sItem.getName());
+
+            List<String> lore = new ArrayList<>();
+            lore.add("§7───────────────────");
+            lore.add("§7ID: §f" + sItem.getId());
+            lore.add("§7Type: §b" + sItem.getCategory().getDisplayName());
+
+            if (sItem.isPermissionItem()) {
+                lore.add("§7Permission: §a" + sItem.getPermission());
+            } else {
+                lore.add("§7Identifier: §a" + sItem.getItemIdentifier());
+            }
+
+            lore.add("§7Price: §e$" + String.format("%.2f", sItem.getPrice()));
+
+            if (sItem.hasRequiredPermission()) {
+                lore.add("§7Requires: §c" + sItem.getRequiredPermission());
+            }
+
+            lore.add("§7───────────────────");
+            lore.add("");
+            lore.add("§e§lRight-click to EDIT");
+
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     private ItemStack buildAdminItem(Material mat) {
@@ -184,12 +242,10 @@ public class AdminShopBrowseGUI {
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
 
-            // List all categories, highlight current
+            // List all categories, highlight current (only skip PLAYER_SHOPS)
             for (ItemCategory cat : ItemCategory.values()) {
-                if (cat == ItemCategory.PERMISSIONS ||
-                        cat == ItemCategory.SERVER_SHOP ||
-                        cat == ItemCategory.PLAYER_SHOPS) {
-                    continue; // Skip special categories
+                if (cat == ItemCategory.PLAYER_SHOPS) {
+                    continue; // Only skip PLAYER_SHOPS
                 }
 
                 if (cat == currentCategory) {
@@ -240,12 +296,27 @@ public class AdminShopBrowseGUI {
         if (!isRightClick)
             return;
 
+        // Check if we're in a special category
+        if (currentCategory == ItemCategory.PERMISSIONS || currentCategory == ItemCategory.SERVER_SHOP) {
+            SpecialShopItem sItem = getSpecialItemFromSlot(slot);
+            if (sItem == null)
+                return;
+
+            // Open the special item editor GUI
+            plugin.getShopListener().unregisterAdminBrowse(player);
+            AdminSpecialItemEditGUI editGUI = new AdminSpecialItemEditGUI(plugin, player, sItem, this);
+            plugin.getShopListener().registerAdminSpecialEdit(player, editGUI);
+            editGUI.open();
+            return;
+        }
+
+        // Regular item
         Material mat = getItemFromSlot(slot);
         if (mat == null)
             return;
 
         // Open the item editor GUI
-        plugin.getShopListener().unregisterAdminBrowse(player); // Unregister browse first
+        plugin.getShopListener().unregisterAdminBrowse(player);
         AdminItemEditGUI editGUI = new AdminItemEditGUI(plugin, player, mat, this);
         plugin.getShopListener().registerAdminEdit(player, editGUI);
         editGUI.open();
@@ -276,16 +347,25 @@ public class AdminShopBrowseGUI {
         ItemCategory[] categories = ItemCategory.values();
         int currentIndex = currentCategory.ordinal();
 
-        // Find next valid category (skip special ones)
+        // Find next valid category (only skip PLAYER_SHOPS)
         do {
             currentIndex = (currentIndex + 1) % categories.length;
-        } while (categories[currentIndex] == ItemCategory.PERMISSIONS ||
-                categories[currentIndex] == ItemCategory.SERVER_SHOP ||
-                categories[currentIndex] == ItemCategory.PLAYER_SHOPS);
+        } while (categories[currentIndex] == ItemCategory.PLAYER_SHOPS);
 
         currentCategory = categories[currentIndex];
         loadItemsForCategory();
         render();
+    }
+
+    public SpecialShopItem getSpecialItemFromSlot(int slot) {
+        if (slot >= ITEMS_PER_PAGE)
+            return null;
+
+        int index = (page * ITEMS_PER_PAGE) + slot;
+        if (index < 0 || index >= specialItems.size())
+            return null;
+
+        return specialItems.get(index);
     }
 
     public Material getItemFromSlot(int slot) {
