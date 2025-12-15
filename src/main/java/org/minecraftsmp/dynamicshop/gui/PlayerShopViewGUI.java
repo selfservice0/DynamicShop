@@ -118,10 +118,10 @@ public class PlayerShopViewGUI {
             lore.add("§7Price: §e$" + String.format("%.2f", listing.getPrice()));
             lore.add("§7Amount: §f" + displayItem.getAmount());
 
-            // Show durability if applicable
-            if (displayItem.getType().getMaxDurability() > 0) {
+            // Show durability if applicable (using modern Damageable API)
+            if (displayItem.getType().getMaxDurability() > 0 && meta instanceof org.bukkit.inventory.meta.Damageable) {
                 int maxDurability = displayItem.getType().getMaxDurability();
-                int damage = displayItem.getDurability();
+                int damage = ((org.bukkit.inventory.meta.Damageable) meta).getDamage();
                 int remaining = maxDurability - damage;
                 int percent = (int) ((remaining / (double) maxDurability) * 100);
                 lore.add("§7Durability: §f" + remaining + "/" + maxDurability + " §7(" + percent + "%)");
