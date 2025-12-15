@@ -11,6 +11,7 @@ import org.bukkit.inventory.ItemStack;
 
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
+import org.minecraftsmp.dynamicshop.gui.AdminShopBrowseGUI;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 
 import java.util.ArrayList;
@@ -52,6 +53,14 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 0) {
+            // Open admin GUI if sender is a player
+            if (sender instanceof Player p) {
+                AdminShopBrowseGUI gui = new AdminShopBrowseGUI(plugin, p);
+                plugin.getShopListener().registerAdminBrowse(p, gui);
+                gui.open();
+                return true;
+            }
+            // Console can't open GUI, show help instead
             sendHelp(sender);
             return true;
         }

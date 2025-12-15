@@ -15,6 +15,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
+import org.minecraftsmp.dynamicshop.gui.AdminItemEditGUI;
+import org.minecraftsmp.dynamicshop.gui.AdminShopBrowseGUI;
 import org.minecraftsmp.dynamicshop.gui.CategorySelectionGUI;
 import org.minecraftsmp.dynamicshop.gui.SearchResultsGUI;
 import org.minecraftsmp.dynamicshop.gui.ShopGUI;
@@ -31,6 +33,8 @@ public class ShopListener implements Listener {
     private final Map<Player, ShopGUI> openShop = new HashMap<>();
     private final Map<Player, CategorySelectionGUI> openCategory = new HashMap<>();
     private final Map<Player, SearchResultsGUI> openSearch = new HashMap<>();
+    private final Map<Player, AdminShopBrowseGUI> openAdminBrowse = new HashMap<>();
+    private final Map<Player, AdminItemEditGUI> openAdminEdit = new HashMap<>();
 
     public ShopListener(DynamicShop plugin) {
         this.plugin = plugin;
@@ -64,6 +68,25 @@ public class ShopListener implements Listener {
         openShop.remove(p);
         openCategory.remove(p);
         openSearch.remove(p);
+        openAdminBrowse.remove(p);
+        openAdminEdit.remove(p);
+    }
+
+    // Admin GUI registration
+    public void registerAdminBrowse(Player p, AdminShopBrowseGUI gui) {
+        openAdminBrowse.put(p, gui);
+    }
+
+    public void unregisterAdminBrowse(Player p) {
+        openAdminBrowse.remove(p);
+    }
+
+    public void registerAdminEdit(Player p, AdminItemEditGUI gui) {
+        openAdminEdit.put(p, gui);
+    }
+
+    public void unregisterAdminEdit(Player p) {
+        openAdminEdit.remove(p);
     }
 
     // ------------------------------------------------------------------
@@ -75,6 +98,24 @@ public class ShopListener implements Listener {
             return;
         if (e.getClickedInventory() == null)
             return;
+
+        // -------------------------
+        // ADMIN EDIT GUI
+        // -------------------------
+        if (openAdminEdit.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminEdit.get(p).handleClick(e.getRawSlot());
+            return;
+        }
+
+        // -------------------------
+        // ADMIN BROWSE GUI
+        // -------------------------
+        if (openAdminBrowse.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminBrowse.get(p).handleClick(e.getRawSlot(), e.isRightClick());
+            return;
+        }
 
         // -------------------------
         // SEARCH GUI
@@ -363,8 +404,6 @@ public class ShopListener implements Listener {
             p.sendMessage(plugin.getMessageManager().getMessage("not-enough-items", ph));
             return;
         }
-
-        double s0 = ShopDataManager.getStock(mat);
 
         double totalPayout = ShopDataManager.getTotalSellValue(mat, removed);
 

@@ -30,10 +30,13 @@ public class ShopDataManager {
     // materials per-category (cached)
     private static final Map<ItemCategory, List<Material>> categoryItems = new EnumMap<>(ItemCategory.class);
 
-    //Save queue
+    // Admin features: disabled items and category overrides
+    private static final Set<Material> disabledItems = ConcurrentHashMap.newKeySet();
+    private static final Map<Material, ItemCategory> categoryOverrides = new ConcurrentHashMap<>();
+
+    // Save queue
     // which items need to be written to YAML
     private static final Set<Material> saveQueue = ConcurrentHashMap.newKeySet();
-
 
     private static DynamicShop plugin;
 
@@ -52,6 +55,8 @@ public class ShopDataManager {
         basePrices.clear();
         categoryCache.clear();
         categoryItems.clear();
+        disabledItems.clear();
+        categoryOverrides.clear();
 
         loadConfigItems();
         buildCategoryLists();
@@ -99,11 +104,29 @@ public class ShopDataManager {
             }
 
             ConfigurationSection data = sec.getConfigurationSection(key);
-            if (data == null) continue;
+            if (data == null)
+                continue;
 
             double base = data.getDouble("base", -1);
 
             basePrices.put(mat, base);
+
+            // Load disabled state
+            if (data.getBoolean("disabled", false)) {
+                disabledItems.add(mat);
+            }
+
+            // Load category override
+            String categoryOverride = data.getString("category", null);
+            if (categoryOverride != null) {
+                try {
+                    ItemCategory overrideCat = ItemCategory.valueOf(categoryOverride.toUpperCase());
+                    categoryOverrides.put(mat, overrideCat);
+                } catch (IllegalArgumentException ignored) {
+                    // Invalid category, ignore
+                }
+            }
+
             loaded++;
         }
 
@@ -126,7 +149,8 @@ public class ShopDataManager {
      */
     public static double getPrice(Material mat) {
         double base = getBasePrice(mat);
-        if (base < 0) return -1.0; // untradeable
+        if (base < 0)
+            return -1.0; // untradeable
         return getTotalBuyCost(mat, 1);
     }
 
@@ -142,14 +166,16 @@ public class ShopDataManager {
      */
     public static boolean canBuy(Material mat) {
         double base = basePrices.getOrDefault(mat, -1.0);
-        if (base < 0) return false; // untradeable
+        if (base < 0)
+            return false; // untradeable
 
         // Use cached config value instead of config lookups
         if (ConfigCacheManager.restrictBuyingAtZeroStock) {
             double stock = getStock(mat);
 
             if (stock <= 0) {
-                plugin.getLogger().info("[Stock Restriction] Blocked purchase of " + mat.name() + " (stock: " + stock + ")");
+                plugin.getLogger()
+                        .info("[Stock Restriction] Blocked purchase of " + mat.name() + " (stock: " + stock + ")");
                 return false;
             }
         }
@@ -161,16 +187,17 @@ public class ShopDataManager {
      * Core dynamic pricing formula.
      *
      * Takes a base price and adjusts it based on current stock.
-     * - Low stock  => price goes up toward maxMultiplier
+     * - Low stock => price goes up toward maxMultiplier
      * - High stock => price goes down toward minMultiplier
      */
     // ============================================================================
-    //  TOTAL BUY COST  (continuous pricing)
-    //  ∫ P(s) ds   from s = s0 - amount  →  s0
+    // TOTAL BUY COST (continuous pricing)
+    // ∫ P(s) ds from s = s0 - amount → s0
     // ============================================================================
     public static double getTotalBuyCost(Material mat, double amount) {
         double B = getBasePrice(mat);
-        if (B < 0) return -1.0;
+        if (B < 0)
+            return -1.0;
 
         // Dynamic pricing disabled → simple linear pricing
         if (!ConfigCacheManager.dynamicPricingEnabled) {
@@ -178,8 +205,8 @@ public class ShopDataManager {
         }
 
         double s0 = getStock(mat);
-        double L  = ConfigCacheManager.maxStock;
-        double k  = ConfigCacheManager.curveStrength;
+        double L = ConfigCacheManager.maxStock;
+        double k = ConfigCacheManager.curveStrength;
 
         // Negative stock multiplier per item
         double negPercent = ConfigCacheManager.negativeStockPercentPerItem / 100.0;
@@ -191,7 +218,7 @@ public class ShopDataManager {
         double t = Math.pow(1.0 + hourlyIncrease, h);
 
         double a = s0 - amount; // lower bound
-        double b = s0;          // upper bound
+        double b = s0; // upper bound
 
         double total = 0.0;
 
@@ -218,13 +245,15 @@ public class ShopDataManager {
 
         return total;
     }
+
     // ============================================================================
-//  TOTAL SELL VALUE  (continuous pricing)
-//  ∫ P(s) ds from s = s0 → s0 + amount   then apply tax
-// ============================================================================
+    // TOTAL SELL VALUE (continuous pricing)
+    // ∫ P(s) ds from s = s0 → s0 + amount then apply tax
+    // ============================================================================
     public static double getTotalSellValue(Material mat, int amount) {
         double B = getBasePrice(mat);
-        if (B < 0) return -1.0;
+        if (B < 0)
+            return -1.0;
 
         // Dynamic pricing disabled
         if (!ConfigCacheManager.dynamicPricingEnabled) {
@@ -232,8 +261,8 @@ public class ShopDataManager {
         }
 
         double s0 = getStock(mat);
-        double L  = ConfigCacheManager.maxStock;
-        double k  = ConfigCacheManager.curveStrength;
+        double L = ConfigCacheManager.maxStock;
+        double k = ConfigCacheManager.curveStrength;
 
         // Negative-stock multiplier
         double negPercent = ConfigCacheManager.negativeStockPercentPerItem / 100.0;
@@ -244,7 +273,7 @@ public class ShopDataManager {
         double h = getHoursInShortage(mat);
         double t = Math.pow(1.0 + hourlyIncrease, h);
 
-        double a = s0;          // lower bound
+        double a = s0; // lower bound
         double b = s0 + amount; // upper bound
 
         double total = 0.0;
@@ -277,7 +306,7 @@ public class ShopDataManager {
     }
 
     // ============================================================================
-    //  REGION INTEGRALS
+    // REGION INTEGRALS
     // ============================================================================
 
     // NEGATIVE REGION: price = B * t * q^(-s)
@@ -290,24 +319,24 @@ public class ShopDataManager {
     private static double integrateMidPositiveRegion(double B, double k, double L, double a, double b) {
         // ∫ B(1 - 0.5k s/L) ds = B[(b-a) - 0.5k(b² - a²)/(2L)]
         double term1 = (b - a);
-        double term2 = 0.5 * k * (b*b - a*a) / (2 * L);
+        double term2 = 0.5 * k * (b * b - a * a) / (2 * L);
         return B * (term1 - term2);
     }
 
-    // HIGH REGION: price = B * (1 - k)   (flat)
+    // HIGH REGION: price = B * (1 - k) (flat)
     private static double integrateHighPositiveRegion(double B, double k, double a, double b) {
         return B * (1.0 - k) * (b - a);
     }
-
-
-
-
-
 
     // ------------------------------------------------------------------------
     // CATEGORY DETECTION + CACHING
     // ------------------------------------------------------------------------
     public static ItemCategory detectCategory(Material mat) {
+        // Check for admin category override first
+        if (categoryOverrides.containsKey(mat)) {
+            return categoryOverrides.get(mat);
+        }
+
         if (categoryCache.containsKey(mat)) {
             return categoryCache.get(mat);
         }
@@ -344,11 +373,13 @@ public class ShopDataManager {
                 name.contains("STAIRS") && (name.contains("OAK") || name.contains("SPRUCE") ||
                         name.contains("BIRCH") || name.contains("JUNGLE") || name.contains("ACACIA") ||
                         name.contains("DARK_OAK") || name.contains("MANGROVE") || name.contains("CHERRY") ||
-                        name.contains("BAMBOO") || name.contains("CRIMSON") || name.contains("WARPED")) ||
+                        name.contains("BAMBOO") || name.contains("CRIMSON") || name.contains("WARPED"))
+                ||
                 name.contains("SLAB") && (name.contains("OAK") || name.contains("SPRUCE") ||
                         name.contains("BIRCH") || name.contains("JUNGLE") || name.contains("ACACIA") ||
                         name.contains("DARK_OAK") || name.contains("MANGROVE") || name.contains("CHERRY") ||
-                        name.contains("BAMBOO") || name.contains("CRIMSON") || name.contains("WARPED")) ||
+                        name.contains("BAMBOO") || name.contains("CRIMSON") || name.contains("WARPED"))
+                ||
                 name.contains("SIGN") && !name.equals("DESIGN") ||
                 name.contains("BARREL") ||
                 name.contains("CHEST") && (name.contains("OAK") || name.contains("SPRUCE") ||
@@ -421,11 +452,13 @@ public class ShopDataManager {
                 name.contains("BUTTON") && !name.contains("OAK") && !name.contains("SPRUCE") &&
                         !name.contains("BIRCH") && !name.contains("JUNGLE") && !name.contains("ACACIA") &&
                         !name.contains("DARK_OAK") && !name.contains("MANGROVE") && !name.contains("CHERRY") &&
-                        !name.contains("BAMBOO") && !name.contains("CRIMSON") && !name.contains("WARPED") ||
+                        !name.contains("BAMBOO") && !name.contains("CRIMSON") && !name.contains("WARPED")
+                ||
                 name.contains("PRESSURE_PLATE") && !name.contains("STONE_PRESSURE_PLATE") &&
                         !name.contains("OAK") && !name.contains("SPRUCE") && !name.contains("BIRCH") &&
                         !name.contains("JUNGLE") && !name.contains("ACACIA") && !name.contains("DARK_OAK") &&
-                        !name.contains("MANGROVE") && !name.contains("CHERRY") ||
+                        !name.contains("MANGROVE") && !name.contains("CHERRY")
+                ||
                 name.contains("RAIL") || name.contains("DETECTOR") && !name.equals("DETECTOR_RAIL") ||
                 name.contains("REDSTONE_TORCH") || name.contains("REDSTONE_LAMP") ||
                 name.contains("DAYLIGHT") || name.contains("TRIPWIRE") ||
@@ -451,7 +484,8 @@ public class ShopDataManager {
                 name.contains("BAMBOO") && !name.contains("BUTTON") &&
                         !name.contains("DOOR") && !name.contains("FENCE") &&
                         !name.contains("SIGN") && !name.contains("STAIRS") &&
-                        !name.contains("SLAB") ||
+                        !name.contains("SLAB")
+                ||
                 name.equals("CACTUS") || name.equals("COCOA_BEANS") ||
                 name.contains("NETHER_WART") || name.contains("SAPLING") ||
                 name.contains("LEAVES") && !name.contains("BOOK") ||
@@ -522,6 +556,22 @@ public class ShopDataManager {
     // QUERY — GET ITEMS IN A CATEGORY
     // ------------------------------------------------------------------------
     public static List<Material> getItemsInCategory(ItemCategory cat) {
+        List<Material> result;
+        if (cat == ItemCategory.MISC) {
+            result = new ArrayList<>(basePrices.keySet());
+        } else {
+            result = new ArrayList<>(categoryItems.getOrDefault(cat, Collections.emptyList()));
+        }
+
+        // Filter out disabled items for regular shop display
+        result.removeIf(mat -> disabledItems.contains(mat));
+        return result;
+    }
+
+    /**
+     * Get items in category WITHOUT filtering disabled items (for admin GUI)
+     */
+    public static List<Material> getItemsInCategoryIncludeDisabled(ItemCategory cat) {
         if (cat == ItemCategory.MISC) {
             return new ArrayList<>(basePrices.keySet());
         }
@@ -592,23 +642,25 @@ public class ShopDataManager {
         }
     }
 
-
     /**
-     * Force an immediate write of the current in-memory dynamic data to shopdata.yml.
+     * Force an immediate write of the current in-memory dynamic data to
+     * shopdata.yml.
      * Used on plugin shutdown and before certain cross-server sync operations.
      */
     public static void flushQueue() {
         saveQueuedItems();
     }
 
-
     /**
-     * Apply a stock update received from another server via the P2P cross-server manager.
-     * This does NOT re-broadcast the change; it only updates local state and lets the
+     * Apply a stock update received from another server via the P2P cross-server
+     * manager.
+     * This does NOT re-broadcast the change; it only updates local state and lets
+     * the
      * normal YAML save cycle persist the data.
      */
     public static void receiveRemoteStockUpdate(Material mat, double stock, double purchases) {
-        if (mat == null) return;
+        if (mat == null)
+            return;
 
         // Update dynamic data without triggering another publish
         setStockDirect(mat, stock);
@@ -632,7 +684,8 @@ public class ShopDataManager {
         for (Material mat : basePrices.keySet()) {
             String key = mat.name();
             ConfigurationSection sec = itemsSec.getConfigurationSection(key);
-            if (sec == null) sec = itemsSec.createSection(key);
+            if (sec == null)
+                sec = itemsSec.createSection(key);
 
             sec.set("stock", stockMap.getOrDefault(mat, 0.0));
             sec.set("purchases", purchasesMap.getOrDefault(mat, 0.0));
@@ -648,14 +701,16 @@ public class ShopDataManager {
     }
 
     public static void saveQueuedItems() {
-        if (saveQueue.isEmpty()) return;
+        if (saveQueue.isEmpty())
+            return;
 
         ConfigurationSection itemsSec = shopDataConfig.getConfigurationSection("items");
         if (itemsSec == null) {
             itemsSec = shopDataConfig.createSection("items");
         }
 
-        // Copy to avoid concurrent modification if something calls markDirty while saving
+        // Copy to avoid concurrent modification if something calls markDirty while
+        // saving
         Set<Material> toSave = new HashSet<>(saveQueue);
 
         for (Material mat : toSave) {
@@ -665,8 +720,8 @@ public class ShopDataManager {
                 sec = itemsSec.createSection(key);
             }
 
-            sec.set("stock",       stockMap.getOrDefault(mat, 0.0));
-            sec.set("purchases",   purchasesMap.getOrDefault(mat, 0.0));
+            sec.set("stock", stockMap.getOrDefault(mat, 0.0));
+            sec.set("purchases", purchasesMap.getOrDefault(mat, 0.0));
             sec.set("last_update", lastUpdateMap.getOrDefault(mat, System.currentTimeMillis()));
             sec.set("shortage_hours", shortageHoursMap.getOrDefault(mat, 0.0));
         }
@@ -723,7 +778,8 @@ public class ShopDataManager {
             String key = mat.name();
 
             ConfigurationSection sec = itemsSec.getConfigurationSection(key);
-            if (sec == null) sec = itemsSec.createSection(key);
+            if (sec == null)
+                sec = itemsSec.createSection(key);
 
             // STOCK
             double stock = 0.0;
@@ -802,7 +858,8 @@ public class ShopDataManager {
         double total = 0.0;
         for (Material mat : basePrices.keySet()) {
             double base = getBasePrice(mat);
-            if (base <= 0) continue;
+            if (base <= 0)
+                continue;
             total += getStock(mat) * base;
         }
         return total;
@@ -812,7 +869,8 @@ public class ShopDataManager {
         double total = 0.0;
         for (Material mat : basePrices.keySet()) {
             double base = getBasePrice(mat);
-            if (base <= 0) continue;
+            if (base <= 0)
+                continue;
             total += getPurchases(mat) * base;
         }
         return total;
@@ -822,7 +880,7 @@ public class ShopDataManager {
         return basePrices.size();
     }
 
-    //queue helpers
+    // queue helpers
     private static void markDirty(Material mat) {
         if (mat != null) {
             saveQueue.add(mat);
@@ -856,7 +914,8 @@ public class ShopDataManager {
         try {
             Material mat = Material.valueOf(materialName.toUpperCase());
 
-            if (!basePrices.containsKey(mat)) return null;
+            if (!basePrices.containsKey(mat))
+                return null;
 
             String displayName = Arrays.stream(mat.name().toLowerCase().split("_"))
                     .map(w -> w.isEmpty() ? "" : Character.toUpperCase(w.charAt(0)) + w.substring(1))
@@ -868,15 +927,16 @@ public class ShopDataManager {
             int quantitySold = 0;
 
             if (plugin != null && plugin.getTransactionLogger() != null) {
-                List<org.minecraftsmp.dynamicshop.transactions.Transaction> transactions =
-                        plugin.getTransactionLogger().getRecentTransactions();
+                List<org.minecraftsmp.dynamicshop.transactions.Transaction> transactions = plugin.getTransactionLogger()
+                        .getRecentTransactions();
 
                 for (org.minecraftsmp.dynamicshop.transactions.Transaction tx : transactions) {
                     if (tx.getItem().equalsIgnoreCase(mat.name())) {
                         if (tx.getType() == org.minecraftsmp.dynamicshop.transactions.Transaction.TransactionType.BUY) {
                             timesBought++;
                             quantityBought += tx.getAmount();
-                        } else if (tx.getType() == org.minecraftsmp.dynamicshop.transactions.Transaction.TransactionType.SELL) {
+                        } else if (tx
+                                .getType() == org.minecraftsmp.dynamicshop.transactions.Transaction.TransactionType.SELL) {
                             timesSold++;
                             quantitySold += tx.getAmount();
                         }
@@ -889,7 +949,6 @@ public class ShopDataManager {
             return null;
         }
     }
-
 
     // ------------------------------------------------------------------------
     // DEBUG / RESET HELPERS
@@ -907,5 +966,57 @@ public class ShopDataManager {
         shopDataConfig.set("purchases", null);
 
         saveDynamicData();
+    }
+
+    // ------------------------------------------------------------------------
+    // ADMIN ITEM MANAGEMENT
+    // ------------------------------------------------------------------------
+
+    /**
+     * Check if an item is disabled from the shop
+     */
+    public static boolean isItemDisabled(Material mat) {
+        return disabledItems.contains(mat);
+    }
+
+    /**
+     * Enable or disable an item in the shop
+     */
+    public static void setItemDisabled(Material mat, boolean disabled) {
+        if (disabled) {
+            disabledItems.add(mat);
+        } else {
+            disabledItems.remove(mat);
+        }
+
+        // Save to config
+        plugin.getConfig().set("items." + mat.name() + ".disabled", disabled ? true : null);
+        plugin.saveConfig();
+    }
+
+    /**
+     * Set the base price for an item
+     */
+    public static void setBasePrice(Material mat, double price) {
+        basePrices.put(mat, price);
+
+        // Save to config
+        plugin.getConfig().set("items." + mat.name() + ".base", price);
+        plugin.saveConfig();
+    }
+
+    /**
+     * Set a category override for an item
+     */
+    public static void setCategoryOverride(Material mat, ItemCategory category) {
+        categoryOverrides.put(mat, category);
+        categoryCache.put(mat, category); // Update cache too
+
+        // Save to config
+        plugin.getConfig().set("items." + mat.name() + ".category", category.name());
+        plugin.saveConfig();
+
+        // Rebuild category lists to reflect the change
+        buildCategoryLists();
     }
 }
