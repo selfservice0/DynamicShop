@@ -236,6 +236,7 @@ public class AdminShopBrowseGUI {
             return;
 
         // Open the item editor GUI
+        plugin.getShopListener().unregisterAdminBrowse(player); // Unregister browse first
         AdminItemEditGUI editGUI = new AdminItemEditGUI(plugin, player, mat, this);
         plugin.getShopListener().registerAdminEdit(player, editGUI);
         editGUI.open();

@@ -609,7 +609,8 @@ public class ShopListener implements Listener {
     @EventHandler
     public void onDrag(InventoryDragEvent e) {
         Player p = (Player) e.getWhoClicked();
-        if (!openShop.containsKey(p) && !openCategory.containsKey(p) && !openSearch.containsKey(p))
+        if (!openShop.containsKey(p) && !openCategory.containsKey(p) && !openSearch.containsKey(p)
+                && !openAdminBrowse.containsKey(p) && !openAdminEdit.containsKey(p))
             return;
         e.setCancelled(true);
     }

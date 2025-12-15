@@ -30,8 +30,7 @@ public class ShopDataManager {
     // materials per-category (cached)
     private static final Map<ItemCategory, List<Material>> categoryItems = new EnumMap<>(ItemCategory.class);
 
-    // Admin features: disabled items and category overrides
-    private static final Set<Material> disabledItems = ConcurrentHashMap.newKeySet();
+    // Admin features: category overrides
     private static final Map<Material, ItemCategory> categoryOverrides = new ConcurrentHashMap<>();
 
     // Save queue
@@ -55,7 +54,6 @@ public class ShopDataManager {
         basePrices.clear();
         categoryCache.clear();
         categoryItems.clear();
-        disabledItems.clear();
         categoryOverrides.clear();
 
         loadConfigItems();
@@ -110,11 +108,6 @@ public class ShopDataManager {
             double base = data.getDouble("base", -1);
 
             basePrices.put(mat, base);
-
-            // Load disabled state
-            if (data.getBoolean("disabled", false)) {
-                disabledItems.add(mat);
-            }
 
             // Load category override
             String categoryOverride = data.getString("category", null);
@@ -563,8 +556,8 @@ public class ShopDataManager {
             result = new ArrayList<>(categoryItems.getOrDefault(cat, Collections.emptyList()));
         }
 
-        // Filter out disabled items for regular shop display
-        result.removeIf(mat -> disabledItems.contains(mat));
+        // Filter out disabled items (base price < 0) for regular shop display
+        result.removeIf(mat -> basePrices.getOrDefault(mat, -1.0) < 0);
         return result;
     }
 
@@ -973,25 +966,25 @@ public class ShopDataManager {
     // ------------------------------------------------------------------------
 
     /**
-     * Check if an item is disabled from the shop
+     * Check if an item is disabled from the shop (base price < 0)
      */
     public static boolean isItemDisabled(Material mat) {
-        return disabledItems.contains(mat);
+        return basePrices.getOrDefault(mat, -1.0) < 0;
     }
 
     /**
-     * Enable or disable an item in the shop
+     * Enable or disable an item in the shop.
+     * Uses base: -1 to disable (standard convention).
+     * When enabling, restores to 1.0 as default price.
      */
     public static void setItemDisabled(Material mat, boolean disabled) {
         if (disabled) {
-            disabledItems.add(mat);
+            // Store -1 as base price to disable
+            setBasePrice(mat, -1);
         } else {
-            disabledItems.remove(mat);
+            // Restore to default price of 1.0
+            setBasePrice(mat, 1.0);
         }
-
-        // Save to config
-        plugin.getConfig().set("items." + mat.name() + ".disabled", disabled ? true : null);
-        plugin.saveConfig();
     }
 
     /**
