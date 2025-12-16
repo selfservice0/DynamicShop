@@ -1,23 +1,54 @@
-// Global state
+// ═══════════════════════════════════════════════════════════════════════
+// DYNAMICSHOP DASHBOARD - JavaScript
+// ═══════════════════════════════════════════════════════════════════════
+
+// Global State
 let allTransactions = [];
 let filteredTransactions = [];
 let currentPage = 1;
-const itemsPerPage = 50;
+const itemsPerPage = 25;
 let sortColumn = 'timestamp';
 let sortDirection = 'desc';
-let timeRange = 'all'; // all, 1h, 24h, 7d, 30d
-let priceChart = null;
+let timeRange = 'all';
+let currentLeaderboard = 'earners';
+let currentTrends = 'hot';
 let activityChart = null;
+let categoryChart = null;
 
-// Initialize on page load
+// ═══ INITIALIZATION ═══
 document.addEventListener('DOMContentLoaded', () => {
-    loadData();
-    setInterval(loadData, 30000); // Auto-refresh every 30 seconds
-    initCharts();
+    loadAllData();
+    setupEventListeners();
+    setInterval(loadAllData, 30000); // Auto-refresh every 30 seconds
 });
 
-// Load all data
-async function loadData() {
+// ═══ EVENT LISTENERS ═══
+function setupEventListeners() {
+    // Search input
+    const txSearch = document.getElementById('txSearch');
+    if (txSearch) {
+        txSearch.addEventListener('input', debounce(applyFilters, 300));
+    }
+
+    // Type filter
+    const typeFilter = document.getElementById('typeFilter');
+    if (typeFilter) {
+        typeFilter.addEventListener('change', applyFilters);
+    }
+
+    // Modal close on outside click
+    document.getElementById('itemModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'itemModal') closeModal();
+    });
+
+    // Escape key closes modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+}
+
+// ═══ DATA LOADING ═══
+async function loadAllData() {
     try {
         await Promise.all([
             loadTransactions(),
@@ -32,381 +63,496 @@ async function loadData() {
     }
 }
 
-// Load transactions
 async function loadTransactions() {
     try {
-        const response = await fetch('/api/recent?limit=1000');
+        const response = await fetch('/api/recent?limit=500');
         allTransactions = await response.json();
         applyTimeFilter();
         renderTransactions();
         updateInsights();
+        renderActivityChart();
     } catch (error) {
         console.error('Error loading transactions:', error);
-        document.getElementById('transactionsBody').innerHTML =
-            '<tr><td colspan="7" class="loading">Error loading transactions</td></tr>';
+        showError('transactionsBody', 'Error loading transactions');
     }
 }
 
-// Load stats
 async function loadStats() {
     try {
         const response = await fetch('/api/stats');
         const stats = await response.json();
 
-        document.getElementById('totalTransactions').textContent = stats.total.toLocaleString();
-        document.getElementById('totalMoney').textContent = '$' + stats.totalMoney.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-        document.getElementById('totalBuys').textContent = stats.buys.toLocaleString();
-        document.getElementById('totalSells').textContent = stats.sells.toLocaleString();
+        animateNumber('totalTransactions', stats.total);
+        animateNumber('totalMoney', stats.totalMoney, true);
+        animateNumber('totalBuys', stats.buys);
+        animateNumber('totalSells', stats.sells);
     } catch (error) {
         console.error('Error loading stats:', error);
     }
 }
 
-// Load economy health metrics
 async function loadEconomyHealth() {
     try {
         const response = await fetch('/api/analytics/economy');
         const health = await response.json();
 
         // Update health metrics
-        document.getElementById('buyRatio').textContent =
-            (health.buyRatio * 100).toFixed(1) + '%';
+        const buyRatioEl = document.getElementById('buyRatio');
+        if (buyRatioEl) {
+            buyRatioEl.textContent = (health.buyRatio * 100).toFixed(1) + '%';
+        }
 
-        document.getElementById('velocity').textContent =
-            health.velocity + ' txs/hour';
+        const buyRatioBar = document.getElementById('buyRatioBar');
+        if (buyRatioBar) {
+            buyRatioBar.style.width = (health.buyRatio * 100) + '%';
+        }
+
+        setText('velocity', health.velocity + ' txs/hr');
 
         const netFlow = health.netFlow;
         const flowElement = document.getElementById('netFlow');
-        flowElement.textContent = '$' + Math.abs(netFlow).toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-        flowElement.className = netFlow > 0 ? 'positive' : 'negative';
+        if (flowElement) {
+            flowElement.textContent = formatCurrency(Math.abs(netFlow));
+            flowElement.className = 'health-value ' + (netFlow >= 0 ? 'positive' : 'negative');
+        }
 
-        document.getElementById('avgTransaction').textContent =
-            '$' + health.avgTransaction.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-
-        document.getElementById('uniqueItems').textContent = health.uniqueItems;
-        document.getElementById('uniquePlayers').textContent = health.uniquePlayers;
-
+        setText('avgTransaction', formatCurrency(health.avgTransaction));
+        setText('uniqueItems', health.uniqueItems);
+        setText('uniquePlayers', health.uniquePlayers);
     } catch (error) {
         console.error('Error loading economy health:', error);
     }
 }
 
-// Load leaderboards
 async function loadLeaderboards() {
     try {
-        const [earners, spenders, traders] = await Promise.all([
-            fetch('/api/analytics/leaderboard?type=earners&limit=5').then(r => r.json()),
-            fetch('/api/analytics/leaderboard?type=spenders&limit=5').then(r => r.json()),
-            fetch('/api/analytics/leaderboard?type=traders&limit=5').then(r => r.json())
-        ]);
-
-        renderLeaderboard('topEarners', earners, 'netProfit');
-        renderLeaderboard('topSpenders', spenders, 'spent');
-        renderLeaderboard('topTraders', traders, 'trades');
-
+        const response = await fetch(`/api/analytics/leaderboard?type=${currentLeaderboard}&limit=5`);
+        const data = await response.json();
+        renderLeaderboard(data);
     } catch (error) {
         console.error('Error loading leaderboards:', error);
+        showError('leaderboardContent', 'Error loading leaderboard');
     }
 }
 
-// Render leaderboard
-function renderLeaderboard(elementId, data, valueKey) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-
-    const html = data.map((entry, index) => {
-        let value;
-        if (valueKey === 'netProfit' || valueKey === 'spent') {
-            value = '$' + Math.abs(entry[valueKey]).toLocaleString('en-US', {
-                maximumFractionDigits: 0
-            });
-        } else {
-            value = entry[valueKey].toLocaleString();
-        }
-
-        return `
-            <div class="leaderboard-item">
-                <span class="rank">#${index + 1}</span>
-                <span class="player-name">${escapeHtml(entry.player)}</span>
-                <span class="player-value">${value}</span>
-            </div>
-        `;
-    }).join('');
-
-    element.innerHTML = html || '<div class="loading">No data</div>';
-}
-
-// Load trends
 async function loadTrends() {
     try {
         const response = await fetch('/api/analytics/trends?limit=10');
-        const trends = await response.json();
-
-        renderTrendList('hotItems', trends.hot, 'hot');
-        renderTrendList('risingItems', trends.rising, 'rising');
-        renderTrendList('fallingItems', trends.falling, 'falling');
-
+        const data = await response.json();
+        renderTrends(data[currentTrends] || []);
     } catch (error) {
         console.error('Error loading trends:', error);
+        showError('trendsContent', 'Error loading trends');
     }
 }
 
-// Render trend list
-function renderTrendList(elementId, items, type) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
+// ═══ RENDERING ═══
+function renderLeaderboard(data) {
+    const container = document.getElementById('leaderboardContent');
+    if (!container || !data.length) {
+        if (container) container.innerHTML = '<div class="loading">No data available</div>';
+        return;
+    }
 
-    const html = items.map(item => {
-        const changeIcon = item.changePercent > 0 ? '📈' : '📉';
-        const changeClass = item.changePercent > 0 ? 'positive' : 'negative';
+    const valueKey = currentLeaderboard === 'traders' ? 'trades' :
+        currentLeaderboard === 'spenders' ? 'spent' : 'netProfit';
+
+    container.innerHTML = data.map((entry, i) => {
+        const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+        const value = valueKey === 'trades' ?
+            entry.trades.toLocaleString() + ' trades' :
+            formatCurrency(Math.abs(entry[valueKey]));
 
         return `
-            <div class="trend-item" onclick="showItemDetails('${escapeHtml(item.item)}')">
-                <div class="trend-header">
-                    <span class="trend-name">${prettifyItem(item.item)}</span>
-                    <span class="trend-change ${changeClass}">
-                        ${changeIcon} ${Math.abs(item.changePercent).toFixed(0)}%
-                    </span>
+            <div class="leaderboard-item">
+                <div class="rank ${rankClass}">${i + 1}</div>
+                <img class="player-avatar" 
+                     src="https://mc-heads.net/avatar/${entry.player}/32" 
+                     alt="${entry.player}"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><rect fill=%22%23334155%22 width=%2232%22 height=%2232%22/></svg>'">
+                <div class="player-info">
+                    <div class="player-name">${escapeHtml(entry.player)}</div>
+                    <div class="player-stat">${entry.trades} trades</div>
                 </div>
-                <div class="trend-details">
-                    <span>${item.recentCount} recent txs</span>
-                    <span>$${item.avgPrice.toFixed(2)}/unit</span>
-                </div>
+                <div class="player-value">${value}</div>
             </div>
         `;
     }).join('');
-
-    element.innerHTML = html || '<div class="loading">No data</div>';
 }
 
-// Show item details modal
+function renderTrends(items) {
+    const container = document.getElementById('trendsContent');
+    if (!container || !items.length) {
+        if (container) container.innerHTML = '<div class="loading">No trend data</div>';
+        return;
+    }
+
+    container.innerHTML = items.map(item => {
+        const isPositive = item.changePercent >= 0;
+        return `
+            <div class="trend-item" onclick="showItemDetails('${escapeHtml(item.item)}')">
+                <span class="trend-icon">${isPositive ? '📈' : '📉'}</span>
+                <div class="trend-info">
+                    <div class="trend-name">${prettifyItem(item.item)}</div>
+                    <div class="trend-stats">${item.recentCount} recent • ${formatCurrency(item.avgPrice)}/unit</div>
+                </div>
+                <span class="trend-change ${isPositive ? 'positive' : 'negative'}">
+                    ${isPositive ? '+' : ''}${item.changePercent.toFixed(0)}%
+                </span>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderTransactions() {
+    const tbody = document.getElementById('transactionsBody');
+    if (!tbody) return;
+
+    if (!filteredTransactions.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">No transactions found</td></tr>';
+        return;
+    }
+
+    sortTransactions();
+
+    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+    const start = (currentPage - 1) * itemsPerPage;
+    const pageData = filteredTransactions.slice(start, start + itemsPerPage);
+
+    tbody.innerHTML = pageData.map(tx => `
+        <tr onclick="showItemDetails('${escapeHtml(tx.item)}')">
+            <td>${formatTime(tx.timestamp)}</td>
+            <td>${escapeHtml(tx.playerName)}</td>
+            <td><span class="type-badge ${tx.type.toLowerCase()}">${tx.type}</span></td>
+            <td>${prettifyItem(tx.item)}</td>
+            <td>${tx.amount.toLocaleString()}</td>
+            <td>${formatCurrency(tx.price)}</td>
+        </tr>
+    `).join('');
+
+    // Update pagination
+    setText('currentPage', currentPage);
+    setText('totalPages', totalPages || 1);
+    document.getElementById('prevBtn').disabled = currentPage === 1;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+}
+
+function renderActivityChart() {
+    const canvas = document.getElementById('activityChart');
+    if (!canvas) return;
+
+    // Group transactions by hour
+    const hourlyData = {};
+    const now = new Date();
+    for (let i = 23; i >= 0; i--) {
+        const hour = new Date(now - i * 60 * 60 * 1000);
+        const key = hour.toLocaleDateString() + ' ' + hour.getHours() + ':00';
+        hourlyData[key] = { buys: 0, sells: 0 };
+    }
+
+    filteredTransactions.forEach(tx => {
+        const date = new Date(tx.timestamp);
+        const key = date.toLocaleDateString() + ' ' + date.getHours() + ':00';
+        if (hourlyData[key]) {
+            if (tx.type === 'BUY') hourlyData[key].buys++;
+            else hourlyData[key].sells++;
+        }
+    });
+
+    const labels = Object.keys(hourlyData).map(k => k.split(' ')[1]);
+    const buyData = Object.values(hourlyData).map(v => v.buys);
+    const sellData = Object.values(hourlyData).map(v => v.sells);
+
+    if (activityChart) activityChart.destroy();
+
+    activityChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Purchases',
+                    data: buyData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                    borderRadius: 4
+                },
+                {
+                    label: 'Sales',
+                    data: sellData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#CBD5E1' }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    ticks: { color: '#94A3B8' },
+                    grid: { color: 'rgba(51, 65, 85, 0.5)' }
+                },
+                y: {
+                    stacked: true,
+                    ticks: { color: '#94A3B8' },
+                    grid: { color: 'rgba(51, 65, 85, 0.5)' }
+                }
+            }
+        }
+    });
+}
+
+function updateInsights() {
+    updateTopItems();
+    updateTopPlayers();
+    renderCategoryChart();
+}
+
+function updateTopItems() {
+    const container = document.getElementById('topItems');
+    if (!container) return;
+
+    const itemCounts = {};
+    filteredTransactions.forEach(tx => {
+        if (!itemCounts[tx.item]) itemCounts[tx.item] = { count: 0, volume: 0 };
+        itemCounts[tx.item].count += tx.amount;
+        itemCounts[tx.item].volume += tx.price;
+    });
+
+    const sorted = Object.entries(itemCounts)
+        .sort((a, b) => b[1].volume - a[1].volume)
+        .slice(0, 8);
+
+    container.innerHTML = sorted.map(([item, data]) => `
+        <div class="insight-item" onclick="showItemDetails('${escapeHtml(item)}')">
+            <span class="insight-name">${prettifyItem(item)}</span>
+            <span class="insight-value">${formatCurrency(data.volume)}</span>
+        </div>
+    `).join('') || '<div class="loading">No data</div>';
+}
+
+function updateTopPlayers() {
+    const container = document.getElementById('topPlayers');
+    if (!container) return;
+
+    const playerStats = {};
+    filteredTransactions.forEach(tx => {
+        if (!playerStats[tx.playerName]) playerStats[tx.playerName] = 0;
+        playerStats[tx.playerName]++;
+    });
+
+    const sorted = Object.entries(playerStats)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+
+    container.innerHTML = sorted.map(([player, count]) => `
+        <div class="insight-item">
+            <span class="insight-name">${escapeHtml(player)}</span>
+            <span class="insight-value">${count} txs</span>
+        </div>
+    `).join('') || '<div class="loading">No data</div>';
+}
+
+function renderCategoryChart() {
+    const canvas = document.getElementById('categoryChart');
+    if (!canvas) return;
+
+    const categories = {};
+    filteredTransactions.forEach(tx => {
+        const cat = tx.category || 'Unknown';
+        categories[cat] = (categories[cat] || 0) + 1;
+    });
+
+    const labels = Object.keys(categories);
+    const data = Object.values(categories);
+    const colors = [
+        '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B',
+        '#EF4444', '#EC4899', '#6366F1', '#14B8A6'
+    ];
+
+    if (categoryChart) categoryChart.destroy();
+
+    categoryChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data,
+                backgroundColor: colors.slice(0, labels.length),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: '#CBD5E1',
+                        boxWidth: 12,
+                        padding: 8
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ═══ MODAL ═══
 async function showItemDetails(item) {
     const modal = document.getElementById('itemModal');
     const modalTitle = document.getElementById('modalItemName');
     const modalBody = document.getElementById('modalBody');
 
+    if (!modal || !modalTitle || !modalBody) return;
+
     modalTitle.textContent = prettifyItem(item);
-    modalBody.innerHTML = '<div class="loading">Loading price history...</div>';
-    modal.style.display = 'flex';
+    modalBody.innerHTML = '<div class="loading-spinner"></div>';
+    modal.classList.add('active');
 
     try {
-        const response = await fetch(`/api/analytics/price-history/${encodeURIComponent(item)}?hours=168`);
-        const history = await response.json();
+        const [itemData, priceHistory] = await Promise.all([
+            fetch(`/api/shop/item/${encodeURIComponent(item)}`).then(r => r.json()),
+            fetch(`/api/analytics/price-history/${encodeURIComponent(item)}?hours=168`).then(r => r.json())
+        ]);
 
-        renderPriceChart(history);
-
-        // Show recent transactions for this item
-        const itemTxs = filteredTransactions
-            .filter(tx => tx.item === item)
-            .slice(0, 20);
-
-        const txHtml = `
-            <div class="modal-section">
-                <h3>Recent Transactions</h3>
-                <div class="modal-transactions">
-                    ${itemTxs.map(tx => `
-                        <div class="modal-tx">
-                            <span>${formatTime(tx.timestamp)}</span>
-                            <span class="type-badge ${tx.type.toLowerCase()}">${tx.type}</span>
-                            <span>${tx.amount}x @ $${tx.price.toFixed(2)}</span>
-                            <span>${escapeHtml(tx.playerName)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
+        const recentTxs = itemData.recentTransactions || [];
 
         modalBody.innerHTML = `
-            <div class="modal-section">
-                <canvas id="priceChart" width="600" height="300"></canvas>
+            <div class="modal-item-info">
+                <img src="${itemData.imageUrl}" alt="${itemData.displayName}" 
+                     style="width: 64px; height: 64px; margin-right: 1rem;"
+                     onerror="this.style.display='none'">
+                <div>
+                    <div style="font-size: 1.25rem; font-weight: 600;">${itemData.displayName}</div>
+                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">${itemData.category}</div>
+                    <div style="display: flex; gap: 1rem;">
+                        <span style="color: var(--success);">Buy: ${formatCurrency(itemData.buyPrice)}</span>
+                        <span style="color: var(--danger);">Sell: ${formatCurrency(itemData.sellPrice)}</span>
+                    </div>
+                </div>
             </div>
-            ${txHtml}
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0;">
+                <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-muted); font-size: 0.8rem;">Stock</div>
+                    <div style="font-size: 1.25rem; font-weight: 600;">${itemData.stock?.toFixed(0) || 0}</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-muted); font-size: 0.8rem;">Total Buys</div>
+                    <div style="font-size: 1.25rem; font-weight: 600;">${itemData.totalBuys || 0}</div>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; text-align: center;">
+                    <div style="color: var(--text-muted); font-size: 0.8rem;">Total Sells</div>
+                    <div style="font-size: 1.25rem; font-weight: 600;">${itemData.totalSells || 0}</div>
+                </div>
+            </div>
+            <h3 style="margin-bottom: 1rem;">Price History (7 Days)</h3>
+            <div style="height: 200px; margin-bottom: 1.5rem;">
+                <canvas id="modalPriceChart"></canvas>
+            </div>
+            <h3 style="margin-bottom: 1rem;">Recent Transactions</h3>
+            <div style="max-height: 200px; overflow-y: auto;">
+                ${recentTxs.slice(0, 10).map(tx => `
+                    <div style="display: flex; justify-content: space-between; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px; margin-bottom: 0.5rem;">
+                        <span>${formatTime(tx.timestamp)}</span>
+                        <span class="type-badge ${tx.type.toLowerCase()}">${tx.type}</span>
+                        <span>${tx.amount}x @ ${formatCurrency(tx.price)}</span>
+                        <span>${escapeHtml(tx.playerName)}</span>
+                    </div>
+                `).join('') || '<div class="loading">No recent transactions</div>'}
+            </div>
         `;
 
-        // Render chart after DOM update
-        setTimeout(() => renderPriceChart(history), 100);
-
-    } catch (error) {
-        modalBody.innerHTML = '<div class="error">Failed to load item details</div>';
-        console.error('Error loading item details:', error);
-    }
-}
-
-// Close modal
-function closeModal() {
-    document.getElementById('itemModal').style.display = 'none';
-    if (priceChart) {
-        priceChart.destroy();
-        priceChart = null;
-    }
-}
-
-// Render price chart
-function renderPriceChart(history) {
-    const canvas = document.getElementById('priceChart');
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-
-    if (priceChart) {
-        priceChart.destroy();
-    }
-
-    // Use Chart.js if available
-    if (typeof Chart !== 'undefined') {
-        priceChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: history.map(h => new Date(h.timestamp).toLocaleDateString() + ' ' +
-                    new Date(h.timestamp).getHours() + ':00'),
-                datasets: [
-                    {
-                        label: 'Buy Price',
-                        data: history.map(h => h.avgBuyPrice),
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4
+        // Render price chart
+        setTimeout(() => {
+            const canvas = document.getElementById('modalPriceChart');
+            if (canvas && priceHistory.length) {
+                new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: priceHistory.map(h => h.timestamp.split(' ')[1] || h.timestamp),
+                        datasets: [
+                            {
+                                label: 'Buy Price',
+                                data: priceHistory.map(h => h.avgBuyPrice),
+                                borderColor: '#10B981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            },
+                            {
+                                label: 'Sell Price',
+                                data: priceHistory.map(h => h.avgSellPrice),
+                                borderColor: '#EF4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }
+                        ]
                     },
-                    {
-                        label: 'Sell Price',
-                        data: history.map(h => h.avgSellPrice),
-                        borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        tension: 0.4
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#CBD5E1' } } },
+                        scales: {
+                            x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(51, 65, 85, 0.5)' } },
+                            y: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(51, 65, 85, 0.5)' } }
+                        }
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        labels: { color: '#f1f5f9' }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: { color: '#cbd5e1' },
-                        grid: { color: '#334155' }
-                    },
-                    y: {
-                        ticks: { color: '#cbd5e1' },
-                        grid: { color: '#334155' }
-                    }
-                }
+                });
             }
-        });
+        }, 100);
+    } catch (error) {
+        console.error('Error loading item details:', error);
+        modalBody.innerHTML = '<div class="loading">Error loading item details</div>';
     }
 }
 
-// Initialize charts
-function initCharts() {
-    // Load Chart.js from CDN if not already loaded
-    if (typeof Chart === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-        document.head.appendChild(script);
-    }
+function closeModal() {
+    const modal = document.getElementById('itemModal');
+    if (modal) modal.classList.remove('active');
 }
 
-// Apply time filter
+// ═══ FILTERS & SORTING ═══
 function applyTimeFilter() {
     const now = new Date();
     let cutoff;
 
-    switch(timeRange) {
-        case '1h':
-            cutoff = new Date(now - 60 * 60 * 1000);
-            break;
-        case '24h':
-            cutoff = new Date(now - 24 * 60 * 60 * 1000);
-            break;
-        case '7d':
-            cutoff = new Date(now - 7 * 24 * 60 * 60 * 1000);
-            break;
-        case '30d':
-            cutoff = new Date(now - 30 * 24 * 60 * 60 * 1000);
-            break;
-        default:
-            filteredTransactions = [...allTransactions];
-            return;
+    switch (timeRange) {
+        case '1h': cutoff = new Date(now - 60 * 60 * 1000); break;
+        case '24h': cutoff = new Date(now - 24 * 60 * 60 * 1000); break;
+        case '7d': cutoff = new Date(now - 7 * 24 * 60 * 60 * 1000); break;
+        case '30d': cutoff = new Date(now - 30 * 24 * 60 * 60 * 1000); break;
+        default: filteredTransactions = [...allTransactions]; return;
     }
 
-    filteredTransactions = allTransactions.filter(tx =>
-        new Date(tx.timestamp) > cutoff
-    );
+    filteredTransactions = allTransactions.filter(tx => new Date(tx.timestamp) > cutoff);
 }
 
-// Set time range
-function setTimeRange(range) {
-    timeRange = range;
+function applyFilters() {
+    const search = document.getElementById('txSearch')?.value.toLowerCase() || '';
+    const typeFilter = document.getElementById('typeFilter')?.value || '';
 
-    // Update button states
-    document.querySelectorAll('.time-btn').forEach(btn => {
-        btn.classList.remove('active');
+    filteredTransactions = allTransactions.filter(tx => {
+        const matchesSearch = !search ||
+            tx.playerName.toLowerCase().includes(search) ||
+            tx.item.toLowerCase().includes(search);
+        const matchesType = !typeFilter || tx.type === typeFilter;
+        return matchesSearch && matchesType;
     });
-    event.target.classList.add('active');
 
     applyTimeFilter();
+    currentPage = 1;
     renderTransactions();
-    updateInsights();
 }
 
-// Render transactions table
-function renderTransactions() {
-    const tbody = document.getElementById('transactionsBody');
-
-    if (filteredTransactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">No transactions found</td></tr>';
-        return;
-    }
-
-    // Sort
-    sortTransactions();
-
-    // Paginate
-    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const pageTransactions = filteredTransactions.slice(startIndex, endIndex);
-
-    // Render
-    tbody.innerHTML = pageTransactions.map(tx => {
-        const priceClass = tx.price > 1000 ? 'high-value' : '';
-        return `
-            <tr onclick="showItemDetails('${escapeHtml(tx.item)}')">
-                <td>${formatTime(tx.timestamp)}</td>
-                <td>${escapeHtml(tx.playerName)}</td>
-                <td><span class="type-badge ${tx.type.toLowerCase()}">${tx.type}</span></td>
-                <td class="item-cell">${prettifyItem(tx.item)}</td>
-                <td>${tx.amount.toLocaleString()}</td>
-                <td class="${priceClass}">$${tx.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td>${escapeHtml(tx.category || 'N/A')}</td>
-            </tr>
-        `;
-    }).join('');
-
-    // Update pagination
-    document.getElementById('currentPage').textContent = currentPage;
-    document.getElementById('totalPages').textContent = totalPages;
-    document.getElementById('prevBtn').disabled = currentPage === 1;
-    document.getElementById('nextBtn').disabled = currentPage === totalPages || totalPages === 0;
-
-    // Update result count
-    document.getElementById('resultCount').textContent =
-        `Showing ${startIndex + 1}-${Math.min(endIndex, filteredTransactions.length)} of ${filteredTransactions.length}`;
-}
-
-// Sort transactions
 function sortTransactions() {
     filteredTransactions.sort((a, b) => {
         let aVal = a[sortColumn];
@@ -415,66 +561,43 @@ function sortTransactions() {
         if (sortColumn === 'timestamp') {
             aVal = new Date(aVal).getTime();
             bVal = new Date(bVal).getTime();
-        } else if (typeof aVal === 'string') {
-            aVal = aVal.toLowerCase();
-            bVal = bVal.toLowerCase();
         }
 
-        if (sortDirection === 'asc') {
-            return aVal > bVal ? 1 : -1;
-        } else {
-            return aVal < bVal ? 1 : -1;
-        }
+        return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
     });
 }
 
-// Sort table
-function sortTable(column) {
-    if (sortColumn === column) {
-        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-        sortColumn = column;
-        sortDirection = 'desc';
-    }
-    renderTransactions();
-}
-
-// Apply filters
-function applyFilters() {
-    const playerFilter = document.getElementById('playerFilter').value.toLowerCase();
-    const itemFilter = document.getElementById('itemFilter').value.toLowerCase();
-    const typeFilter = document.getElementById('typeFilter').value;
-
-    filteredTransactions = allTransactions.filter(tx => {
-        const matchesPlayer = !playerFilter || tx.playerName.toLowerCase().includes(playerFilter);
-        const matchesItem = !itemFilter || tx.item.toLowerCase().includes(itemFilter);
-        const matchesType = !typeFilter || tx.type === typeFilter;
-
-        return matchesPlayer && matchesItem && matchesType;
-    });
-
+function setTimeRange(range) {
+    timeRange = range;
+    document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
     applyTimeFilter();
-    currentPage = 1;
     renderTransactions();
+    updateInsights();
+    renderActivityChart();
 }
 
-// Clear filters
-function clearFilters() {
-    document.getElementById('playerFilter').value = '';
-    document.getElementById('itemFilter').value = '';
-    document.getElementById('typeFilter').value = '';
-    filteredTransactions = [...allTransactions];
-    currentPage = 1;
-    renderTransactions();
+// ═══ TAB SWITCHING ═══
+function switchLeaderboard(type) {
+    currentLeaderboard = type;
+    document.querySelectorAll('.leaderboard-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    loadLeaderboards();
 }
 
-// Pagination
+function switchTrends(type) {
+    currentTrends = type;
+    document.querySelectorAll('.trends-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    loadTrends();
+}
+
+// ═══ PAGINATION ═══
 function nextPage() {
     const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
     if (currentPage < totalPages) {
         currentPage++;
         renderTransactions();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
 
@@ -482,167 +605,94 @@ function previousPage() {
     if (currentPage > 1) {
         currentPage--;
         renderTransactions();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
 
-// Update insights
-function updateInsights() {
-    updateTopItems();
-    updateTopPlayers();
-    updateCategoryStats();
-}
-
-// Top items
-function updateTopItems() {
-    const itemCounts = {};
-
-    filteredTransactions.forEach(tx => {
-        const item = tx.item;
-        if (!itemCounts[item]) {
-            itemCounts[item] = { count: 0, volume: 0 };
-        }
-        itemCounts[item].count += tx.amount;
-        itemCounts[item].volume += tx.price;
-    });
-
-    const sorted = Object.entries(itemCounts)
-        .sort((a, b) => b[1].volume - a[1].volume)
-        .slice(0, 10);
-
-    const html = sorted.map(([item, data]) => `
-        <div class="insight-item" onclick="showItemDetails('${escapeHtml(item)}')">
-            <span class="insight-name">${prettifyItem(item)}</span>
-            <span class="insight-value">$${data.volume.toLocaleString('en-US', {maximumFractionDigits: 0})}</span>
-        </div>
-    `).join('');
-
-    document.getElementById('topItems').innerHTML = html || '<div class="loading">No data</div>';
-}
-
-// Top players
-function updateTopPlayers() {
-    const playerStats = {};
-
-    filteredTransactions.forEach(tx => {
-        const player = tx.playerName;
-        if (!playerStats[player]) {
-            playerStats[player] = { count: 0, volume: 0 };
-        }
-        playerStats[player].count++;
-        playerStats[player].volume += tx.price;
-    });
-
-    const sorted = Object.entries(playerStats)
-        .sort((a, b) => b[1].count - a[1].count)
-        .slice(0, 10);
-
-    const html = sorted.map(([player, data]) => `
-        <div class="insight-item">
-            <span class="insight-name">${escapeHtml(player)}</span>
-            <span class="insight-value">${data.count} txs</span>
-        </div>
-    `).join('');
-
-    document.getElementById('topPlayers').innerHTML = html || '<div class="loading">No data</div>';
-}
-
-// Category stats
-function updateCategoryStats() {
-    const categoryStats = {};
-
-    filteredTransactions.forEach(tx => {
-        const category = tx.category || 'Unknown';
-        if (!categoryStats[category]) {
-            categoryStats[category] = 0;
-        }
-        categoryStats[category]++;
-    });
-
-    const sorted = Object.entries(categoryStats)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10);
-
-    const total = filteredTransactions.length;
-    const html = sorted.map(([category, count]) => {
-        const percent = ((count / total) * 100).toFixed(1);
-        return `
-            <div class="insight-item">
-                <span class="insight-name">${escapeHtml(category)}</span>
-                <span class="insight-value">${percent}%</span>
-            </div>
-        `;
-    }).join('');
-
-    document.getElementById('categoryStats').innerHTML = html || '<div class="loading">No data</div>';
-}
-
-// Refresh data
-async function refreshData() {
+// ═══ UTILITIES ═══
+function refreshData() {
     const btn = document.querySelector('.refresh-btn');
-    btn.disabled = true;
-    btn.style.opacity = '0.7';
-
-    await loadData();
-
-    btn.disabled = false;
-    btn.style.opacity = '1';
+    if (btn) {
+        btn.style.transform = 'rotate(360deg)';
+        setTimeout(() => btn.style.transform = '', 500);
+    }
+    loadAllData();
 }
 
-// Update last update time
 function updateLastUpdateTime() {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString();
-    document.getElementById('lastUpdate').textContent = timeStr;
+    const el = document.getElementById('lastUpdate');
+    if (el) el.textContent = new Date().toLocaleTimeString();
 }
 
-// Utility functions
 function formatTime(timestamp) {
     const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
+    const diff = Date.now() - date.getTime();
+    const mins = Math.floor(diff / 60000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+    return date.toLocaleDateString();
+}
 
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
+function formatCurrency(amount) {
+    return '$' + (amount || 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
     });
 }
 
 function prettifyItem(item) {
     return item.split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
         .join(' ');
 }
 
 function escapeHtml(text) {
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = text || '';
     return div.innerHTML;
 }
 
-// Add Enter key support for filters
-document.addEventListener('DOMContentLoaded', () => {
-    ['playerFilter', 'itemFilter', 'typeFilter'].forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    applyFilters();
-                }
-            });
-        }
-    });
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
 
-    // Close modal on outside click
-    window.onclick = function(event) {
-        const modal = document.getElementById('itemModal');
-        if (event.target === modal) {
-            closeModal();
-        }
+function showError(id, message) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div class="loading">${message}</div>`;
+}
+
+function animateNumber(id, value, isCurrency = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const target = typeof value === 'number' ? value : 0;
+    const duration = 500;
+    const start = performance.now();
+    const startValue = 0;
+
+    function update(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const current = startValue + (target - startValue) * easeOutQuart(progress);
+
+        el.textContent = isCurrency ? formatCurrency(current) : Math.round(current).toLocaleString();
+
+        if (progress < 1) requestAnimationFrame(update);
+    }
+
+    requestAnimationFrame(update);
+}
+
+function easeOutQuart(x) {
+    return 1 - Math.pow(1 - x, 4);
+}
+
+function debounce(fn, delay) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), delay);
     };
-});
+}

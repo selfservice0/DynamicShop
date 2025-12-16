@@ -6,8 +6,11 @@ import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.http.staticfiles.Location;
 import io.javalin.json.JavalinJackson;
+import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.minecraftsmp.dynamicshop.DynamicShop;
+import org.minecraftsmp.dynamicshop.category.ItemCategory;
+import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.transactions.Transaction;
 
 import java.io.File;
@@ -27,7 +30,8 @@ public class WebServer {
     }
 
     public void start() {
-        if (!plugin.getConfig().getBoolean("webserver.enabled", false)) return;
+        if (!plugin.getConfig().getBoolean("webserver.enabled", false))
+            return;
 
         try {
             int port = plugin.getConfig().getInt("webserver.port", 7713);
@@ -68,6 +72,11 @@ public class WebServer {
             app.get("/api/analytics/time-distribution", this::handleTimeDistribution);
             app.get("/api/analytics/items", this::handleItemList);
 
+            // SHOP CATALOG ENDPOINTS
+            app.get("/api/shop/items", this::handleShopItems);
+            app.get("/api/shop/item/{item}", this::handleShopItemDetail);
+            app.get("/api/shop/categories", this::handleShopCategories);
+
             plugin.getLogger().info("Web dashboard → http://" + host + ":" + port);
         } catch (Exception e) {
             plugin.getLogger().severe("╔═══════════════════════════════════════════════════╗");
@@ -85,11 +94,12 @@ public class WebServer {
     }
 
     public void stop() {
-        if (app != null) app.stop();
+        if (app != null)
+            app.stop();
     }
 
     private void extractWebFiles(File webDir) {
-        String[] webFiles = {"index.html", "style.css", "dashboard.js"};
+        String[] webFiles = { "index.html", "style.css", "dashboard.js", "items.html", "items.js" };
         boolean forceUpdate = plugin.getConfig().getBoolean("webserver.force-update-files", false);
 
         for (String fileName : webFiles) {
@@ -191,8 +201,7 @@ public class WebServer {
                 .filter(t -> t.getType() == Transaction.TransactionType.SELL)
                 .mapToDouble(Transaction::getPrice).sum();
 
-        double avgTransaction = txs.isEmpty() ? 0 :
-                txs.stream().mapToDouble(Transaction::getPrice).average().orElse(0);
+        double avgTransaction = txs.isEmpty() ? 0 : txs.stream().mapToDouble(Transaction::getPrice).average().orElse(0);
 
         // Calculate velocity (txs per hour)
         LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
@@ -237,9 +246,8 @@ public class WebServer {
 
         // Group by hour
         Map<String, List<Transaction>> grouped = txs.stream()
-                .collect(Collectors.groupingBy(t ->
-                        t.getTimestampRaw().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00"))
-                ));
+                .collect(Collectors
+                        .groupingBy(t -> t.getTimestampRaw().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00"))));
 
         List<PricePoint> history = grouped.entrySet().stream()
                 .map(e -> {
@@ -344,8 +352,8 @@ public class WebServer {
                     long recentCount = e.getValue();
                     long olderCount = olderCounts.getOrDefault(item, 0L);
 
-                    double changePercent = olderCount == 0 ? 100 :
-                            ((double) (recentCount - olderCount) / olderCount) * 100;
+                    double changePercent = olderCount == 0 ? 100
+                            : ((double) (recentCount - olderCount) / olderCount) * 100;
 
                     double avgPrice = recentTxs.stream()
                             .filter(t -> t.getItem().equals(item))
@@ -384,8 +392,7 @@ public class WebServer {
         Map<Integer, Long> hourlyDist = txs.stream()
                 .collect(Collectors.groupingBy(
                         t -> t.getTimestampRaw().getHour(),
-                        Collectors.counting()
-                ));
+                        Collectors.counting()));
 
         // Fill in missing hours with 0
         List<TimeSlot> distribution = new ArrayList<>();
@@ -432,6 +439,191 @@ public class WebServer {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // SHOP CATALOG ENDPOINTS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * GET /api/shop/items
+     * Returns all shop items with current prices, stock, and category
+     */
+    private void handleShopItems(Context ctx) {
+        String query = ctx.queryParam("query");
+        String categoryFilter = ctx.queryParam("category");
+
+        List<ShopItemDTO> items = new ArrayList<>();
+
+        for (Material mat : ShopDataManager.getAllTrackedMaterials()) {
+            double basePrice = ShopDataManager.getBasePrice(mat);
+            if (basePrice < 0)
+                continue; // Skip disabled items
+
+            // Apply search filter
+            if (query != null && !query.isEmpty()) {
+                if (!mat.name().toLowerCase().contains(query.toLowerCase())) {
+                    continue;
+                }
+            }
+
+            ItemCategory category = ShopDataManager.detectCategory(mat);
+
+            // Apply category filter
+            if (categoryFilter != null && !categoryFilter.isEmpty()) {
+                try {
+                    ItemCategory filterCat = ItemCategory.valueOf(categoryFilter.toUpperCase());
+                    if (category != filterCat)
+                        continue;
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+
+            double buyPrice = ShopDataManager.getPrice(mat);
+            double sellPrice = ShopDataManager.getSellPrice(mat);
+            double stock = ShopDataManager.getStock(mat);
+
+            String imageUrl = "https://mc.nerothe.com/img/1.21/minecraft_" + mat.name().toLowerCase() + ".png";
+
+            items.add(new ShopItemDTO(
+                    mat.name(),
+                    prettifyItemName(mat.name()),
+                    category.name(),
+                    buyPrice,
+                    sellPrice,
+                    stock,
+                    basePrice,
+                    imageUrl));
+        }
+
+        // Sort by display name
+        items.sort(Comparator.comparing(ShopItemDTO::displayName));
+
+        ctx.json(items);
+    }
+
+    /**
+     * GET /api/shop/item/{item}
+     * Returns detailed data for a specific item
+     */
+    private void handleShopItemDetail(Context ctx) {
+        String itemName = ctx.pathParam("item");
+        Material mat = Material.matchMaterial(itemName);
+
+        if (mat == null) {
+            ctx.status(404).json(Map.of("error", "Item not found"));
+            return;
+        }
+
+        double basePrice = ShopDataManager.getBasePrice(mat);
+        if (basePrice < 0) {
+            ctx.status(404).json(Map.of("error", "Item not tradeable"));
+            return;
+        }
+
+        ItemCategory category = ShopDataManager.detectCategory(mat);
+        double buyPrice = ShopDataManager.getPrice(mat);
+        double sellPrice = ShopDataManager.getSellPrice(mat);
+        double stock = ShopDataManager.getStock(mat);
+        String imageUrl = "https://mc.nerothe.com/img/1.21/minecraft_" + mat.name().toLowerCase() + ".png";
+
+        // Get recent transactions for this item
+        var txs = plugin.getTransactionLogger().getRecentTransactions();
+        var itemTxs = txs.stream()
+                .filter(t -> t.getItem().equalsIgnoreCase(mat.name()))
+                .sorted((a, b) -> b.getTimestampRaw().compareTo(a.getTimestampRaw()))
+                .limit(50)
+                .map(TransactionDTO::new)
+                .collect(Collectors.toList());
+
+        // Get recent buyers and sellers
+        var recentBuyers = txs.stream()
+                .filter(t -> t.getItem().equalsIgnoreCase(mat.name()))
+                .filter(t -> t.getType() == Transaction.TransactionType.BUY)
+                .sorted((a, b) -> b.getTimestampRaw().compareTo(a.getTimestampRaw()))
+                .limit(10)
+                .map(t -> new RecentTrader(t.getPlayerName(), t.getTimestamp(), t.getAmount(), t.getPrice()))
+                .collect(Collectors.toList());
+
+        var recentSellers = txs.stream()
+                .filter(t -> t.getItem().equalsIgnoreCase(mat.name()))
+                .filter(t -> t.getType() == Transaction.TransactionType.SELL)
+                .sorted((a, b) -> b.getTimestampRaw().compareTo(a.getTimestampRaw()))
+                .limit(10)
+                .map(t -> new RecentTrader(t.getPlayerName(), t.getTimestamp(), t.getAmount(), t.getPrice()))
+                .collect(Collectors.toList());
+
+        // Calculate stats
+        long totalBuys = txs.stream()
+                .filter(t -> t.getItem().equalsIgnoreCase(mat.name()))
+                .filter(t -> t.getType() == Transaction.TransactionType.BUY)
+                .count();
+
+        long totalSells = txs.stream()
+                .filter(t -> t.getItem().equalsIgnoreCase(mat.name()))
+                .filter(t -> t.getType() == Transaction.TransactionType.SELL)
+                .count();
+
+        double totalVolume = txs.stream()
+                .filter(t -> t.getItem().equalsIgnoreCase(mat.name()))
+                .mapToDouble(Transaction::getPrice)
+                .sum();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("item", mat.name());
+        result.put("displayName", prettifyItemName(mat.name()));
+        result.put("category", category.name());
+        result.put("buyPrice", buyPrice);
+        result.put("sellPrice", sellPrice);
+        result.put("stock", stock);
+        result.put("basePrice", basePrice);
+        result.put("imageUrl", imageUrl);
+        result.put("recentTransactions", itemTxs);
+        result.put("recentBuyers", recentBuyers);
+        result.put("recentSellers", recentSellers);
+        result.put("totalBuys", totalBuys);
+        result.put("totalSells", totalSells);
+        result.put("totalVolume", totalVolume);
+
+        ctx.json(result);
+    }
+
+    /**
+     * GET /api/shop/categories
+     * Returns list of categories with item counts
+     */
+    private void handleShopCategories(Context ctx) {
+        List<CategoryDTO> categories = new ArrayList<>();
+
+        for (ItemCategory cat : ItemCategory.values()) {
+            if (cat == ItemCategory.PERMISSIONS || cat == ItemCategory.SERVER_SHOP) {
+                continue;
+            }
+
+            long count = ShopDataManager.getAllTrackedMaterials().stream()
+                    .filter(mat -> ShopDataManager.getBasePrice(mat) >= 0)
+                    .filter(mat -> ShopDataManager.detectCategory(mat) == cat)
+                    .count();
+
+            if (count > 0) {
+                categories.add(new CategoryDTO(cat.name(), prettifyItemName(cat.name()), count));
+            }
+        }
+
+        ctx.json(categories);
+    }
+
+    private String prettifyItemName(String name) {
+        String[] parts = name.split("_");
+        StringBuilder result = new StringBuilder();
+        for (String part : parts) {
+            if (!part.isEmpty()) {
+                result.append(Character.toUpperCase(part.charAt(0)))
+                        .append(part.substring(1).toLowerCase())
+                        .append(" ");
+            }
+        }
+        return result.toString().trim();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // UTILITY METHODS
     // ═══════════════════════════════════════════════════════════════
 
@@ -454,8 +646,7 @@ public class WebServer {
             String item,
             int amount,
             double price,
-            String category
-    ) {
+            String category) {
         TransactionDTO(Transaction t) {
             this(
                     t.getTimestamp(),
@@ -464,8 +655,7 @@ public class WebServer {
                     t.getItem(),
                     t.getAmount(),
                     t.getPrice(),
-                    t.getCategory() != null ? t.getCategory() : ""
-            );
+                    t.getCategory() != null ? t.getCategory() : "");
         }
     }
 
@@ -473,8 +663,8 @@ public class WebServer {
             String timestamp,
             double avgBuyPrice,
             double avgSellPrice,
-            int volume
-    ) {}
+            int volume) {
+    }
 
     private record LeaderboardEntry(
             String player,
@@ -483,26 +673,50 @@ public class WebServer {
             double netProfit,
             long trades,
             double volume,
-            long uniqueItems
-    ) {}
+            long uniqueItems) {
+    }
 
     private record TrendItem(
             String item,
             long recentCount,
             double changePercent,
-            double avgPrice
-    ) {}
+            double avgPrice) {
+    }
 
     private record TimeSlot(
             int hour,
-            long count
-    ) {}
+            long count) {
+    }
 
     private record ItemMetadata(
             String item,
             long trades,
             double avgPrice,
             int totalVolume,
-            String category
-    ) {}
+            String category) {
+    }
+
+    private record ShopItemDTO(
+            String item,
+            String displayName,
+            String category,
+            double buyPrice,
+            double sellPrice,
+            double stock,
+            double basePrice,
+            String imageUrl) {
+    }
+
+    private record RecentTrader(
+            String playerName,
+            String timestamp,
+            int amount,
+            double price) {
+    }
+
+    private record CategoryDTO(
+            String id,
+            String displayName,
+            long itemCount) {
+    }
 }

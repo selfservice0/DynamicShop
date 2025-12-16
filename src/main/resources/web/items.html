@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Catalog - DynamicShop</title>
+    <meta name="description" content="Browse all shop items with current prices">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="brand-icon">💎</span>
+            <span class="brand-text">DynamicShop</span>
+        </div>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a href="items.html" class="nav-link active">
+                <span class="nav-icon">🛒</span> Item Catalog
+            </a>
+        </div>
+        <div class="nav-actions">
+            <span class="item-count" id="itemCount">-- items</span>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero items-hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Item Catalog</h1>
+            <p class="hero-subtitle">Browse all shop items with current prices</p>
+            <div class="search-container">
+                <input type="text" id="searchInput" class="hero-search" placeholder="Search items...">
+            </div>
+        </div>
+        <div class="hero-glow"></div>
+    </header>
+
+    <div class="container">
+        <!-- Category Tabs -->
+        <section class="category-section glass">
+            <div class="category-tabs" id="categoryTabs">
+                <button class="category-btn active" data-category="">All Items</button>
+                <div class="loading-spinner" style="width: 20px; height: 20px;"></div>
+            </div>
+        </section>
+
+        <!-- Items Grid -->
+        <section class="items-section">
+            <div class="items-header">
+                <span class="items-showing" id="itemsShowing">Showing -- items</span>
+                <div class="filter-options">
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="hideOutOfStock">
+                        <span class="checkmark"></span>
+                        Hide out of stock
+                    </label>
+                    <select id="sortSelect" class="filter-select">
+                        <option value="name">Sort by Name</option>
+                        <option value="buyPrice">Sort by Buy Price</option>
+                        <option value="sellPrice">Sort by Sell Price</option>
+                        <option value="stock">Sort by Stock</option>
+                    </select>
+                </div>
+            </div>
+            <div class="items-grid" id="itemsGrid">
+                <div class="loading-spinner"></div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>DynamicShop v2.0 • Made by selfservice0 • <a href="https://minecraftsmp.org" target="_blank">MinecraftSMP</a>
+        </p>
+    </footer>
+
+    <!-- Item Details Modal -->
+    <div id="itemModal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h2 id="modalItemName">Item Details</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div id="modalBody" class="modal-body">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="items.js"></script>
+</body>
+
+</html>

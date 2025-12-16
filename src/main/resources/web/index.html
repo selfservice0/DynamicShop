@@ -4,228 +4,266 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DynamicShop Dashboard</title>
+    <meta name="description" content="Real-time shop analytics and transaction monitoring for DynamicShop">
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-<div class="container">
-    <!-- Header -->
-    <header class="header">
-        <h1>🛒 DynamicShop Dashboard</h1>
-        <p class="subtitle">Real-time shop analytics and transaction monitoring</p>
-        <div class="header-actions">
-            <button class="refresh-btn" onclick="refreshData()">
-                <span class="refresh-icon">↻</span> Refresh
-            </button>
-            <div class="last-updated">Last updated: <span id="lastUpdate">--</span></div>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="brand-icon">💎</span>
+            <span class="brand-text">DynamicShop</span>
         </div>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link active">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a href="items.html" class="nav-link">
+                <span class="nav-icon">🛒</span> Item Catalog
+            </a>
+        </div>
+        <div class="nav-actions">
+            <button class="refresh-btn" onclick="refreshData()">
+                <span class="refresh-icon">↻</span>
+            </button>
+            <span class="last-updated">Updated: <span id="lastUpdate">--</span></span>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Shop Analytics</h1>
+            <p class="hero-subtitle">Real-time economy monitoring and market insights</p>
+        </div>
+        <div class="hero-glow"></div>
     </header>
 
-    <!-- Stats Grid -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">📦</div>
-            <div class="stat-content">
-                <div class="stat-label">Total Transactions</div>
-                <div class="stat-value" id="totalTransactions">--</div>
-            </div>
-        </div>
+    <div class="container">
+        <!-- Stats Grid -->
+        <section class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card glass" data-type="total">
+                    <div class="stat-icon-wrap">
+                        <span class="stat-icon">📦</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total Transactions</span>
+                        <span class="stat-value" id="totalTransactions">--</span>
+                    </div>
+                    <div class="stat-trend positive" id="txTrend">--</div>
+                </div>
 
-        <div class="stat-card">
-            <div class="stat-icon">💰</div>
-            <div class="stat-content">
-                <div class="stat-label">Total Volume</div>
-                <div class="stat-value" id="totalMoney">--</div>
-            </div>
-        </div>
+                <div class="stat-card glass" data-type="volume">
+                    <div class="stat-icon-wrap">
+                        <span class="stat-icon">💰</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Total Volume</span>
+                        <span class="stat-value" id="totalMoney">--</span>
+                    </div>
+                    <div class="stat-trend" id="volumeTrend">--</div>
+                </div>
 
-        <div class="stat-card buy">
-            <div class="stat-icon">📈</div>
-            <div class="stat-content">
-                <div class="stat-label">Purchases</div>
-                <div class="stat-value" id="totalBuys">--</div>
-            </div>
-        </div>
+                <div class="stat-card glass" data-type="buy">
+                    <div class="stat-icon-wrap buy">
+                        <span class="stat-icon">📈</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Purchases</span>
+                        <span class="stat-value" id="totalBuys">--</span>
+                    </div>
+                </div>
 
-        <div class="stat-card sell">
-            <div class="stat-icon">📉</div>
-            <div class="stat-content">
-                <div class="stat-label">Sales</div>
-                <div class="stat-value" id="totalSells">--</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Economy Health Metrics -->
-    <div class="health-section">
-        <h2>💊 Economy Health</h2>
-        <div class="health-grid">
-            <div class="health-card">
-                <div class="health-label">Buy Ratio</div>
-                <div class="health-value" id="buyRatio">--</div>
-            </div>
-            <div class="health-card">
-                <div class="health-label">Activity</div>
-                <div class="health-value" id="velocity">--</div>
-            </div>
-            <div class="health-card">
-                <div class="health-label">Net Flow</div>
-                <div class="health-value" id="netFlow">--</div>
-            </div>
-            <div class="health-card">
-                <div class="health-label">Avg Transaction</div>
-                <div class="health-value" id="avgTransaction">--</div>
-            </div>
-            <div class="health-card">
-                <div class="health-label">Unique Items</div>
-                <div class="health-value" id="uniqueItems">--</div>
-            </div>
-            <div class="health-card">
-                <div class="health-label">Active Traders</div>
-                <div class="health-value" id="uniquePlayers">--</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Time Range Selector -->
-    <div class="time-range-section">
-        <h3>⏰ Time Range</h3>
-        <div class="time-buttons">
-            <button class="time-btn" onclick="setTimeRange('1h')">Last Hour</button>
-            <button class="time-btn" onclick="setTimeRange('24h')">24 Hours</button>
-            <button class="time-btn" onclick="setTimeRange('7d')">7 Days</button>
-            <button class="time-btn" onclick="setTimeRange('30d')">30 Days</button>
-            <button class="time-btn active" onclick="setTimeRange('all')">All Time</button>
-        </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="filters-section">
-        <h2>🔍 Filters</h2>
-        <div class="filters">
-            <input type="text" id="playerFilter" placeholder="Search by player..." class="filter-input">
-            <input type="text" id="itemFilter" placeholder="Search by item..." class="filter-input">
-            <select id="typeFilter" class="filter-select">
-                <option value="">All Types</option>
-                <option value="BUY">Purchases Only</option>
-                <option value="SELL">Sales Only</option>
-            </select>
-            <button class="filter-btn" onclick="applyFilters()">Apply Filters</button>
-            <button class="clear-btn" onclick="clearFilters()">Clear</button>
-        </div>
-    </div>
-
-    <!-- Transactions Table -->
-    <div class="transactions-section">
-        <div class="section-header">
-            <h2>📋 Recent Transactions</h2>
-            <div class="section-actions">
-                <span class="result-count" id="resultCount">--</span>
-                <div class="pagination">
-                    <button class="page-btn" onclick="previousPage()" id="prevBtn">← Previous</button>
-                    <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
-                    <button class="page-btn" onclick="nextPage()" id="nextBtn">Next →</button>
+                <div class="stat-card glass" data-type="sell">
+                    <div class="stat-icon-wrap sell">
+                        <span class="stat-icon">📉</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-label">Sales</span>
+                        <span class="stat-value" id="totalSells">--</span>
+                    </div>
                 </div>
             </div>
+        </section>
+
+        <!-- Economy Health -->
+        <section class="health-section glass">
+            <h2 class="section-title">
+                <span class="title-icon">💊</span> Economy Health
+            </h2>
+            <div class="health-grid">
+                <div class="health-card">
+                    <div class="health-label">Buy Ratio</div>
+                    <div class="health-value" id="buyRatio">--</div>
+                    <div class="health-bar">
+                        <div class="health-bar-fill" id="buyRatioBar" style="width: 50%"></div>
+                    </div>
+                </div>
+                <div class="health-card">
+                    <div class="health-label">Activity</div>
+                    <div class="health-value" id="velocity">--</div>
+                </div>
+                <div class="health-card">
+                    <div class="health-label">Net Flow</div>
+                    <div class="health-value" id="netFlow">--</div>
+                </div>
+                <div class="health-card">
+                    <div class="health-label">Avg Transaction</div>
+                    <div class="health-value" id="avgTransaction">--</div>
+                </div>
+                <div class="health-card">
+                    <div class="health-label">Unique Items</div>
+                    <div class="health-value" id="uniqueItems">--</div>
+                </div>
+                <div class="health-card">
+                    <div class="health-label">Active Traders</div>
+                    <div class="health-value" id="uniquePlayers">--</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Section -->
+        <section class="charts-section">
+            <div class="chart-card glass">
+                <h3 class="chart-title">Transaction Activity</h3>
+                <div class="time-selector">
+                    <button class="time-btn" onclick="setTimeRange('1h')">1H</button>
+                    <button class="time-btn" onclick="setTimeRange('24h')">24H</button>
+                    <button class="time-btn" onclick="setTimeRange('7d')">7D</button>
+                    <button class="time-btn active" onclick="setTimeRange('all')">All</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content Grid -->
+        <div class="content-grid">
+            <!-- Leaderboards -->
+            <section class="leaderboards-section glass">
+                <h2 class="section-title">
+                    <span class="title-icon">🏆</span> Leaderboards
+                </h2>
+                <div class="leaderboard-tabs">
+                    <button class="tab-btn active" onclick="switchLeaderboard('earners')">Top Earners</button>
+                    <button class="tab-btn" onclick="switchLeaderboard('spenders')">Top Spenders</button>
+                    <button class="tab-btn" onclick="switchLeaderboard('traders')">Most Active</button>
+                </div>
+                <div class="leaderboard-content" id="leaderboardContent">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Market Trends -->
+            <section class="trends-section glass">
+                <h2 class="section-title">
+                    <span class="title-icon">📊</span> Market Trends
+                </h2>
+                <div class="trends-tabs">
+                    <button class="tab-btn active" onclick="switchTrends('hot')">🔥 Hot</button>
+                    <button class="tab-btn" onclick="switchTrends('rising')">🚀 Rising</button>
+                    <button class="tab-btn" onclick="switchTrends('falling')">📉 Falling</button>
+                </div>
+                <div class="trends-content" id="trendsContent">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
         </div>
 
-        <div class="table-container">
-            <table class="transactions-table">
-                <thead>
-                <tr>
-                    <th onclick="sortTable('timestamp')">Time <span class="sort-icon">⇅</span></th>
-                    <th onclick="sortTable('playerName')">Player <span class="sort-icon">⇅</span></th>
-                    <th onclick="sortTable('type')">Type <span class="sort-icon">⇅</span></th>
-                    <th onclick="sortTable('item')">Item <span class="sort-icon">⇅</span></th>
-                    <th onclick="sortTable('amount')">Amount <span class="sort-icon">⇅</span></th>
-                    <th onclick="sortTable('price')">Price <span class="sort-icon">⇅</span></th>
-                    <th onclick="sortTable('category')">Category <span class="sort-icon">⇅</span></th>
-                </tr>
-                </thead>
-                <tbody id="transactionsBody">
-                <tr>
-                    <td colspan="7" class="loading">Loading transactions...</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+        <!-- Top Items & Players -->
+        <section class="insights-section">
+            <div class="insight-card glass">
+                <h3 class="insight-title">
+                    <span class="title-icon">🔥</span> Top Items Traded
+                </h3>
+                <div class="insight-list" id="topItems">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="insight-card glass">
+                <h3 class="insight-title">
+                    <span class="title-icon">👥</span> Most Active Players
+                </h3>
+                <div class="insight-list" id="topPlayers">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="insight-card glass">
+                <h3 class="insight-title">
+                    <span class="title-icon">📊</span> Category Distribution
+                </h3>
+                <div class="chart-container-sm">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </section>
 
-    <!-- Market Trends -->
-    <div class="trends-section">
-        <h2>📊 Market Trends</h2>
-        <div class="trends-grid">
-            <div class="trend-card">
-                <h3>🔥 Hot Items</h3>
-                <div id="hotItems" class="trend-list">Loading...</div>
+        <!-- Recent Transactions -->
+        <section class="transactions-section glass">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="title-icon">📋</span> Recent Transactions
+                </h2>
+                <div class="section-actions">
+                    <div class="search-box">
+                        <input type="text" id="txSearch" placeholder="Search transactions..." class="search-input">
+                    </div>
+                    <select id="typeFilter" class="filter-select">
+                        <option value="">All Types</option>
+                        <option value="BUY">Purchases</option>
+                        <option value="SELL">Sales</option>
+                    </select>
+                </div>
             </div>
-            <div class="trend-card">
-                <h3>🚀 Rising Stars</h3>
-                <div id="risingItems" class="trend-list">Loading...</div>
+            <div class="transactions-table-wrap">
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Player</th>
+                            <th>Type</th>
+                            <th>Item</th>
+                            <th>Amount</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsBody">
+                        <tr><td colspan="6" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="trend-card">
-                <h3>📉 Falling Prices</h3>
-                <div id="fallingItems" class="trend-list">Loading...</div>
+            <div class="pagination">
+                <button class="page-btn" onclick="previousPage()" id="prevBtn" disabled>← Prev</button>
+                <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+                <button class="page-btn" onclick="nextPage()" id="nextBtn">Next →</button>
             </div>
-        </div>
-    </div>
-
-    <!-- Leaderboards -->
-    <div class="leaderboards-section">
-        <h2>🏆 Leaderboards</h2>
-        <div class="leaderboards-grid">
-            <div class="leaderboard-card">
-                <h3>💎 Top Earners</h3>
-                <div id="topEarners" class="leaderboard-list">Loading...</div>
-            </div>
-            <div class="leaderboard-card">
-                <h3>💸 Top Spenders</h3>
-                <div id="topSpenders" class="leaderboard-list">Loading...</div>
-            </div>
-            <div class="leaderboard-card">
-                <h3>⚡ Most Active</h3>
-                <div id="topTraders" class="leaderboard-list">Loading...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Top Items & Players -->
-    <div class="insights-grid">
-        <div class="insight-card">
-            <h3>🔥 Top Items Traded</h3>
-            <div id="topItems" class="insight-list">Loading...</div>
-        </div>
-
-        <div class="insight-card">
-            <h3>👥 Most Active Players</h3>
-            <div id="topPlayers" class="insight-list">Loading...</div>
-        </div>
-
-        <div class="insight-card">
-            <h3>📊 Category Distribution</h3>
-            <div id="categoryStats" class="insight-list">Loading...</div>
-        </div>
+        </section>
     </div>
 
     <!-- Footer -->
     <footer class="footer">
         <p>DynamicShop v2.0 • Made by selfservice0 • <a href="https://minecraftsmp.org" target="_blank">MinecraftSMP</a></p>
     </footer>
-</div>
 
-<!-- Item Details Modal -->
-<div id="itemModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="modalItemName">Item Details</h2>
-            <span class="modal-close" onclick="closeModal()">&times;</span>
-        </div>
-        <div id="modalBody" class="modal-body">
-            Loading...
+    <!-- Item Details Modal -->
+    <div id="itemModal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h2 id="modalItemName">Item Details</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div id="modalBody" class="modal-body">
+                <div class="loading-spinner"></div>
+            </div>
         </div>
     </div>
-</div>
 
-<script src="dashboard.js"></script>
+    <script src="dashboard.js"></script>
 </body>
 </html>

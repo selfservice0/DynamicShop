@@ -881,6 +881,10 @@ public class ShopDataManager {
         return basePrices.size();
     }
 
+    public static Set<Material> getAllTrackedMaterials() {
+        return Collections.unmodifiableSet(basePrices.keySet());
+    }
+
     // queue helpers
     private static void markDirty(Material mat) {
         if (mat != null) {
