@@ -183,6 +183,7 @@ items:
 
   # Stone / rock family
   STONE:                  { base: 1.0 }
+  #STONE:                 { base: 1.0, min-stock: 100.0, min-stock-storage: 0, max-stock: 1000.0, max-stock-storage: 1000,disable-sell: false, disable-buy: false } Per item options
   SMOOTH_STONE:           { base: 1.2 }
   STONE_BRICKS:           { base: 1.5 }
   MOSSY_STONE_BRICKS:     { base: 2.0 }
