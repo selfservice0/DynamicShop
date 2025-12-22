@@ -141,7 +141,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- AnvilGUI for search interface -->
+        <!-- AnvilGUI (official CodeMC artifact) -->
         <dependency>
             <groupId>net.wesjd</groupId>
             <artifactId>anvilgui</artifactId>
