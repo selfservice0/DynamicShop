@@ -11,7 +11,7 @@ economy:
 
   # Cooldown between transactions (milliseconds)
   # Set to 0 to disable
-  transaction_cooldown_ms: 500
+  transaction_cooldown_ms: 0 #500 == 0.5 second
 
 # ================================================================
 # GUI SETTINGS
@@ -129,7 +129,7 @@ cross-server:
 #   peers:
 #     - "skyblock.yourserver.com"
 #     - "creative.yourserver.com"
-#     - "survival.yourserver.com" <- THIS SERVER REQUIRED
+#     - "this.server.com" <- THIS SERVER REQUIRED
 
 # Example 2 Multiple servers same IP
 # cross-server:
@@ -157,7 +157,7 @@ cross-server:
 # - All servers connect to each other (full mesh)
 # - Updates broadcast to all peers instantly (<100ms)
 # - No single point of failure (P2P network)
-# - YAML backup every X seconds + on shutdown
+# - YAML backup every X seconds + on shutdown as source of truth
 # - If peer offline, continues working (syncs when reconnected)
 # - Make sure firewall allows local-port between servers
 
