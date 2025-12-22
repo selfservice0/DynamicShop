@@ -35,3 +35,9 @@ permissions:
   dynamicshop.bypass.stock:
     description: Allows buying items even when out of stock (if restricted)
     default: op
+  dynamicshop.bypass.cooldown:
+    description: Allows bypassing the transaction cooldown
+    default: op
+  dynamicshop.playershop.sell:
+    description: Allows listing items in player shops
+    default: true
