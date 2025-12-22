@@ -16,7 +16,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ShopDataManager {
 
     // base prices (static config, from config.yml)
-    static final Map<Material, Double> basePrices = new ConcurrentHashMap<>();
+    // Item Configuration
+    public record ShopItemConfig(
+            double basePrice,
+            Double maxStock, // Pricing curve
+            Double minStock, // Pricing curve
+            Integer maxStockStorage, // Hard limit
+            Integer minStockStorage, // Hard limit
+            boolean disableBuy,
+            boolean disableSell,
+            ItemCategory categoryOverride) {
+    }
+
+    static final Map<Material, ShopItemConfig> itemConfigs = new ConcurrentHashMap<>();
 
     // dynamic data
     static final Map<Material, Double> stockMap = new ConcurrentHashMap<>();
@@ -51,7 +63,7 @@ public class ShopDataManager {
     public static void init(DynamicShop pl) {
         plugin = pl;
 
-        basePrices.clear();
+        itemConfigs.clear();
         categoryCache.clear();
         categoryItems.clear();
         categoryOverrides.clear();
@@ -106,19 +118,27 @@ public class ShopDataManager {
                 continue;
 
             double base = data.getDouble("base", -1);
-
-            basePrices.put(mat, base);
+            Double maxStock = data.contains("max-stock") ? data.getDouble("max-stock") : null;
+            Double minStock = data.contains("min-stock") ? data.getDouble("min-stock") : null;
+            Integer maxStorage = data.contains("max-stock-storage") ? data.getInt("max-stock-storage") : null;
+            Integer minStorage = data.contains("min-stock-storage") ? data.getInt("min-stock-storage") : null;
+            boolean disableBuy = data.getBoolean("disable-buy", false);
+            boolean disableSell = data.getBoolean("disable-sell", false);
 
             // Load category override
+            ItemCategory overrideCat = null;
             String categoryOverride = data.getString("category", null);
             if (categoryOverride != null) {
                 try {
-                    ItemCategory overrideCat = ItemCategory.valueOf(categoryOverride.toUpperCase());
+                    overrideCat = ItemCategory.valueOf(categoryOverride.toUpperCase());
                     categoryOverrides.put(mat, overrideCat);
                 } catch (IllegalArgumentException ignored) {
-                    // Invalid category, ignore
                 }
             }
+
+            ShopItemConfig config = new ShopItemConfig(base, maxStock, minStock, maxStorage, minStorage, disableBuy,
+                    disableSell, overrideCat);
+            itemConfigs.put(mat, config);
 
             loaded++;
         }
@@ -130,7 +150,8 @@ public class ShopDataManager {
     // BASE PRICE ACCESS
     // ------------------------------------------------------------------------
     public static double getBasePrice(Material mat) {
-        return basePrices.getOrDefault(mat, -1.0);
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        return cfg != null ? cfg.basePrice : -1.0;
     }
 
     // ------------------------------------------------------------------------
@@ -158,11 +179,87 @@ public class ShopDataManager {
      * Check if an item can be purchased (respects stock restriction flag).
      */
     public static boolean canBuy(Material mat) {
-        double base = basePrices.getOrDefault(mat, -1.0);
-        if (base < 0)
-            return false; // untradeable
+        return canBuy(mat, 1);
+    }
 
-        return true;
+    public static boolean isBuyDisabled(Material mat) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        return cfg != null && cfg.disableBuy;
+    }
+
+    public static boolean isSellDisabled(Material mat) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        return cfg != null && cfg.disableSell;
+    }
+
+    public static boolean canBuy(Material mat, int amount) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null || cfg.basePrice < 0)
+            return false;
+        if (cfg.disableBuy)
+            return false;
+
+        // Check min stock storage
+        double currentStock = getStock(mat);
+        double minLimit = cfg.minStockStorage != null ? cfg.minStockStorage
+                : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
+
+        return currentStock - amount >= minLimit;
+    }
+
+    public static boolean canSell(Material mat, int amount) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null || cfg.basePrice < 0)
+            return false;
+        if (cfg.disableSell)
+            return false;
+
+        // Check max stock storage
+        double currentStock = getStock(mat);
+        double maxLimit = cfg.maxStockStorage != null ? cfg.maxStockStorage : Double.MAX_VALUE;
+
+        return currentStock + amount <= maxLimit;
+    }
+
+    /**
+     * Get the maximum amount that can be bought given current stock limits.
+     * Returns Integer.MAX_VALUE if no limit.
+     */
+    public static int getBuyLimit(Material mat) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null)
+            return 0;
+
+        double currentStock = getStock(mat);
+        double minLimit = cfg.minStockStorage != null ? cfg.minStockStorage
+                : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
+
+        if (minLimit == -Double.MAX_VALUE)
+            return Integer.MAX_VALUE;
+
+        // maxBuy = current - min
+        double maxBuy = currentStock - minLimit;
+        return (int) Math.max(0, maxBuy);
+    }
+
+    /**
+     * Get the maximum amount that can be sold given current stock limits.
+     * Returns Integer.MAX_VALUE if no limit.
+     */
+    public static int getSellLimit(Material mat) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null)
+            return 0;
+
+        double currentStock = getStock(mat);
+        double maxLimit = cfg.maxStockStorage != null ? cfg.maxStockStorage : Double.MAX_VALUE;
+
+        if (maxLimit == Double.MAX_VALUE)
+            return Integer.MAX_VALUE;
+
+        // maxSell = max - current
+        double maxSell = maxLimit - currentStock;
+        return (int) Math.max(0, maxSell);
     }
 
     /**
@@ -177,17 +274,21 @@ public class ShopDataManager {
     // ∫ P(s) ds from s = s0 - amount → s0
     // ============================================================================
     public static double getTotalBuyCost(Material mat, double amount) {
-        double B = getBasePrice(mat);
-        if (B < 0)
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null || cfg.basePrice < 0)
             return -1.0;
 
-        // Dynamic pricing disabled → simple linear pricing
+        double B = cfg.basePrice;
+
         if (!ConfigCacheManager.dynamicPricingEnabled) {
             return B * amount;
         }
 
         double s0 = getStock(mat);
-        double L = ConfigCacheManager.maxStock;
+        // Resolution: Item Config > Global Config
+        double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
+        double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
+
         double k = ConfigCacheManager.curveStrength;
 
         // Negative stock multiplier per item
@@ -204,23 +305,68 @@ public class ShopDataManager {
 
         double total = 0.0;
 
-        // NEGATIVE REGION (-∞ → 0]
-        double negA = Math.min(a, 0);
-        double negB = Math.min(b, 0);
+        // NEGATIVE REGION (-∞ → minStock] (Standard behavior assumes minStock=0)
+        // If minStock is modified, "Negative Region" effectively means "Below Min
+        // Stock"
+        // But the original math assumes pivot at 0.
+        // To support shifted pivot, we would need to shift s.
+        // For now, adhering to the issue description implicitly, we treat minStock as
+        // the 0-point for the curve?
+        // Actually, the issue description just says "min-stock".
+        // Use case: "I want price to stop dropping at 100 stock".
+
+        // Let's assume standard curve behavior [0, L].
+        // If s < 0, use negative logic.
+        // If 0 < s < L, use mid logic.
+        // If s > L, use high logic.
+
+        // If overrides are present:
+        // "min-stock": If this means "Price behaves as if stock is 0 when stock is
+        // min-stock", that's a shift.
+        // Or does it mean "The 0-point of the curve is now at min-stock"?
+        // Given complexity, let's assume it shifts the curve's valid range [min, max].
+        // For simplicity and preventing breaking changes, let's map [minStock,
+        // maxStock] to [0, L] logic?
+        // No, that's too complex.
+        // Let's treat minStock as the lower bound of the "Mid Region".
+        // I.e. Mid Region is [minStock, maxStock].
+        // Below minStock is Negative Region logic.
+
+        // Re-evaluating: The original code uses 0 and L.
+        // New code uses minStock and maxStock (which defaults to L).
+
+        double lowerBound = minStock;
+        double upperBound = L;
+
+        // NEGATIVE REGION (-∞ → lowerBound]
+        double negA = Math.min(a, lowerBound);
+        double negB = Math.min(b, lowerBound);
+
+        // Shift inputs so the integral thinks it's working with (-∞ -> 0]
+        // effA = negA - lowerBound
+        // effB = negB - lowerBound
         if (negA < negB) {
-            total += integrateNegativeRegion(B, q, t, negA, negB);
+            total += integrateNegativeRegion(B, q, t, negA - lowerBound, negB - lowerBound);
         }
 
-        // MID REGION [0 → L]
-        double midA = Math.max(a, 0);
-        double midB = Math.min(b, L);
+        // MID REGION [lowerBound → upperBound]
+        // Shift inputs so integral thinks it's working with [0 -> L]
+        // effective L_for_calc = upperBound - lowerBound
+        double effectiveMax = upperBound - lowerBound;
+        // Avoid div by zero
+        if (effectiveMax <= 0)
+            effectiveMax = 1.0;
+
+        double midA = Math.max(a, lowerBound);
+        double midB = Math.min(b, upperBound);
+
         if (midA < midB) {
-            total += integrateMidPositiveRegion(B, k, L, midA, midB);
+            total += integrateMidPositiveRegion(B, k, effectiveMax, midA - lowerBound, midB - lowerBound);
         }
 
-        // HIGH REGION [L → +∞)
-        double highA = Math.max(a, L);
-        double highB = Math.max(b, L);
+        // HIGH REGION [upperBound → +∞)
+        double highA = Math.max(a, upperBound);
+        double highB = Math.max(b, upperBound);
         if (highA < highB) {
             total += integrateHighPositiveRegion(B, k, highA, highB);
         }
@@ -236,9 +382,11 @@ public class ShopDataManager {
     // ∫ P(s) ds from s = s0 → s0 + amount then apply tax
     // ============================================================================
     public static double getTotalSellValue(Material mat, int amount) {
-        double B = getBasePrice(mat);
-        if (B < 0)
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null || cfg.basePrice < 0)
             return -1.0;
+
+        double B = cfg.basePrice;
 
         // Dynamic pricing disabled
         if (!ConfigCacheManager.dynamicPricingEnabled) {
@@ -246,7 +394,9 @@ public class ShopDataManager {
         }
 
         double s0 = getStock(mat);
-        double L = ConfigCacheManager.maxStock;
+        // Resolution: Item Config > Global Config
+        double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
+        double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
         double k = ConfigCacheManager.curveStrength;
 
         // Negative-stock multiplier
@@ -263,23 +413,30 @@ public class ShopDataManager {
 
         double total = 0.0;
 
+        double lowerBound = minStock;
+        double upperBound = L;
+
         // NEGATIVE REGION
-        double negA = Math.min(a, 0);
-        double negB = Math.min(b, 0);
+        double negA = Math.min(a, lowerBound);
+        double negB = Math.min(b, lowerBound);
         if (negA < negB) {
-            total += integrateNegativeRegion(B, q, t, negA, negB);
+            total += integrateNegativeRegion(B, q, t, negA - lowerBound, negB - lowerBound);
         }
 
         // MID REGION
-        double midA = Math.max(a, 0);
-        double midB = Math.min(b, L);
+        double effectiveMax = upperBound - lowerBound;
+        if (effectiveMax <= 0)
+            effectiveMax = 1.0;
+
+        double midA = Math.max(a, lowerBound);
+        double midB = Math.min(b, upperBound);
         if (midA < midB) {
-            total += integrateMidPositiveRegion(B, k, L, midA, midB);
+            total += integrateMidPositiveRegion(B, k, effectiveMax, midA - lowerBound, midB - lowerBound);
         }
 
         // HIGH REGION
-        double highA = Math.max(a, L);
-        double highB = Math.max(b, L);
+        double highA = Math.max(a, upperBound);
+        double highB = Math.max(b, upperBound);
         if (highA < highB) {
             total += integrateHighPositiveRegion(B, k, highA, highB);
         }
@@ -524,7 +681,7 @@ public class ShopDataManager {
             categoryItems.put(cat, new ArrayList<>());
         }
 
-        for (Material mat : basePrices.keySet()) {
+        for (Material mat : itemConfigs.keySet()) {
             ItemCategory cat = detectCategory(mat);
             if (cat == ItemCategory.PERMISSIONS || cat == ItemCategory.SERVER_SHOP) {
                 continue;
@@ -548,13 +705,16 @@ public class ShopDataManager {
     public static List<Material> getItemsInCategory(ItemCategory cat) {
         List<Material> result;
         if (cat == ItemCategory.MISC) {
-            result = new ArrayList<>(basePrices.keySet());
+            result = new ArrayList<>(itemConfigs.keySet());
         } else {
             result = new ArrayList<>(categoryItems.getOrDefault(cat, Collections.emptyList()));
         }
 
         // Filter out disabled items (base price < 0) for regular shop display
-        result.removeIf(mat -> basePrices.getOrDefault(mat, -1.0) < 0);
+        result.removeIf(mat -> {
+            ShopItemConfig c = itemConfigs.get(mat);
+            return c == null || c.basePrice < 0;
+        });
         return result;
     }
 
@@ -563,7 +723,7 @@ public class ShopDataManager {
      */
     public static List<Material> getItemsInCategoryIncludeDisabled(ItemCategory cat) {
         if (cat == ItemCategory.MISC) {
-            return new ArrayList<>(basePrices.keySet());
+            return new ArrayList<>(itemConfigs.keySet());
         }
         return new ArrayList<>(categoryItems.getOrDefault(cat, Collections.emptyList()));
     }
@@ -592,6 +752,23 @@ public class ShopDataManager {
     // SPECIAL DIRECT SETTERS (NO P2P)
     // ------------------------------------------------------------------------
     public static void setStockDirect(Material mat, double stock) {
+        // Clamp to storage limits
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg != null) {
+            if (cfg.maxStockStorage != null && stock > cfg.maxStockStorage) {
+                stock = cfg.maxStockStorage;
+            }
+            // Logic change: we usually don't strictly enforce min-storage on *set* unless
+            // desired.
+            // But consistency suggests we should respecting limits if they act as hard
+            // limits.
+            // Let's enforce min limit too if set.
+            // Careful: default min limit is effectively -inf.
+            if (cfg.minStockStorage != null && stock < cfg.minStockStorage) {
+                stock = cfg.minStockStorage;
+            }
+        }
+
         double oldStock = stockMap.getOrDefault(mat, 0.0);
         stockMap.put(mat, stock);
 
@@ -615,6 +792,18 @@ public class ShopDataManager {
     public static void updateStock(Material mat, double delta) {
         double oldStock = getStock(mat);
         double newStock = oldStock + delta;
+
+        // Clamp to storage limits
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg != null) {
+            if (cfg.maxStockStorage != null && newStock > cfg.maxStockStorage) {
+                newStock = cfg.maxStockStorage;
+            }
+            if (cfg.minStockStorage != null && newStock < cfg.minStockStorage) {
+                newStock = cfg.minStockStorage;
+            }
+        }
+
         stockMap.put(mat, newStock);
 
         if (newStock <= 0 && oldStock > 0) {
@@ -671,7 +860,7 @@ public class ShopDataManager {
             itemsSec = shopDataConfig.createSection("items");
         }
 
-        for (Material mat : basePrices.keySet()) {
+        for (Material mat : itemConfigs.keySet()) {
             String key = mat.name();
             ConfigurationSection sec = itemsSec.getConfigurationSection(key);
             if (sec == null)
@@ -742,7 +931,7 @@ public class ShopDataManager {
             saveDynamicData();
 
             long now = System.currentTimeMillis();
-            for (Material mat : basePrices.keySet()) {
+            for (Material mat : itemConfigs.keySet()) {
                 stockMap.put(mat, 0.0);
                 purchasesMap.put(mat, 0.0);
                 lastUpdateMap.put(mat, now);
@@ -764,7 +953,7 @@ public class ShopDataManager {
 
         long now = System.currentTimeMillis();
 
-        for (Material mat : basePrices.keySet()) {
+        for (Material mat : itemConfigs.keySet()) {
             String key = mat.name();
 
             ConfigurationSection sec = itemsSec.getConfigurationSection(key);
@@ -846,7 +1035,7 @@ public class ShopDataManager {
     // ------------------------------------------------------------------------
     public static double getTotalStockValue() {
         double total = 0.0;
-        for (Material mat : basePrices.keySet()) {
+        for (Material mat : itemConfigs.keySet()) {
             double base = getBasePrice(mat);
             if (base <= 0)
                 continue;
@@ -857,7 +1046,7 @@ public class ShopDataManager {
 
     public static double getTotalPurchasesValue() {
         double total = 0.0;
-        for (Material mat : basePrices.keySet()) {
+        for (Material mat : itemConfigs.keySet()) {
             double base = getBasePrice(mat);
             if (base <= 0)
                 continue;
@@ -867,11 +1056,11 @@ public class ShopDataManager {
     }
 
     public static int getTotalTrackedItems() {
-        return basePrices.size();
+        return itemConfigs.size();
     }
 
     public static Set<Material> getAllTrackedMaterials() {
-        return Collections.unmodifiableSet(basePrices.keySet());
+        return Collections.unmodifiableSet(itemConfigs.keySet());
     }
 
     // queue helpers
@@ -908,7 +1097,7 @@ public class ShopDataManager {
         try {
             Material mat = Material.valueOf(materialName.toUpperCase());
 
-            if (!basePrices.containsKey(mat))
+            if (!itemConfigs.containsKey(mat))
                 return null;
 
             String displayName = Arrays.stream(mat.name().toLowerCase().split("_"))
@@ -948,7 +1137,7 @@ public class ShopDataManager {
     // DEBUG / RESET HELPERS
     // ------------------------------------------------------------------------
     public static void resetAllDynamicData() {
-        for (Material mat : basePrices.keySet()) {
+        for (Material mat : itemConfigs.keySet()) {
             stockMap.put(mat, 0.0);
             purchasesMap.put(mat, 0.0);
             lastUpdateMap.put(mat, System.currentTimeMillis());
@@ -970,7 +1159,8 @@ public class ShopDataManager {
      * Check if an item is disabled from the shop (base price < 0)
      */
     public static boolean isItemDisabled(Material mat) {
-        return basePrices.getOrDefault(mat, -1.0) < 0;
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        return cfg == null || cfg.basePrice < 0;
     }
 
     /**
@@ -992,7 +1182,17 @@ public class ShopDataManager {
      * Set the base price for an item
      */
     public static void setBasePrice(Material mat, double price) {
-        basePrices.put(mat, price);
+        // Since ShopItemConfig is a record, we must replace the whole entry
+        ShopItemConfig old = itemConfigs.get(mat);
+        ShopItemConfig newConfig;
+        if (old == null) {
+            // Should usually not happen if we are enabling/adding, but safe default
+            newConfig = new ShopItemConfig(price, null, null, null, null, false, false, null);
+        } else {
+            newConfig = new ShopItemConfig(price, old.maxStock, old.minStock, old.maxStockStorage, old.minStockStorage,
+                    old.disableBuy, old.disableSell, old.categoryOverride);
+        }
+        itemConfigs.put(mat, newConfig);
 
         // Save to config
         plugin.getConfig().set("items." + mat.name() + ".base", price);

@@ -379,37 +379,29 @@ public class ShopListener implements Listener {
             }
         }
 
-        if (!ShopDataManager.canBuy(mat)) {
+        if (ShopDataManager.isItemDisabled(mat)) {
             p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
             return;
         }
 
-        double s0 = ShopDataManager.getStock(mat);
+        if (ShopDataManager.isBuyDisabled(mat)) {
+            p.sendMessage("§cBuying this item is disabled.");
+            return;
+        }
 
-        // Strict stock restriction logic
-        if (ConfigCacheManager.restrictBuyingAtZeroStock && !p.hasPermission("dynamicshop.bypass.stock")) {
-            // 1. Block buying if stock is zero or negative
-            if (s0 <= 0) {
-                p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
-                return;
-            }
-
-            // 2. Clamp amount to available stock
-            if (amount > s0) {
-                amount = (int) s0;
-                // If somehow the int cast makes it 0 or less (shouldn't happen if s0 > 0 check
-                // passed, but safe guard)
-                if (amount <= 0) {
+        if (!p.hasPermission("dynamicshop.bypass.stock")) {
+            if (!ShopDataManager.canBuy(mat, amount)) {
+                int limit = ShopDataManager.getBuyLimit(mat);
+                if (limit <= 0) {
                     p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
                     return;
+                } else {
+                    // Partial buy
+                    amount = limit;
+                    Map<String, String> ph = new HashMap<>();
+                    ph.put("stock", String.valueOf(limit));
+                    p.sendMessage(plugin.getMessageManager().getMessage("shop-stock-limited", ph));
                 }
-
-                // Notify user they can only buy what's left
-                Map<String, String> ph = new HashMap<>();
-                ph.put("stock", String.valueOf((int) s0));
-                p.sendMessage(plugin.getMessageManager().getMessage("shop-stock-limited", ph)); // Ensure this message
-                                                                                                // key exists or use a
-                                                                                                // generic one
             }
         }
 
@@ -476,6 +468,16 @@ public class ShopListener implements Listener {
             }
         }
 
+        if (ShopDataManager.isItemDisabled(mat)) {
+            p.sendMessage(plugin.getMessageManager().cannotSell());
+            return;
+        }
+
+        if (ShopDataManager.isSellDisabled(mat)) {
+            p.sendMessage("§cSelling this item is disabled.");
+            return;
+        }
+
         int removed = 0;
         for (ItemStack item : p.getInventory().getContents()) {
             if (item != null && item.getType() == mat && removed < amount && !isDamaged(item)) {
@@ -488,6 +490,21 @@ public class ShopListener implements Listener {
             ph.put("item", mat.name().replace("_", " ").toLowerCase());
             p.sendMessage(plugin.getMessageManager().getMessage("not-enough-items", ph));
             return;
+        }
+
+        if (!p.hasPermission("dynamicshop.bypass.stock")) {
+            if (!ShopDataManager.canSell(mat, removed)) {
+                int limit = ShopDataManager.getSellLimit(mat);
+                if (limit <= 0) {
+                    p.sendMessage("§cShop storage is full for this item.");
+                    return;
+                } else {
+                    // Partial sell
+                    // We need to reclamp 'removed' to 'limit'
+                    removed = Math.min(removed, limit);
+                    p.sendMessage("§eShop storage limited. selling " + removed + " items.");
+                }
+            }
         }
 
         double totalPayout = ShopDataManager.getTotalSellValue(mat, removed);

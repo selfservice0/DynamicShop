@@ -91,15 +91,8 @@ public class ConfigCacheManager {
         useTimeInflation = plugin.getConfig().getBoolean("dynamic-pricing.use-time-inflation", true);
         hourlyIncreasePercent = plugin.getConfig().getDouble("dynamic-pricing.hourly-increase-percent", 2.0);
 
-        // Debug logging
-        plugin.getLogger().info("[DEBUG] Reading restrict-buying-at-zero-stock from config...");
-        boolean configValue = plugin.getConfig().getBoolean("dynamic-pricing.restrict-buying-at-zero-stock", false);
-        plugin.getLogger().info("[DEBUG] Config file value: " + configValue);
-        plugin.getLogger().info("[DEBUG] Old cached value: " + restrictBuyingAtZeroStock);
-
-        restrictBuyingAtZeroStock = configValue;
-
-        plugin.getLogger().info("[DEBUG] New cached value: " + restrictBuyingAtZeroStock);
+        restrictBuyingAtZeroStock = plugin.getConfig().getBoolean("dynamic-pricing.restrict-buying-at-zero-stock",
+                false);
         logDynamicPricing = plugin.getConfig().getBoolean("dynamic-pricing.log-dynamic-pricing", false);
     }
 
