@@ -9,6 +9,10 @@ economy:
   # 30 = players get 70% of item value when selling
   sell_tax_percent: 30
 
+  # Cooldown between transactions (milliseconds)
+  # Set to 0 to disable
+  transaction_cooldown_ms: 500
+
 # ================================================================
 # GUI SETTINGS
 # ================================================================
@@ -75,7 +79,7 @@ dynamic-pricing:
   # --- Stock Control ---
   # Prevent players from buying items when stock reaches zero
   # When enabled, players cannot purchase items with stock <= 0
-  restrict-buying-at-zero-stock: false
+  restrict-buying-at-zero-stock: true
 
   # --- Debug Logging ---
   # Enable to see detailed pricing calculations in console

@@ -25,6 +25,11 @@ public class WebServer {
     private final DynamicShop plugin;
     private Javalin app;
 
+    // Cache for /api/shop/items endpoint (60 second TTL)
+    private static final long CACHE_TTL_MS = 60_000; // 60 seconds
+    private List<ShopItemDTO> cachedShopItems = null;
+    private long cacheTimestamp = 0;
+
     public WebServer(DynamicShop plugin) {
         this.plugin = plugin;
     }
@@ -445,11 +450,45 @@ public class WebServer {
     /**
      * GET /api/shop/items
      * Returns all shop items with current prices, stock, and category
+     * Uses 60-second cache to reduce server load
      */
     private void handleShopItems(Context ctx) {
         String query = ctx.queryParam("query");
         String categoryFilter = ctx.queryParam("category");
 
+        // Check if cache needs refresh
+        long now = System.currentTimeMillis();
+        if (cachedShopItems == null || (now - cacheTimestamp) > CACHE_TTL_MS) {
+            refreshShopItemsCache();
+        }
+
+        // Apply filters to cached data
+        List<ShopItemDTO> items = cachedShopItems;
+
+        // Apply search filter if present
+        if (query != null && !query.isEmpty()) {
+            String lowerQuery = query.toLowerCase();
+            items = items.stream()
+                    .filter(item -> item.displayName().toLowerCase().contains(lowerQuery)
+                            || item.item().toLowerCase().contains(lowerQuery))
+                    .collect(Collectors.toList());
+        }
+
+        // Apply category filter if present
+        if (categoryFilter != null && !categoryFilter.isEmpty()) {
+            String upperCategory = categoryFilter.toUpperCase();
+            items = items.stream()
+                    .filter(item -> item.category().equals(upperCategory))
+                    .collect(Collectors.toList());
+        }
+
+        ctx.json(items);
+    }
+
+    /**
+     * Refreshes the shop items cache
+     */
+    private synchronized void refreshShopItemsCache() {
         List<ShopItemDTO> items = new ArrayList<>();
 
         for (Material mat : ShopDataManager.getAllTrackedMaterials()) {
@@ -457,25 +496,7 @@ public class WebServer {
             if (basePrice < 0)
                 continue; // Skip disabled items
 
-            // Apply search filter
-            if (query != null && !query.isEmpty()) {
-                if (!mat.name().toLowerCase().contains(query.toLowerCase())) {
-                    continue;
-                }
-            }
-
             ItemCategory category = ShopDataManager.detectCategory(mat);
-
-            // Apply category filter
-            if (categoryFilter != null && !categoryFilter.isEmpty()) {
-                try {
-                    ItemCategory filterCat = ItemCategory.valueOf(categoryFilter.toUpperCase());
-                    if (category != filterCat)
-                        continue;
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-
             double buyPrice = ShopDataManager.getPrice(mat);
             double sellPrice = ShopDataManager.getSellPrice(mat);
             double stock = ShopDataManager.getStock(mat);
@@ -496,7 +517,11 @@ public class WebServer {
         // Sort by display name
         items.sort(Comparator.comparing(ShopItemDTO::displayName));
 
-        ctx.json(items);
+        // Update cache
+        cachedShopItems = items;
+        cacheTimestamp = System.currentTimeMillis();
+
+        plugin.getLogger().info("Shop items cache refreshed (" + items.size() + " items)");
     }
 
     /**

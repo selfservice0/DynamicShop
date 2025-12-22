@@ -40,6 +40,7 @@ public class ShopListener implements Listener {
     private final Map<Player, AdminItemEditGUI> openAdminEdit = new HashMap<>();
     private final Map<Player, AdminConfigGUI> openAdminConfig = new HashMap<>();
     private final Map<Player, AdminSpecialItemEditGUI> openAdminSpecialEdit = new HashMap<>();
+    private final Map<UUID, Long> lastTransaction = new HashMap<>();
 
     public ShopListener(DynamicShop plugin) {
         this.plugin = plugin;
@@ -77,6 +78,7 @@ public class ShopListener implements Listener {
         openAdminEdit.remove(p);
         openAdminConfig.remove(p);
         openAdminSpecialEdit.remove(p);
+        lastTransaction.remove(p.getUniqueId());
     }
 
     // Admin GUI registration
@@ -363,6 +365,20 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     public void buyItem(Player p, Material mat, int amount, Object gui) {
 
+        if (ConfigCacheManager.transactionCooldownMs > 0 && !p.hasPermission("dynamicshop.bypass.cooldown")) {
+            long now = System.currentTimeMillis();
+            long last = lastTransaction.getOrDefault(p.getUniqueId(), 0L);
+            long diff = now - last;
+
+            if (diff < ConfigCacheManager.transactionCooldownMs) {
+                double waitSeconds = (ConfigCacheManager.transactionCooldownMs - diff) / 1000.0;
+                Map<String, String> ph = new HashMap<>();
+                ph.put("time", String.format("%.1f", waitSeconds));
+                p.sendMessage(plugin.getMessageManager().getMessage("transaction-cooldown", ph));
+                return;
+            }
+        }
+
         if (!ShopDataManager.canBuy(mat)) {
             p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
             return;
@@ -370,18 +386,30 @@ public class ShopListener implements Listener {
 
         double s0 = ShopDataManager.getStock(mat);
 
-        // Optional restriction
+        // Strict stock restriction logic
         if (ConfigCacheManager.restrictBuyingAtZeroStock && !p.hasPermission("dynamicshop.bypass.stock")) {
+            // 1. Block buying if stock is zero or negative
             if (s0 <= 0) {
                 p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
                 return;
             }
-            if (s0 < amount) {
-                amount = (int) Math.max(0, s0);
+
+            // 2. Clamp amount to available stock
+            if (amount > s0) {
+                amount = (int) s0;
+                // If somehow the int cast makes it 0 or less (shouldn't happen if s0 > 0 check
+                // passed, but safe guard)
                 if (amount <= 0) {
                     p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
                     return;
                 }
+
+                // Notify user they can only buy what's left
+                Map<String, String> ph = new HashMap<>();
+                ph.put("stock", String.valueOf((int) s0));
+                p.sendMessage(plugin.getMessageManager().getMessage("shop-stock-limited", ph)); // Ensure this message
+                                                                                                // key exists or use a
+                                                                                                // generic one
             }
         }
 
@@ -419,6 +447,8 @@ public class ShopListener implements Listener {
                 ShopDataManager.detectCategory(mat).name(),
                 ""));
 
+        lastTransaction.put(p.getUniqueId(), System.currentTimeMillis());
+
         if (gui instanceof ShopGUI)
             ((ShopGUI) gui).render();
         if (gui instanceof SearchResultsGUI)
@@ -431,6 +461,20 @@ public class ShopListener implements Listener {
     // SELL ACTION (CONTINUOUS PRICING)
     // ------------------------------------------------------------------
     public void sellItem(Player p, Material mat, int amount, Object gui) {
+
+        if (ConfigCacheManager.transactionCooldownMs > 0 && !p.hasPermission("dynamicshop.bypass.cooldown")) {
+            long now = System.currentTimeMillis();
+            long last = lastTransaction.getOrDefault(p.getUniqueId(), 0L);
+            long diff = now - last;
+
+            if (diff < ConfigCacheManager.transactionCooldownMs) {
+                double waitSeconds = (ConfigCacheManager.transactionCooldownMs - diff) / 1000.0;
+                Map<String, String> ph = new HashMap<>();
+                ph.put("time", String.format("%.1f", waitSeconds));
+                p.sendMessage(plugin.getMessageManager().getMessage("transaction-cooldown", ph));
+                return;
+            }
+        }
 
         int removed = 0;
         for (ItemStack item : p.getInventory().getContents()) {
@@ -475,6 +519,8 @@ public class ShopListener implements Listener {
                 totalPayout,
                 ShopDataManager.detectCategory(mat).name(),
                 ""));
+
+        lastTransaction.put(p.getUniqueId(), System.currentTimeMillis());
 
         if (gui instanceof ShopGUI)
             ((ShopGUI) gui).render();

@@ -68,6 +68,7 @@ messages:
   not-enough-items: "&cYou don't have any &e{item} &cto sell!"
   not-enough-money-need: "&cNot enough money! Need &e{price}"
   search-enter-term: "&cPlease enter a search term!"
+  transaction-cooldown: "&cPlease wait &e{time}s &cbefore your next transaction."
 
   # Inventory lore (shown on items in player inventory when shop is open)
   lore-buy-price: "&7Buy: &e{price}"
@@ -134,6 +135,9 @@ messages:
   playershop-listing-failed: "&c✗ &7Failed to list item!"
   playershop-not-enough-money: "&c✗ &7You need &c${price} &7to buy this item!"
   playershop-not-enough-space: "&c✗ &7Not enough inventory space!"
+  
+  # Stock restriction message
+  shop-stock-limited: "&cStock is limited! You only bought &e{stock} &citems."
 
 # ================================================================
 # Translation Guide

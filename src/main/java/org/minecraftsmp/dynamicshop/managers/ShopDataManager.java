@@ -162,17 +162,6 @@ public class ShopDataManager {
         if (base < 0)
             return false; // untradeable
 
-        // Use cached config value instead of config lookups
-        if (ConfigCacheManager.restrictBuyingAtZeroStock) {
-            double stock = getStock(mat);
-
-            if (stock <= 0) {
-                plugin.getLogger()
-                        .info("[Stock Restriction] Blocked purchase of " + mat.name() + " (stock: " + stock + ")");
-                return false;
-            }
-        }
-
         return true;
     }
 
