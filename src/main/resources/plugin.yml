@@ -1,6 +1,6 @@
 # plugin.yml
 name: DynamicShop
-version: 2.2.1
+version: 2.2.3
 main: org.minecraftsmp.dynamicshop.DynamicShop
 api-version: 1.20
 author: selfservice0
@@ -21,7 +21,7 @@ commands:
     permission: dynamicshop.use
   shopadmin:
     description: Admin commands for managing the shop
-    usage: /shopadmin <reload|save|reset|setstock|info>
+    usage: /shopadmin <reload|save|reset|setstock|info|resetshortage>
     aliases: [dsa, shopadm]
     permission: dynamicshop.admin
 

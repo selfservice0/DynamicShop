@@ -361,14 +361,14 @@ public class ShopDataManager {
         double midB = Math.min(b, upperBound);
 
         if (midA < midB) {
-            total += integrateMidPositiveRegion(B, k, effectiveMax, midA - lowerBound, midB - lowerBound);
+            total += integrateMidPositiveRegion(B, k, effectiveMax, midA - lowerBound, midB - lowerBound) * t;
         }
 
         // HIGH REGION [upperBound → +∞)
         double highA = Math.max(a, upperBound);
         double highB = Math.max(b, upperBound);
         if (highA < highB) {
-            total += integrateHighPositiveRegion(B, k, highA, highB);
+            total += integrateHighPositiveRegion(B, k, highA, highB) * t;
         }
 
         // Clamp to min/max price multiplier limits
@@ -431,14 +431,14 @@ public class ShopDataManager {
         double midA = Math.max(a, lowerBound);
         double midB = Math.min(b, upperBound);
         if (midA < midB) {
-            total += integrateMidPositiveRegion(B, k, effectiveMax, midA - lowerBound, midB - lowerBound);
+            total += integrateMidPositiveRegion(B, k, effectiveMax, midA - lowerBound, midB - lowerBound) * t;
         }
 
         // HIGH REGION
         double highA = Math.max(a, upperBound);
         double highB = Math.max(b, upperBound);
         if (highA < highB) {
-            total += integrateHighPositiveRegion(B, k, highA, highB);
+            total += integrateHighPositiveRegion(B, k, highA, highB) * t;
         }
 
         // Clamp to min/max price multiplier limits (before tax)
@@ -1098,6 +1098,17 @@ public class ShopDataManager {
 
     public static double getShortageHours(Material mat) {
         return getHoursInShortage(mat);
+    }
+
+    public static void resetAllShortageData() {
+        shortageHoursMap.clear();
+        long now = System.currentTimeMillis();
+        for (Material mat : itemConfigs.keySet()) {
+            // Reset last update to now so "live" tracking doesn't jump
+            lastUpdateMap.put(mat, now);
+            markDirty(mat);
+        }
+        saveDynamicData();
     }
 
     // ------------------------------------------------------------------------

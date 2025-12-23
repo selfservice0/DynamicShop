@@ -68,6 +68,14 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase();
 
         switch (sub) {
+            // --------------------------------------------------------------
+            // /shopadmin resetshortage
+            // --------------------------------------------------------------
+            case "resetshortage" -> {
+                ShopDataManager.resetAllShortageData();
+                sender.sendMessage("§a[DynamicShop] §fAll shortage data has been reset.");
+                return true;
+            }
 
             // --------------------------------------------------------------
             // /shopadmin reload
@@ -441,6 +449,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
             out.add("reload");
             out.add("add");
             out.add("remove");
+            out.add("resetshortage");
             return out;
         }
 
