@@ -12,6 +12,7 @@ import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.managers.ProtocolShopManager;
 import org.minecraftsmp.dynamicshop.managers.MessageManager;
+import org.minecraftsmp.dynamicshop.managers.ConfigCacheManager;
 import org.minecraftsmp.dynamicshop.util.ShopItemBuilder;
 
 import java.util.ArrayList;
@@ -36,10 +37,12 @@ public class ShopGUI {
     private final int itemsPerPage;
     private Inventory inventory; // Store the inventory reference
 
-    private List<Material> items; // Flattened items in this category (for regular items)
+    private List<Material> allItems; // MASTER list of items in this category
+    private List<Material> displayItems; // FILTERED list for rendering
     private List<SpecialShopItem> specialItems; // Special items (for PERMISSIONS/SERVER_SHOP)
     private int page = 0;
     private int maxPage = 0;
+    private boolean hideOutOfStock = false;
 
     public ShopGUI(DynamicShop plugin, Player player, ItemCategory category) {
         this.plugin = plugin;
@@ -56,19 +59,19 @@ public class ShopGUI {
             this.specialItems = plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
                     .filter(item -> item.getCategory() == category)
                     .collect(Collectors.toList());
-            this.items = List.of(); // Empty regular items
+            this.allItems = List.of(); // Empty regular items
+            this.displayItems = List.of();
 
             // Calculate pagination based on special items
             this.maxPage = specialItems.isEmpty() ? 0 : (specialItems.size() - 1) / itemsPerPage;
         } else {
             // Load regular items from ShopDataManager
-            this.items = ShopDataManager.getItemsInCategory(category);
-            if (items == null)
-                items = List.of();
+            this.allItems = ShopDataManager.getItemsInCategory(category);
+            if (allItems == null)
+                allItems = List.of();
             this.specialItems = List.of(); // Empty special items
 
-            // Fixed calculation: ceil division
-            this.maxPage = items.isEmpty() ? 0 : (items.size() - 1) / itemsPerPage;
+            updateDisplayItems(); // Populate displayItems based on initial state
         }
     }
 
@@ -116,12 +119,12 @@ public class ShopGUI {
                 pm.sendSlot(inventory, slot, displayItem);
             }
         } else {
-            // Render regular items
+            // Render regular items from displayItems (filtered)
             int start = page * itemsPerPage;
-            int end = Math.min(start + itemsPerPage, items.size());
+            int end = Math.min(start + itemsPerPage, displayItems.size());
 
             for (int i = start; i < end; i++) {
-                Material mat = items.get(i);
+                Material mat = displayItems.get(i);
                 int slot = i - start;
 
                 ItemStack displayItem = buildShopItem(mat);
@@ -131,6 +134,40 @@ public class ShopGUI {
 
         // Render navigation
         renderNavigation();
+    }
+
+    private void updateDisplayItems() {
+        if (allItems == null) {
+            displayItems = List.of();
+            maxPage = 0;
+            return;
+        }
+
+        if (hideOutOfStock) {
+            displayItems = allItems.stream()
+                    .filter(mat -> ShopDataManager.getStock(mat) > 0)
+                    .collect(Collectors.toList());
+        } else {
+            displayItems = new ArrayList<>(allItems);
+        }
+
+        // Recalculate max page
+        this.maxPage = displayItems.isEmpty() ? 0 : (displayItems.size() - 1) / itemsPerPage;
+
+        // Safety check: if current page exceeds maxPage (due to filtering), reset to 0
+        if (page > maxPage) {
+            page = 0;
+        }
+    }
+
+    public void toggleHideOutOfStock() {
+        this.hideOutOfStock = !this.hideOutOfStock;
+        updateDisplayItems();
+        // Clear slots first to prevent ghost items if list shrank
+        for (int i = 0; i < itemsPerPage; i++) {
+            pm.sendSlot(inventory, i, null);
+        }
+        render();
     }
 
     /**
@@ -230,9 +267,13 @@ public class ShopGUI {
                         plugin.getMessageManager().getMessage("lore-stock-negative", stockPlaceholders));
 
                 // Show price increase for negative stock too
-                long hours = (System.currentTimeMillis() - ShopDataManager.getLastUpdate(mat)) / (3600 * 1000);
+                double hours = ShopDataManager.getHoursInShortage(mat);
+                double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+                double multiplier = Math.pow(1.0 + hourlyRate, hours);
+                double percentIncrease = (multiplier - 1.0) * 100.0;
+
                 java.util.Map<String, String> percentPlaceholders = new java.util.HashMap<>();
-                percentPlaceholders.put("percent", String.valueOf(hours * 2));
+                percentPlaceholders.put("percent", String.format("%,.0f", percentIncrease));
                 MessageManager.addLoreIfNotEmpty(lore,
                         plugin.getMessageManager().getMessage("shop-lore-price-increase", percentPlaceholders));
                 MessageManager.addLoreIfNotEmpty(lore,
@@ -241,9 +282,13 @@ public class ShopGUI {
                 MessageManager.addLoreIfNotEmpty(lore, plugin.getMessageManager().getMessage("lore-out-of-stock"));
 
                 // Show price increase for zero stock
-                long hours = (System.currentTimeMillis() - ShopDataManager.getLastUpdate(mat)) / (3600 * 1000);
+                double hours = ShopDataManager.getHoursInShortage(mat);
+                double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+                double multiplier = Math.pow(1.0 + hourlyRate, hours);
+                double percentIncrease = (multiplier - 1.0) * 100.0;
+
                 java.util.Map<String, String> percentPlaceholders = new java.util.HashMap<>();
-                percentPlaceholders.put("percent", String.valueOf(hours * 2));
+                percentPlaceholders.put("percent", String.format("%,.0f", percentIncrease));
                 MessageManager.addLoreIfNotEmpty(lore,
                         plugin.getMessageManager().getMessage("shop-lore-price-increase", percentPlaceholders));
                 MessageManager.addLoreIfNotEmpty(lore,
@@ -319,12 +364,22 @@ public class ShopGUI {
         // Page Info
         int totalItems = (category == ItemCategory.PERMISSIONS || category == ItemCategory.SERVER_SHOP)
                 ? specialItems.size()
-                : items.size();
+                : displayItems.size();
         ItemStack pageInfo = ShopItemBuilder.navItem(
                 "§ePage §f" + (page + 1) + " §7/ §f" + (maxPage + 1),
                 Material.PAPER,
                 "§7Total items: §e" + totalItems);
         pm.sendSlot(inventory, navRow + 5, pageInfo);
+
+        // Filter Toggle (Hopper)
+        if (category != ItemCategory.PERMISSIONS && category != ItemCategory.SERVER_SHOP) {
+            ItemStack filterItem = ShopItemBuilder.navItem(
+                    "§6Filter Options",
+                    Material.HOPPER,
+                    hideOutOfStock ? "§aCurrently: §fHiding Out of Stock" : "§cCurrently: §fShowing All",
+                    "§7Click to toggle");
+            pm.sendSlot(inventory, navRow + 2, filterItem);
+        }
     }
 
     /**
@@ -377,9 +432,9 @@ public class ShopGUI {
 
         int index = (page * itemsPerPage) + clickedSlot;
 
-        if (index < 0 || index >= items.size())
+        if (index < 0 || index >= displayItems.size())
             return null;
-        return items.get(index);
+        return displayItems.get(index);
     }
 
     /**

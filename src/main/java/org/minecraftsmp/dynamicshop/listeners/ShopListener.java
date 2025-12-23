@@ -336,6 +336,11 @@ public class ShopListener implements Listener {
             return;
         }
 
+        if (local == 2) {
+            gui.toggleHideOutOfStock();
+            return;
+        }
+
         if (local == 3) {
             p.closeInventory();
             unregisterShop(p);

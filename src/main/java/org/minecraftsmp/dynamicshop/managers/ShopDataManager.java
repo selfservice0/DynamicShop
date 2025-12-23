@@ -752,18 +752,15 @@ public class ShopDataManager {
     // SPECIAL DIRECT SETTERS (NO P2P)
     // ------------------------------------------------------------------------
     public static void setStockDirect(Material mat, double stock) {
+        // Capture current shortage before changing anything
+        accumulateShortage(mat);
+
         // Clamp to storage limits
         ShopItemConfig cfg = itemConfigs.get(mat);
         if (cfg != null) {
             if (cfg.maxStockStorage != null && stock > cfg.maxStockStorage) {
                 stock = cfg.maxStockStorage;
             }
-            // Logic change: we usually don't strictly enforce min-storage on *set* unless
-            // desired.
-            // But consistency suggests we should respecting limits if they act as hard
-            // limits.
-            // Let's enforce min limit too if set.
-            // Careful: default min limit is effectively -inf.
             if (cfg.minStockStorage != null && stock < cfg.minStockStorage) {
                 stock = cfg.minStockStorage;
             }
@@ -772,9 +769,21 @@ public class ShopDataManager {
         double oldStock = stockMap.getOrDefault(mat, 0.0);
         stockMap.put(mat, stock);
 
+        // If stock becomes positive, reset shortage hours
+        if (stock > 0) {
+            shortageHoursMap.put(mat, 0.0);
+        }
+
         if (stock <= 0 && oldStock > 0) {
             lastUpdateMap.put(mat, System.currentTimeMillis());
         } else if (stock > 0 && oldStock <= 0) {
+            lastUpdateMap.put(mat, System.currentTimeMillis());
+        } else {
+            // Even if state didn't flip, we updated stock, potentially resetting "last
+            // update"
+            // logic implies we should reset lastUpdate on ANY significant change?
+            // With cumulative logic, we usually WANT to reset lastUpdate so "live" tracking
+            // starts fresh.
             lastUpdateMap.put(mat, System.currentTimeMillis());
         }
 
@@ -790,6 +799,32 @@ public class ShopDataManager {
     // STOCK UPDATES (WITH P2P BROADCAST)
     // ------------------------------------------------------------------------
     public static void updateStock(Material mat, double delta) {
+        // Capture shortage before update
+        accumulateShortage(mat);
+
+        // Feature: Selling reduces inflation by 10% per transaction
+        if (delta > 0 && getStock(mat) <= 0) {
+            double currentHours = shortageHoursMap.getOrDefault(mat, 0.0);
+            if (currentHours > 0) {
+                double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+                if (hourlyRate > 0) {
+                    double multiplier = Math.pow(1.0 + hourlyRate, currentHours);
+                    double currentIncrease = multiplier - 1.0;
+
+                    // Deduct 10% of the increase
+                    double newIncrease = currentIncrease * 0.90;
+                    double newMultiplier = 1.0 + newIncrease;
+
+                    // Back-calculate hours: hours = log_base_(1+r) (newMultiplier)
+                    // log_b(x) = ln(x) / ln(b)
+                    double newHours = Math.log(newMultiplier) / Math.log(1.0 + hourlyRate);
+
+                    shortageHoursMap.put(mat, Math.max(0, newHours));
+                    markDirty(mat);
+                }
+            }
+        }
+
         double oldStock = getStock(mat);
         double newStock = oldStock + delta;
 
@@ -806,11 +841,14 @@ public class ShopDataManager {
 
         stockMap.put(mat, newStock);
 
-        if (newStock <= 0 && oldStock > 0) {
-            lastUpdateMap.put(mat, System.currentTimeMillis());
-        } else if (newStock > 0 && oldStock <= 0) {
-            lastUpdateMap.put(mat, System.currentTimeMillis());
+        // If coming back in stock, reset shortage
+        if (newStock > 0) {
+            shortageHoursMap.put(mat, 0.0);
         }
+
+        // Even if we stay negative, we reset lastUpdate because we "baked" the previous
+        // time
+        lastUpdateMap.put(mat, System.currentTimeMillis());
 
         markDirty(mat);
 
@@ -1012,8 +1050,40 @@ public class ShopDataManager {
     // ------------------------------------------------------------------------
     // SHORTAGE TRACKING
     // ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // SHORTAGE TRACKING
+    // ------------------------------------------------------------------------
+
+    /**
+     * Calculates the total hours this item has been in a shortage (stock <= 0).
+     * Returns: Stored Accumulated Hours + Live Current Duration
+     */
     public static double getHoursInShortage(Material mat) {
-        return shortageHoursMap.getOrDefault(mat, 0.0);
+        double stored = shortageHoursMap.getOrDefault(mat, 0.0);
+
+        // If currently out of stock, add the "live" duration since last update
+        if (getStock(mat) <= 0) {
+            long diff = System.currentTimeMillis() - getLastUpdate(mat);
+            stored += (diff / 3600000.0);
+        }
+
+        return stored;
+    }
+
+    /**
+     * Helper to "bake" the current live shortage duration into the map.
+     * Call this BEFORE resetting lastUpdate or changing stock.
+     */
+    private static void accumulateShortage(Material mat) {
+        if (getStock(mat) <= 0) {
+            long now = System.currentTimeMillis();
+            long last = getLastUpdate(mat);
+            double deltaHours = (now - last) / 3600000.0;
+
+            double currentStored = shortageHoursMap.getOrDefault(mat, 0.0);
+            shortageHoursMap.put(mat, currentStored + deltaHours);
+            markDirty(mat);
+        }
     }
 
     public static void setHoursInShortage(Material mat, double hours) {
