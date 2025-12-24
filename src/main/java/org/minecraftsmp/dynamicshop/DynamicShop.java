@@ -12,10 +12,13 @@ import org.minecraftsmp.dynamicshop.listeners.ShopListener;
 import org.minecraftsmp.dynamicshop.placeholder.DynamicShopExpansion;
 import org.minecraftsmp.dynamicshop.transactions.TransactionLogger;
 import org.minecraftsmp.dynamicshop.web.WebServer;
-import org.minecraftsmp.dynamicshop.managers.PlayerShopManager;
 import org.minecraftsmp.dynamicshop.listeners.PlayerShopListener;
+import org.bstats.bukkit.Metrics;
 
 public class DynamicShop extends JavaPlugin {
+
+    // bStats plugin ID - get yours from https://bstats.org
+    private static final int BSTATS_PLUGIN_ID = 28506;
 
     // Managers
     private MultiCurrencyEconomyManager economyManager;
@@ -40,6 +43,11 @@ public class DynamicShop extends JavaPlugin {
         saveDefaultConfig();
 
         getLogger().info("§aDynamicShop is enabling...");
+
+        // --------------------------------------------------------------------
+        // BSTATS METRICS
+        // --------------------------------------------------------------------
+        new Metrics(this, BSTATS_PLUGIN_ID);
 
         // --------------------------------------------------------------------
         // CONFIG CACHE
