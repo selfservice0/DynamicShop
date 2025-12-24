@@ -713,6 +713,16 @@ public class ShopListener implements Listener {
     }
 
     // ------------------------------------------------------------------
+    // CLEAR FAKE LORE FROM PLAYER INVENTORY (on shop close)
+    // ------------------------------------------------------------------
+    private void clearFakeInventoryLore(Player player) {
+        // Force update all inventory slots to remove fake packet-based lore
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            player.updateInventory();
+        }, 1L);
+    }
+
+    // ------------------------------------------------------------------
     // PREVENT DRAGGING IN GUIS
     // ------------------------------------------------------------------
     @EventHandler
@@ -749,6 +759,7 @@ public class ShopListener implements Listener {
         }
         if (openShop.containsKey(p) && openShop.get(p).getInventory().equals(e.getInventory())) {
             openShop.remove(p);
+            clearFakeInventoryLore(p); // Reset items to original state (no fake lore)
             return;
         }
         if (openCategory.containsKey(p) && openCategory.get(p).getInventory().equals(e.getInventory())) {
@@ -757,6 +768,7 @@ public class ShopListener implements Listener {
         }
         if (openSearch.containsKey(p) && openSearch.get(p).getInventory().equals(e.getInventory())) {
             openSearch.remove(p);
+            clearFakeInventoryLore(p); // Reset items to original state (no fake lore)
             return;
         }
         if (openAdminConfig.containsKey(p) && openAdminConfig.get(p).getInventory().equals(e.getInventory())) {

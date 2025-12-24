@@ -57,6 +57,14 @@
                                         <exclude>META-INF/*.DSA</exclude>
                                     </excludes>
                                 </filter>
+                                <!-- AnvilGUI: Ensure VersionWrappers are included -->
+                                <filter>
+                                    <artifact>net.wesjd:anvilgui</artifact>
+                                    <excludeDefaults>false</excludeDefaults>
+                                    <includes>
+                                        <include>net/wesjd/anvilgui/**</include>
+                                    </includes>
+                                </filter>
                             </filters>
                         </configuration>
                     </execution>
@@ -91,10 +99,10 @@
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
 
-        <!-- CodeMC (for AnvilGUI) -->
+        <!-- CodeMC Snapshots (for AnvilGUI) -->
         <repository>
-            <id>codemc-repo</id>
-            <url>https://repo.codemc.io/repository/maven-public/</url>
+            <id>codemc-snapshots</id>
+            <url>https://repo.codemc.io/repository/maven-snapshots/</url>
         </repository>
 
         <!-- JitPack (for Vault if needed) -->
@@ -141,7 +149,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- AnvilGUI (official CodeMC artifact) -->
+        <!-- AnvilGUI (CodeMC Snapshots) -->
         <dependency>
             <groupId>net.wesjd</groupId>
             <artifactId>anvilgui</artifactId>
