@@ -19,14 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * A pure client-side virtual GUI rendered by ProtocolShopManager.
- *
- * NOTES:
- * - Does NOT mutate the real inventory.
- * - All slots are virtual-only and sent via ProtocolLib.
- * - Fetching items/slots relies on ShopDataManager.
- */
+
 public class ShopGUI {
 
     private final DynamicShop plugin;

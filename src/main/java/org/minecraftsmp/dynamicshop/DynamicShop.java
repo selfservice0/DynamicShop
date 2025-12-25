@@ -126,11 +126,14 @@ public class DynamicShop extends JavaPlugin {
         }
 
         // Flush queue before shutdown to save all pending updates
-        getLogger().info("§e[ShopData] Flushing queue before shutdown...");
-        try {
-            ShopDataManager.flushQueue();
-        } catch (Exception e) {
-            getLogger().severe("[DynamicShop] Failed to flush shop queue on disable: " + e.getMessage());
+        // Only attempt if ShopDataManager was initialized
+        if (ShopDataManager.isInitialized()) {
+            getLogger().info("§e[ShopData] Flushing queue before shutdown...");
+            try {
+                ShopDataManager.flushQueue();
+            } catch (Exception e) {
+                getLogger().severe("[DynamicShop] Failed to flush shop queue on disable: " + e.getMessage());
+            }
         }
 
         // Shutdown P2P cross-server (saves YAML)
@@ -144,7 +147,10 @@ public class DynamicShop extends JavaPlugin {
         if (webServer != null) {
             webServer.stop();
         }
-        ShopDataManager.saveDynamicData(); // final save
+        // Final save - only if initialized
+        if (ShopDataManager.isInitialized()) {
+            ShopDataManager.saveDynamicData();
+        }
         getLogger().info("§cDynamicShop disabled.");
     }
 

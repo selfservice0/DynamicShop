@@ -94,6 +94,14 @@ public class ShopDataManager {
         init(plugin);
     }
 
+    /**
+     * Check if the ShopDataManager was fully initialized.
+     * Used to prevent NPE during early shutdown (e.g., when Vault is missing).
+     */
+    public static boolean isInitialized() {
+        return shopDataConfig != null;
+    }
+
     // ------------------------------------------------------------------------
     // LOAD ITEMS FROM CONFIG (base prices)
     // ------------------------------------------------------------------------
