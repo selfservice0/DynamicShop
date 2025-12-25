@@ -7,7 +7,7 @@
 
     <groupId>org.minecraftsmp</groupId>
     <artifactId>DynamicShop</artifactId>
-    <version>2.2.4</version>
+    <version>2.2.5</version>
     <packaging>jar</packaging>
 
     <name>DynamicShop</name>
@@ -110,6 +110,11 @@
             <url>https://repo.codemc.io/repository/maven-snapshots/</url>
         </repository>
 
+        <repository>
+    <id>mvn-wesjd-net</id>
+    <url>https://mvn.wesjd.net/</url>
+</repository>
+
         <!-- JitPack (for Vault if needed) -->
         <repository>
             <id>jitpack.io</id>
@@ -154,11 +159,11 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- AnvilGUI (CodeMC Snapshots) -->
+        <!-- AnvilGUI (Snapshots) -->
         <dependency>
             <groupId>net.wesjd</groupId>
             <artifactId>anvilgui</artifactId>
-            <version>1.10.10-SNAPSHOT</version>
+            <version>1.10.11-SNAPSHOT</version>
         </dependency>
 
         <!-- PlaceholderAPI (soft dependency for compile-time) -->
@@ -173,7 +178,7 @@
         <dependency>
             <groupId>org.bstats</groupId>
             <artifactId>bstats-bukkit</artifactId>
-            <version>3.0.2</version>
+            <version>3.1.0</version>
             <scope>compile</scope>
         </dependency>
 

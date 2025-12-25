@@ -1,6 +1,6 @@
 # plugin.yml
 name: DynamicShop
-version: 2.2.3
+version: 2.2.5
 main: org.minecraftsmp.dynamicshop.DynamicShop
 api-version: 1.20
 author: selfservice0
