@@ -540,15 +540,20 @@ function applyFilters() {
     const search = document.getElementById('txSearch')?.value.toLowerCase() || '';
     const typeFilter = document.getElementById('typeFilter')?.value || '';
 
-    filteredTransactions = allTransactions.filter(tx => {
-        const matchesSearch = !search ||
-            tx.playerName.toLowerCase().includes(search) ||
-            tx.item.toLowerCase().includes(search);
-        const matchesType = !typeFilter || tx.type === typeFilter;
-        return matchesSearch && matchesType;
-    });
-
+    // First apply time filter to get the base set
     applyTimeFilter();
+
+    // Then filter by search and type on top of the time-filtered results
+    if (search || typeFilter) {
+        filteredTransactions = filteredTransactions.filter(tx => {
+            const matchesSearch = !search ||
+                tx.playerName.toLowerCase().includes(search) ||
+                tx.item.toLowerCase().includes(search);
+            const matchesType = !typeFilter || tx.type === typeFilter;
+            return matchesSearch && matchesType;
+        });
+    }
+
     currentPage = 1;
     renderTransactions();
 }
