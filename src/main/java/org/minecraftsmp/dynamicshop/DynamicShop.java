@@ -33,6 +33,8 @@ public class DynamicShop extends JavaPlugin {
     private SearchResultsGUI searchResultsGUI;
     private PlayerShopListener playerShopListener;
     private EmbeddedP2PManager p2pCrossServerManager;
+    private org.minecraftsmp.dynamicshop.listeners.ChatInputListener chatInputListener;
+    private org.minecraftsmp.dynamicshop.managers.InputManager inputManager;
 
     private static DynamicShop instance;
 
@@ -53,6 +55,7 @@ public class DynamicShop extends JavaPlugin {
         // CONFIG CACHE
         // --------------------------------------------------------------------
         ConfigCacheManager.init(this);
+        CategoryConfigManager.init(this);
 
         // --------------------------------------------------------------------
         // MANAGER INIT
@@ -73,9 +76,6 @@ public class DynamicShop extends JavaPlugin {
 
         transactionLogger = new TransactionLogger(this);
         transactionLogger.init();
-
-        this.shopListener = new ShopListener(this);
-        getServer().getPluginManager().registerEvents(shopListener, this);
 
         // Data manager (loads items & categories)
         this.p2pCrossServerManager = new EmbeddedP2PManager(this);
@@ -103,6 +103,13 @@ public class DynamicShop extends JavaPlugin {
         // Register player shop listener
         this.playerShopListener = new PlayerShopListener(this);
         getServer().getPluginManager().registerEvents(playerShopListener, this);
+
+        // Register chat input listener for category editing
+        this.chatInputListener = new org.minecraftsmp.dynamicshop.listeners.ChatInputListener(this);
+        getServer().getPluginManager().registerEvents(chatInputListener, this);
+
+        // Initialize input manager (auto-detects Dialog API availability)
+        this.inputManager = new org.minecraftsmp.dynamicshop.managers.InputManager(this);
 
         // --------------------------------------------------------------------
         // COMMANDS
@@ -151,6 +158,10 @@ public class DynamicShop extends JavaPlugin {
         if (ShopDataManager.isInitialized()) {
             ShopDataManager.saveDynamicData();
         }
+
+        // Save category config
+        CategoryConfigManager.save();
+
         getLogger().info("§cDynamicShop disabled.");
     }
 
@@ -166,6 +177,7 @@ public class DynamicShop extends JavaPlugin {
         messageManager.reload();
         economyManager.reload();
         specialShopManager.reload();
+        CategoryConfigManager.load();
     }
 
     // ------------------------------------------------------------------------
@@ -221,6 +233,14 @@ public class DynamicShop extends JavaPlugin {
 
     public static DynamicShop getInstance() {
         return instance;
+    }
+
+    public org.minecraftsmp.dynamicshop.listeners.ChatInputListener getChatInputListener() {
+        return chatInputListener;
+    }
+
+    public org.minecraftsmp.dynamicshop.managers.InputManager getInputManager() {
+        return inputManager;
     }
 
     private void setupPlaceholderAPI() {

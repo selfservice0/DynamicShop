@@ -14,6 +14,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.ItemStack;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,11 +52,12 @@ public class PlayerShopListener implements Listener {
      */
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getPlayer() instanceof Player)) return;
+        if (!(event.getPlayer() instanceof Player))
+            return;
 
         Player player = (Player) event.getPlayer();
         UUID playerId = player.getUniqueId();
-        String title = event.getView().getTitle();
+        String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
 
         // Only remove the specific GUI that's closing
         if (title.equals("§6§lPlayer Shops")) {
@@ -75,7 +77,7 @@ public class PlayerShopListener implements Listener {
         }
 
         Player player = (Player) event.getWhoClicked();
-        String title = event.getView().getTitle();
+        String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
 
         // Handle Player Shops Browser
         if (title.equals("§6§lPlayer Shops")) {
@@ -96,7 +98,8 @@ public class PlayerShopListener implements Listener {
      */
     private void handleBrowserClick(Player player, int slot) {
         PlayerShopBrowserGUI gui = openBrowserGUIs.get(player.getUniqueId());
-        if (gui == null) return;
+        if (gui == null)
+            return;
 
         // Navigation buttons
         if (slot == 48) { // Previous page
@@ -109,10 +112,10 @@ public class PlayerShopListener implements Listener {
         }
         if (slot == 45) { // Back to main shop
             player.closeInventory();
-            
+
             // Open category selection GUI
-            org.minecraftsmp.dynamicshop.gui.CategorySelectionGUI categoryGUI = 
-                new org.minecraftsmp.dynamicshop.gui.CategorySelectionGUI(plugin, player);
+            org.minecraftsmp.dynamicshop.gui.CategorySelectionGUI categoryGUI = new org.minecraftsmp.dynamicshop.gui.CategorySelectionGUI(
+                    plugin, player);
             plugin.getShopListener().registerCategory(player, categoryGUI);
             categoryGUI.open();
             return;
@@ -138,7 +141,8 @@ public class PlayerShopListener implements Listener {
      */
     private void handleShopViewClick(Player player, int slot) {
         PlayerShopViewGUI gui = openShopViewGUIs.get(player.getUniqueId());
-        if (gui == null) return;
+        if (gui == null)
+            return;
 
         // Navigation buttons
         if (slot == 48) { // Previous page
@@ -161,7 +165,8 @@ public class PlayerShopListener implements Listener {
 
         // Clicked on an item
         PlayerShopListing listing = gui.getListingAtSlot(slot);
-        if (listing == null) return;
+        if (listing == null)
+            return;
 
         boolean isOwnShop = player.getUniqueId().equals(gui.getShopOwnerId());
 
@@ -243,7 +248,6 @@ public class PlayerShopListener implements Listener {
             return;
         }
 
-
         // Charge buyer first
         plugin.getEconomyManager().charge(player, price);
 
@@ -259,20 +263,16 @@ public class PlayerShopListener implements Listener {
             plugin.getEconomyManager().depositOffline(offline, price);
         }
 
-
         // Give buyer the item
         player.getInventory().addItem(item);
 
-
         // Remove listing
         manager.removeListing(listing.getListingId());
-
 
         // Buyer confirmation
         String itemName = item.getType().toString().toLowerCase().replace("_", " ");
         player.sendMessage("§a✓ §7Purchased §f" + itemName + " §7x" + item.getAmount() +
                 " §7for §a$" + String.format("%.2f", price));
-
 
         // Log transaction
         plugin.getLogger().info("[PlayerShops] " + player.getName() + " bought " +
@@ -280,7 +280,7 @@ public class PlayerShopListener implements Listener {
                 listing.getSellerName() + " for $" + price);
     }
 
-    //Check if player has enough inventory space for an item
+    // Check if player has enough inventory space for an item
     private boolean hasInventorySpace(Player player, ItemStack item) {
         ItemStack[] contents = player.getInventory().getStorageContents();
         int needed = item.getAmount();

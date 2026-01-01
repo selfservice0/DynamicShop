@@ -1,17 +1,14 @@
 # plugin.yml
 name: DynamicShop
-version: 2.2.6
+version: 2.3.0
 main: org.minecraftsmp.dynamicshop.DynamicShop
 api-version: 1.20
 author: selfservice0
 description: A dynamic economy shop with player-interactive GUI
 website: https://minecraftsmp.org
 
-
-# depend: [Vault, ProtocolLib]
-softdepend: [Vault, ProtocolLib, PlaceholderAPI]
-
 depend: [Vault, ProtocolLib]
+softdepend: [PlaceholderAPI, ItemsAdder]
 
 commands:
   shop:

@@ -1,6 +1,7 @@
 package org.minecraftsmp.dynamicshop.commands;
 
-import org.bukkit.ChatColor;
+import org.bukkit.Bukkit;
+
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -11,7 +12,10 @@ import org.bukkit.inventory.ItemStack;
 
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
-import org.minecraftsmp.dynamicshop.gui.AdminShopBrowseGUI;
+import org.minecraftsmp.dynamicshop.gui.AdminCategoryGUI;
+import org.minecraftsmp.dynamicshop.gui.ShopGUI;
+import org.minecraftsmp.dynamicshop.managers.CategoryConfigManager;
+import org.minecraftsmp.dynamicshop.managers.ItemsAdderWrapper;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 
 import java.util.ArrayList;
@@ -48,15 +52,15 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 
         if (!sender.hasPermission("dynamicshop.admin")) {
-            sender.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
+            sender.sendMessage("§cYou do not have permission to use this command.");
             return true;
         }
 
         if (args.length == 0) {
-            // Open admin GUI if sender is a player
+            // Open admin category GUI if sender is a player
             if (sender instanceof Player p) {
-                AdminShopBrowseGUI gui = new AdminShopBrowseGUI(plugin, p);
-                plugin.getShopListener().registerAdminBrowse(p, gui);
+                AdminCategoryGUI gui = new AdminCategoryGUI(plugin, p);
+                plugin.getShopListener().registerAdminCategory(p, gui);
                 gui.open();
                 return true;
             }
@@ -87,11 +91,79 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
             }
 
             // --------------------------------------------------------------
+            // /shopadmin categories
+            // --------------------------------------------------------------
+            case "categories" -> {
+                if (!(sender instanceof Player p)) {
+                    sender.sendMessage("§cOnly players can use this command.");
+                    return true;
+                }
+
+                AdminCategoryGUI gui = new AdminCategoryGUI(plugin, p);
+                plugin.getShopListener().registerAdminCategory(p, gui);
+                gui.open();
+                return true;
+            }
+
+            // --------------------------------------------------------------
+            // /shopadmin open <player> <category>
+            // Opens a shop category for a specific player (can be run from console)
+            // --------------------------------------------------------------
+            case "open" -> {
+                if (args.length < 3) {
+                    sender.sendMessage("§cUsage: /shopadmin open <player> <category>");
+                    return true;
+                }
+
+                String playerName = args[1];
+                String categoryName = args[2].toUpperCase();
+
+                Player target = Bukkit.getPlayer(playerName);
+                if (target == null || !target.isOnline()) {
+                    sender.sendMessage("§cPlayer not found or offline: " + playerName);
+                    return true;
+                }
+
+                // Match category
+                ItemCategory category = null;
+                for (ItemCategory c : ItemCategory.values()) {
+                    if (c.name().equalsIgnoreCase(categoryName)) {
+                        category = c;
+                        break;
+                    }
+                }
+
+                if (category == null) {
+                    sender.sendMessage("§cUnknown category: " + categoryName);
+                    sender.sendMessage("§7Available: " + String.join(", ",
+                            Arrays.stream(ItemCategory.values())
+                                    .filter(c -> CategoryConfigManager.getSlot(c) >= 0)
+                                    .map(c -> c.name().toLowerCase())
+                                    .toList()));
+                    return true;
+                }
+
+                // Don't allow opening hidden categories
+                if (CategoryConfigManager.getSlot(category) < 0) {
+                    sender.sendMessage("§cCategory '" + categoryName + "' is hidden.");
+                    return true;
+                }
+
+                // Open the shop for the target player
+                ShopGUI shopGUI = new ShopGUI(plugin, target, category);
+                plugin.getShopListener().registerShop(target, shopGUI);
+                shopGUI.open();
+
+                sender.sendMessage("§aOpened " + category.getDisplayName() + " shop for " + target.getName());
+                return true;
+            }
+
+            // --------------------------------------------------------------
             // /shopadmin add ...
             // --------------------------------------------------------------
             case "add" -> {
                 if (!(sender instanceof Player p)) {
-                    sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+                    sender.sendMessage("§cOnly players can use this command.");
                     return true;
                 }
 
@@ -125,6 +197,37 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
                     Material mat = held.getType();
                     ItemCategory category = ShopDataManager.detectCategory(mat);
+
+                    String iaId = null;
+                    if (Bukkit.getPluginManager().getPlugin("ItemsAdder") != null) {
+                        iaId = ItemsAdderWrapper.getCustomItemId(held);
+                    }
+
+                    if (iaId != null) {
+                        // Redirect to server-shop logic if it's an IA item
+                        // Because 'item' mode requires Enum Material, we can't save IA item as normal
+                        // shop item easily
+                        // unless we map it to server-shop item.
+                        // Suggest current command isn't best for custom items, OR automatically switch
+                        // to server-shop mode?
+                        // Let's print a message for now that they should use 'add server-shop' or just
+                        // auto-create it as server-shop.
+
+                        // Better approach for UX: Auto-redirect to server-shop creation
+                        String id = iaId.replace(":", "_");
+
+                        // Delegate to addServerShop logic
+                        plugin.getSpecialShopManager().addServerShopItem(id, iaId, price, id, mat, null, true);
+
+                        Map<String, String> placeholders = new HashMap<>();
+                        placeholders.put("item", id);
+                        placeholders.put("price", String.valueOf(price));
+                        placeholders.put("category", "Server items"); // IA items are virtually server items
+
+                        sender.sendMessage(plugin.getMessageManager().getMessageWithPrefix(
+                                "admin-server-shop-added", placeholders));
+                        return true;
+                    }
 
                     // Write to config
                     plugin.getConfig().set("items." + mat.name() + ".base", price);
@@ -234,7 +337,9 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                     }
 
                     // Register base server-shop item
-                    plugin.getSpecialShopManager().addServerShopItem(id, price, displayMaterial, requiredPerm);
+                    // Auto-configure as ItemsAdder item
+                    plugin.getSpecialShopManager().addServerShopItem(id, id, price, id, displayMaterial, requiredPerm,
+                            true); // Temporary step
 
                     // Check for special modes
                     if (args.length >= modeStartIndex + 2) {
@@ -410,6 +515,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-add-perm"));
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-add-server-shop"));
         sender.sendMessage("§7/shopadmin remove perm <slot>");
+        sender.sendMessage("§7/shopadmin open <player> <category>");
     }
 
     private void sendAddHelp(CommandSender sender) {
@@ -450,6 +556,25 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
             out.add("add");
             out.add("remove");
             out.add("resetshortage");
+            out.add("categories");
+            out.add("open");
+            return out;
+        }
+
+        // /shopadmin open <player> <category>
+        if (args.length == 2 && args[0].equalsIgnoreCase("open")) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                out.add(p.getName());
+            }
+            return out;
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("open")) {
+            for (ItemCategory c : ItemCategory.values()) {
+                if (CategoryConfigManager.getSlot(c) >= 0) {
+                    out.add(c.name().toLowerCase());
+                }
+            }
             return out;
         }
 

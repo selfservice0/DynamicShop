@@ -9,7 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -37,7 +37,8 @@ public class PlayerShopViewGUI {
                 ? "§6§lYour Shop"
                 : "§6§l" + shopOwnerName + "'s Shop";
 
-        this.inventory = Bukkit.createInventory(null, GUI_SIZE, title);
+        this.inventory = Bukkit.createInventory(null, GUI_SIZE,
+                LegacyComponentSerializer.legacySection().deserialize(title));
 
         refreshPage();
     }
@@ -106,17 +107,20 @@ public class PlayerShopViewGUI {
             if (!meta.hasDisplayName()) {
                 String materialName = displayItem.getType().toString().replace("_", " ");
                 materialName = capitalizeWords(materialName);
-                meta.setDisplayName("§f" + materialName);
+                meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§f" + materialName));
             }
             // If it has a custom name, keep it exactly as-is!
 
-            // Get existing lore or create new list
-            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+            // Get existing lore or create new list (using modern lore() which returns
+            // List<Component>)
+            List<net.kyori.adventure.text.Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore())
+                    : new ArrayList<>();
 
             // Add shop info AFTER existing lore (preserve original lore)
-            lore.add("");
-            lore.add("§7Price: §e$" + String.format("%.2f", listing.getPrice()));
-            lore.add("§7Amount: §f" + displayItem.getAmount());
+            lore.add(LegacyComponentSerializer.legacySection().deserialize(""));
+            lore.add(LegacyComponentSerializer.legacySection()
+                    .deserialize("§7Price: §e$" + String.format("%.2f", listing.getPrice())));
+            lore.add(LegacyComponentSerializer.legacySection().deserialize("§7Amount: §f" + displayItem.getAmount()));
 
             // Show durability if applicable (using modern Damageable API)
             if (displayItem.getType().getMaxDurability() > 0 && meta instanceof org.bukkit.inventory.meta.Damageable) {
@@ -124,27 +128,30 @@ public class PlayerShopViewGUI {
                 int damage = ((org.bukkit.inventory.meta.Damageable) meta).getDamage();
                 int remaining = maxDurability - damage;
                 int percent = (int) ((remaining / (double) maxDurability) * 100);
-                lore.add("§7Durability: §f" + remaining + "/" + maxDurability + " §7(" + percent + "%)");
+                lore.add(LegacyComponentSerializer.legacySection()
+                        .deserialize("§7Durability: §f" + remaining + "/" + maxDurability + " §7(" + percent + "%)"));
             }
 
             // Show enchantments count if present
             if (meta.hasEnchants()) {
-                lore.add("§7Enchantments: §b" + meta.getEnchants().size());
+                lore.add(LegacyComponentSerializer.legacySection()
+                        .deserialize("§7Enchantments: §b" + meta.getEnchants().size()));
             }
 
             // Show listing time
             SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, HH:mm");
-            lore.add("§7Listed: §f" + sdf.format(new Date(listing.getListedTime())));
+            lore.add(LegacyComponentSerializer.legacySection()
+                    .deserialize("§7Listed: §f" + sdf.format(new Date(listing.getListedTime()))));
 
-            lore.add("");
+            lore.add(LegacyComponentSerializer.legacySection().deserialize(""));
             if (isOwnShop) {
-                lore.add("§a§lYour Listing");
-                lore.add("§eClick to reclaim");
+                lore.add(LegacyComponentSerializer.legacySection().deserialize("§a§lYour Listing"));
+                lore.add(LegacyComponentSerializer.legacySection().deserialize("§eClick to reclaim"));
             } else {
-                lore.add("§eClick to purchase");
+                lore.add(LegacyComponentSerializer.legacySection().deserialize("§eClick to purchase"));
             }
 
-            meta.setLore(lore);
+            meta.lore(lore);
             displayItem.setItemMeta(meta);
         }
 
@@ -178,7 +185,7 @@ public class PlayerShopViewGUI {
             ItemStack prevPage = new ItemStack(Material.ARROW);
             ItemMeta prevMeta = prevPage.getItemMeta();
             if (prevMeta != null) {
-                prevMeta.setDisplayName("§e◀ Previous Page");
+                prevMeta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e◀ Previous Page"));
                 prevPage.setItemMeta(prevMeta);
             }
             inventory.setItem(48, prevPage);
@@ -188,10 +195,12 @@ public class PlayerShopViewGUI {
         ItemStack pageInfo = new ItemStack(Material.PAPER);
         ItemMeta pageInfoMeta = pageInfo.getItemMeta();
         if (pageInfoMeta != null) {
-            pageInfoMeta.setDisplayName("§7Page " + (currentPage + 1) + " / " + (maxPage + 1));
+            pageInfoMeta.displayName(LegacyComponentSerializer.legacySection()
+                    .deserialize("§7Page " + (currentPage + 1) + " / " + (maxPage + 1)));
             List<String> lore = new ArrayList<>();
             lore.add("§7Total listings: §f" + totalItems);
-            pageInfoMeta.setLore(lore);
+            pageInfoMeta
+                    .lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             pageInfo.setItemMeta(pageInfoMeta);
         }
         inventory.setItem(49, pageInfo);
@@ -201,7 +210,7 @@ public class PlayerShopViewGUI {
             ItemStack nextPage = new ItemStack(Material.ARROW);
             ItemMeta nextMeta = nextPage.getItemMeta();
             if (nextMeta != null) {
-                nextMeta.setDisplayName("§eNext Page ▶");
+                nextMeta.displayName(LegacyComponentSerializer.legacySection().deserialize("§eNext Page ▶"));
                 nextPage.setItemMeta(nextMeta);
             }
             inventory.setItem(50, nextPage);
@@ -211,7 +220,7 @@ public class PlayerShopViewGUI {
         ItemStack back = new ItemStack(Material.BARRIER);
         ItemMeta backMeta = back.getItemMeta();
         if (backMeta != null) {
-            backMeta.setDisplayName("§c◀ Back to Shops");
+            backMeta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c◀ Back to Shops"));
             back.setItemMeta(backMeta);
         }
         inventory.setItem(45, back);
@@ -220,14 +229,15 @@ public class PlayerShopViewGUI {
         ItemStack stats = new ItemStack(isOwnShop ? Material.EMERALD : Material.GOLD_INGOT);
         ItemMeta statsMeta = stats.getItemMeta();
         if (statsMeta != null) {
-            statsMeta.setDisplayName(isOwnShop ? "§a§lYour Shop" : "§e§l" + shopOwnerName);
+            statsMeta.displayName(LegacyComponentSerializer.legacySection()
+                    .deserialize(isOwnShop ? "§a§lYour Shop" : "§e§l" + shopOwnerName));
             List<String> lore = new ArrayList<>();
             lore.add("§7Total items: §f" + totalItems);
             if (isOwnShop) {
                 lore.add("");
                 lore.add("§7Click items to reclaim them");
             }
-            statsMeta.setLore(lore);
+            statsMeta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             stats.setItemMeta(statsMeta);
         }
         inventory.setItem(53, stats);

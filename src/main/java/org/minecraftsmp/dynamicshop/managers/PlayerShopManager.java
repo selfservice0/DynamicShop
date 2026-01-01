@@ -1,5 +1,6 @@
 package org.minecraftsmp.dynamicshop.managers;
 
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.models.PlayerShopListing;
@@ -43,8 +44,7 @@ public class PlayerShopManager {
                 sellerId,
                 seller.getName(),
                 item,
-                price
-        );
+                price);
 
         playerListings.computeIfAbsent(sellerId, k -> new ArrayList<>()).add(listing);
         saveListings();
@@ -237,13 +237,15 @@ public class PlayerShopManager {
                     if (item.hasItemMeta()) {
                         ItemMeta meta = item.getItemMeta();
                         plugin.getLogger().fine("[PlayerShops] Loaded item with meta: " +
-                                (meta.hasDisplayName() ? meta.getDisplayName() : item.getType()) +
+                                (meta.hasDisplayName()
+                                        ? PlainTextComponentSerializer.plainText().serialize(meta.displayName())
+                                        : item.getType())
+                                +
                                 (meta.hasEnchants() ? " with " + meta.getEnchants().size() + " enchants" : ""));
                     }
 
                     PlayerShopListing listing = new PlayerShopListing(
-                            sellerId, sellerName, item, price, listedTime, listingId
-                    );
+                            sellerId, sellerName, item, price, listedTime, listingId);
 
                     playerListings.computeIfAbsent(sellerId, k -> new ArrayList<>()).add(listing);
                     loaded++;

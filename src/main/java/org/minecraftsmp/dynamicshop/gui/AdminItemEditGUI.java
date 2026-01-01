@@ -1,6 +1,5 @@
 package org.minecraftsmp.dynamicshop.gui;
 
-import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -10,14 +9,15 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
-
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
  * Admin GUI for editing individual shop items.
  * Allows adjusting stock, base price, category, and enabled/disabled status.
+ * 
+ * Uses InputManager for text input (Paper Dialog API or chat fallback).
  */
 public class AdminItemEditGUI {
 
@@ -53,7 +53,8 @@ public class AdminItemEditGUI {
         this.parentGUI = parentGUI;
 
         String itemName = material.name().replace("_", " ");
-        this.inventory = Bukkit.createInventory(null, SIZE, "§4§lEdit: " + itemName);
+        this.inventory = Bukkit.createInventory(null, SIZE,
+                LegacyComponentSerializer.legacySection().deserialize("§4§lEdit: " + itemName));
     }
 
     public void open() {
@@ -100,7 +101,8 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§e§l" + material.name().replace("_", " "));
+            meta.displayName(
+                    LegacyComponentSerializer.legacySection().deserialize("§e§l" + material.name().replace("_", " ")));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7═══════════════════════");
@@ -110,7 +112,7 @@ public class AdminItemEditGUI {
             lore.add("§7Status: " + (disabled ? "§c✗ DISABLED" : "§a✓ ENABLED"));
             lore.add("§7═══════════════════════");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -123,7 +125,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(prefix + delta + " Stock");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize(prefix + delta + " Stock"));
 
             List<String> lore = new ArrayList<>();
             double currentStock = ShopDataManager.getStock(material);
@@ -132,7 +134,7 @@ public class AdminItemEditGUI {
             lore.add("");
             lore.add("§eClick to adjust");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -142,7 +144,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(Material.GOLD_INGOT);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§e§lChange Base Price");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e§lChange Base Price"));
 
             List<String> lore = new ArrayList<>();
             double currentPrice = ShopDataManager.getBasePrice(material);
@@ -150,7 +152,7 @@ public class AdminItemEditGUI {
             lore.add("");
             lore.add("§eClick to change");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -164,7 +166,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(Material.CLOCK);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§6§lPrice Increase %");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§6§lPrice Increase %"));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7Hours since update: §f" + hours);
@@ -175,7 +177,7 @@ public class AdminItemEditGUI {
             lore.add("");
             lore.add("§eClick to set % (resets timer)");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -184,17 +186,18 @@ public class AdminItemEditGUI {
     private ItemStack createCategoryButton() {
         ItemCategory current = ShopDataManager.detectCategory(material);
 
-        ItemStack item = new ItemStack(current.getIcon());
+        ItemStack item = new ItemStack(org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getIcon(current));
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§b§lChange Category");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§b§lChange Category"));
 
             List<String> lore = new ArrayList<>();
-            lore.add("§7Current: §b" + current.getDisplayName());
+            lore.add("§7Current: §b"
+                    + org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getDisplayName(current));
             lore.add("");
             lore.add("§eClick to cycle");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -207,7 +210,8 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(disabled ? "§c§lDISABLED" : "§a§lENABLED");
+            meta.displayName(
+                    LegacyComponentSerializer.legacySection().deserialize(disabled ? "§c§lDISABLED" : "§a§lENABLED"));
 
             List<String> lore = new ArrayList<>();
             if (disabled) {
@@ -220,7 +224,7 @@ public class AdminItemEditGUI {
                 lore.add("§cClick to DISABLE");
             }
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -230,10 +234,10 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(Material.ARROW);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§c§l◀ Back");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§l◀ Back"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Return to item browser");
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -243,7 +247,7 @@ public class AdminItemEditGUI {
         ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(" ");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize(" "));
             filler.setItemMeta(meta);
         }
         return filler;
@@ -278,84 +282,55 @@ public class AdminItemEditGUI {
     }
 
     private void openPriceEditor() {
-        player.closeInventory();
-
         double currentPrice = ShopDataManager.getBasePrice(material);
 
-        new AnvilGUI.Builder()
-                .title("§8Enter New Price")
-                .text(String.format("%.2f", currentPrice))
-                .itemLeft(new ItemStack(Material.GOLD_INGOT))
-                .onClick((clickSlot, state) -> {
-                    String input = state.getText().trim();
-                    try {
-                        double newPrice = Double.parseDouble(input);
+        plugin.getInputManager().requestNumber(player,
+                "Enter new base price for " + material.name(),
+                currentPrice,
+                newPrice -> {
+                    if (newPrice != null) {
                         if (newPrice < 0) {
                             player.sendMessage("§c✗ §7Price cannot be negative!");
-                            return Arrays.asList(AnvilGUI.ResponseAction.close());
+                        } else {
+                            ShopDataManager.setBasePrice(material, newPrice);
+                            player.sendMessage("§a✓ §7Base price set to §e$" + String.format("%.2f", newPrice));
                         }
-
-                        ShopDataManager.setBasePrice(material, newPrice);
-                        player.sendMessage("§a✓ §7Base price set to §e$" + String.format("%.2f", newPrice));
-
-                        // Reopen this GUI
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                            plugin.getShopListener().registerAdminEdit(player, this);
-                            open();
-                        }, 2L);
-
-                    } catch (NumberFormatException e) {
-                        player.sendMessage("§c✗ §7Invalid number!");
                     }
-                    return Arrays.asList(AnvilGUI.ResponseAction.close());
-                })
-                .plugin(plugin)
-                .open(player);
+                    // Reopen this GUI with a NEW instance to avoid stale onClose handler
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        AdminItemEditGUI newGUI = new AdminItemEditGUI(plugin, player, material, parentGUI);
+                        plugin.getShopListener().registerAdminEdit(player, newGUI);
+                        newGUI.open();
+                    });
+                });
     }
 
     private void openPriceIncreaseEditor() {
-        player.closeInventory();
-
-        // Calculate current price increase %
         long hours = (System.currentTimeMillis() - ShopDataManager.getLastUpdate(material)) / (3600 * 1000);
-        long currentPercent = hours * 2;
+        int currentPercent = (int) (hours * 2);
 
-        new AnvilGUI.Builder()
-                .title("§8Enter Price Increase %")
-                .text(String.valueOf(currentPercent))
-                .itemLeft(new ItemStack(Material.CLOCK))
-                .onClick((clickSlot, state) -> {
-                    String input = state.getText().trim();
-                    try {
-                        int percent = Integer.parseInt(input);
+        plugin.getInputManager().requestInt(player,
+                "Enter price increase % for " + material.name(),
+                currentPercent,
+                percent -> {
+                    if (percent != null) {
                         if (percent < 0) {
                             player.sendMessage("§c✗ §7Percentage cannot be negative!");
-                            return Arrays.asList(AnvilGUI.ResponseAction.close());
+                        } else {
+                            // Calculate the timestamp that would result in this percentage
+                            long hoursNeeded = percent / 2;
+                            long newLastUpdate = System.currentTimeMillis() - (hoursNeeded * 3600 * 1000);
+                            ShopDataManager.setLastUpdate(material, newLastUpdate);
+                            player.sendMessage("§a✓ §7Price increase set to §c+" + percent + "%");
                         }
-
-                        // Calculate the timestamp that would result in this percentage
-                        // percent = hours * 2, so hours = percent / 2
-                        // hours = (now - lastUpdate) / 3600000
-                        // lastUpdate = now - (hours * 3600000)
-                        long hoursNeeded = percent / 2;
-                        long newLastUpdate = System.currentTimeMillis() - (hoursNeeded * 3600 * 1000);
-
-                        ShopDataManager.setLastUpdate(material, newLastUpdate);
-                        player.sendMessage("§a✓ §7Price increase set to §c+" + percent + "%");
-
-                        // Reopen this GUI
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                            plugin.getShopListener().registerAdminEdit(player, this);
-                            open();
-                        }, 2L);
-
-                    } catch (NumberFormatException e) {
-                        player.sendMessage("§c✗ §7Invalid number!");
                     }
-                    return Arrays.asList(AnvilGUI.ResponseAction.close());
-                })
-                .plugin(plugin)
-                .open(player);
+                    // Reopen this GUI with a NEW instance to avoid stale onClose handler
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        AdminItemEditGUI newGUI = new AdminItemEditGUI(plugin, player, material, parentGUI);
+                        plugin.getShopListener().registerAdminEdit(player, newGUI);
+                        newGUI.open();
+                    });
+                });
     }
 
     private void cycleCategory() {
@@ -363,16 +338,19 @@ public class AdminItemEditGUI {
         ItemCategory[] categories = ItemCategory.values();
         int currentIndex = current.ordinal();
 
-        // Find next valid category
+        // Find next valid category (skip special categories, but include visible custom
+        // categories)
         do {
             currentIndex = (currentIndex + 1) % categories.length;
         } while (categories[currentIndex] == ItemCategory.PERMISSIONS ||
                 categories[currentIndex] == ItemCategory.SERVER_SHOP ||
-                categories[currentIndex] == ItemCategory.PLAYER_SHOPS);
+                categories[currentIndex] == ItemCategory.PLAYER_SHOPS ||
+                org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getSlot(categories[currentIndex]) < 0);
 
         ItemCategory newCategory = categories[currentIndex];
         ShopDataManager.setCategoryOverride(material, newCategory);
-        player.sendMessage("§a✓ §7Category changed to §b" + newCategory.getDisplayName());
+        player.sendMessage("§a✓ §7Category changed to §b"
+                + org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getDisplayName(newCategory));
         render();
     }
 

@@ -1,6 +1,5 @@
 package org.minecraftsmp.dynamicshop.commands;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -13,6 +12,7 @@ import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.gui.CategorySelectionGUI;
 import org.minecraftsmp.dynamicshop.gui.ShopGUI;
+import org.minecraftsmp.dynamicshop.managers.CategoryConfigManager;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 
 import java.util.ArrayList;
@@ -45,8 +45,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 
         if (!(sender instanceof Player p)) {
-            sender.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                    "&cOnly players can open the shop."));
+            sender.sendMessage("§cOnly players can open the shop.");
             return true;
         }
 
@@ -78,7 +77,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
                 if (c == ItemCategory.PERMISSIONS || c == ItemCategory.SERVER_SHOP || c == ItemCategory.PLAYER_SHOPS) {
                     continue;
                 }
-                p.sendMessage("  " + ChatColor.YELLOW + c.name().toLowerCase());
+                p.sendMessage("  §e" + c.name().toLowerCase());
             }
             return true;
         }
@@ -86,6 +85,14 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         // Don't allow direct access to special categories
         if (cat == ItemCategory.PERMISSIONS || cat == ItemCategory.SERVER_SHOP || cat == ItemCategory.PLAYER_SHOPS) {
             p.sendMessage(plugin.getMessageManager().getMessage("cannot-access-special-category"));
+            return true;
+        }
+
+        // Don't allow access to hidden categories
+        if (CategoryConfigManager.getSlot(cat) < 0) {
+            Map<String, String> placeholders = new HashMap<>();
+            placeholders.put("category", args[0]);
+            p.sendMessage(plugin.getMessageManager().getMessage("unknown-category", placeholders));
             return true;
         }
 
@@ -137,8 +144,12 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         // /shop <tab>
         if (args.length == 1) {
             for (ItemCategory c : ItemCategory.values()) {
-                // Don't suggest special categories
+                // Don't suggest special or hidden categories
                 if (c == ItemCategory.PERMISSIONS || c == ItemCategory.SERVER_SHOP || c == ItemCategory.PLAYER_SHOPS) {
+                    continue;
+                }
+                // Don't suggest hidden categories
+                if (CategoryConfigManager.getSlot(c) < 0) {
                     continue;
                 }
 

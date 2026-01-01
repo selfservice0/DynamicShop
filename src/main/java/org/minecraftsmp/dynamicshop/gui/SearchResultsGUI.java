@@ -6,10 +6,11 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
+import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.managers.ProtocolShopManager;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.util.ShopItemBuilder;
-
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,9 +20,20 @@ public class SearchResultsGUI {
     private final Player player;
     private final ProtocolShopManager pm;
     private final List<Material> results;
+    // private final ItemCategory category; // Removed unused field
     private Inventory inventory;
 
+    /**
+     * Search all categories
+     */
     public SearchResultsGUI(DynamicShop plugin, Player player, String query) {
+        this(plugin, player, query, null);
+    }
+
+    /**
+     * Search within a specific category (or all if category is null)
+     */
+    public SearchResultsGUI(DynamicShop plugin, Player player, String query, ItemCategory category) {
         this.plugin = plugin;
         this.player = player;
         this.pm = plugin.getProtocolShopManager();
@@ -29,11 +41,25 @@ public class SearchResultsGUI {
         String lower = query.toLowerCase();
         this.results = new ArrayList<>();
 
-        for (Material mat : Material.values()) {
-            if (mat.isItem() && mat.name().toLowerCase().contains(lower)) {
-                if (ShopDataManager.getPrice(mat) >= 0) {
-                    results.add(mat);
+        // Get items to search through
+        List<Material> searchPool;
+        if (category != null) {
+            // Search only in this category
+            searchPool = ShopDataManager.getItemsInCategory(category);
+        } else {
+            // Search all items
+            searchPool = new ArrayList<>();
+            for (Material mat : Material.values()) {
+                if (mat.isItem() && ShopDataManager.getPrice(mat) >= 0) {
+                    searchPool.add(mat);
                 }
+            }
+        }
+
+        // Filter by query
+        for (Material mat : searchPool) {
+            if (mat.name().toLowerCase().contains(lower)) {
+                results.add(mat);
             }
         }
 
@@ -88,7 +114,7 @@ public class SearchResultsGUI {
         if (meta == null)
             return item;
 
-        meta.setDisplayName("§e" + mat.name().toLowerCase().replace("_", " "));
+        meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e§l" + mat.name().replace("_", " ")));
 
         double buy = ShopDataManager.getTotalBuyCost(mat, 1);
         double sell = ShopDataManager.getTotalSellValue(mat, 1);
@@ -126,7 +152,7 @@ public class SearchResultsGUI {
         lore.add(plugin.getMessageManager().getMessage("search-lore-sell-1"));
         lore.add(plugin.getMessageManager().getMessage("search-lore-sell-64"));
 
-        meta.setLore(lore);
+        meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
         item.setItemMeta(meta);
         return item;
     }

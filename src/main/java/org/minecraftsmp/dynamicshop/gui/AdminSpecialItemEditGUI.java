@@ -1,6 +1,5 @@
 package org.minecraftsmp.dynamicshop.gui;
 
-import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -9,14 +8,15 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
-
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
  * Admin GUI for editing special shop items (permissions and server-shop items).
  * Allows editing price, display material, required permission, and deletion.
+ * 
+ * Uses InputManager for Paper 1.21+ compatibility.
  */
 public class AdminSpecialItemEditGUI {
 
@@ -42,7 +42,8 @@ public class AdminSpecialItemEditGUI {
         this.player = player;
         this.item = item;
         this.parentGUI = parentGUI;
-        this.inventory = Bukkit.createInventory(null, SIZE, "§4§lEdit: " + item.getName());
+        this.inventory = Bukkit.createInventory(null, SIZE,
+                LegacyComponentSerializer.legacySection().deserialize("§4§lEdit: " + item.getName()));
     }
 
     public void open() {
@@ -78,7 +79,7 @@ public class AdminSpecialItemEditGUI {
         ItemStack display = new ItemStack(item.getDisplayMaterial());
         ItemMeta meta = display.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§e§l" + item.getName());
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e§l" + item.getName()));
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
             lore.add("§7ID: §f" + item.getId());
@@ -98,7 +99,7 @@ public class AdminSpecialItemEditGUI {
             }
 
             lore.add("§7───────────────────");
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             display.setItemMeta(meta);
         }
         return display;
@@ -108,12 +109,12 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(Material.GOLD_INGOT);
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§e§lEdit Price");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e§lEdit Price"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Current: §e$" + String.format("%.2f", item.getPrice()));
             lore.add("");
             lore.add("§eClick to change");
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -123,12 +124,12 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(item.getDisplayMaterial());
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§b§lEdit Display Material");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§b§lEdit Display Material"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Current: §f" + item.getDisplayMaterial().name());
             lore.add("");
             lore.add("§eHold item and click to use");
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -138,7 +139,7 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(Material.BARRIER);
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§c§lEdit Required Permission");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§lEdit Required Permission"));
             List<String> lore = new ArrayList<>();
             if (item.hasRequiredPermission()) {
                 lore.add("§7Current: §e" + item.getRequiredPermission());
@@ -148,7 +149,7 @@ public class AdminSpecialItemEditGUI {
             lore.add("");
             lore.add("§eClick to change");
             lore.add("§7Type 'none' to remove requirement");
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -158,13 +159,13 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(Material.TNT);
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§c§l⚠ DELETE ITEM");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§l⚠ DELETE ITEM"));
             List<String> lore = new ArrayList<>();
             lore.add("§7This will permanently remove");
             lore.add("§7this item from the shop.");
             lore.add("");
             lore.add("§c§lSHIFT+CLICK to confirm");
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -174,10 +175,10 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(Material.ARROW);
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§c§l◀ Back");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§l◀ Back"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Return to shop browser");
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -187,7 +188,7 @@ public class AdminSpecialItemEditGUI {
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(" ");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize(" "));
             filler.setItemMeta(meta);
         }
         return filler;
@@ -210,41 +211,30 @@ public class AdminSpecialItemEditGUI {
     }
 
     private void openPriceEditor() {
-        player.closeInventory();
-
-        new AnvilGUI.Builder()
-                .title("§8Set Price")
-                .text(String.format("%.2f", item.getPrice()))
-                .itemLeft(new ItemStack(Material.GOLD_INGOT))
-                .onClick((clickSlot, state) -> {
-                    try {
-                        double newPrice = Double.parseDouble(state.getText().trim());
+        plugin.getInputManager().requestNumber(player,
+                "Set Price for " + item.getName(),
+                item.getPrice(),
+                newPrice -> {
+                    if (newPrice != null) {
                         if (newPrice < 0) {
                             player.sendMessage("§cPrice cannot be negative!");
-                            return Arrays.asList(AnvilGUI.ResponseAction.close());
+                        } else {
+                            plugin.getSpecialShopManager().updateItemPrice(item.getId(), newPrice);
+                            player.sendMessage("§a✓ §7Price updated to §e$" + String.format("%.2f", newPrice));
                         }
-
-                        plugin.getSpecialShopManager().updateItemPrice(item.getId(), newPrice);
-                        player.sendMessage("§a✓ §7Price updated to §e$" + String.format("%.2f", newPrice));
-
-                        // Reopen this GUI with fresh data
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                            SpecialShopItem updated = plugin.getSpecialShopManager().getSpecialItem(item.getId());
-                            if (updated != null) {
-                                AdminSpecialItemEditGUI newGui = new AdminSpecialItemEditGUI(plugin, player, updated,
-                                        parentGUI);
-                                plugin.getShopListener().registerAdminSpecialEdit(player, newGui);
-                                newGui.open();
-                            }
-                        }, 2L);
-
-                    } catch (NumberFormatException e) {
-                        player.sendMessage("§cInvalid number!");
                     }
-                    return Arrays.asList(AnvilGUI.ResponseAction.close());
-                })
-                .plugin(plugin)
-                .open(player);
+
+                    // Reopen this GUI with fresh data
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        SpecialShopItem updated = plugin.getSpecialShopManager().getSpecialItem(item.getId());
+                        if (updated != null) {
+                            AdminSpecialItemEditGUI newGui = new AdminSpecialItemEditGUI(plugin, player, updated,
+                                    parentGUI);
+                            plugin.getShopListener().registerAdminSpecialEdit(player, newGui);
+                            newGui.open();
+                        }
+                    });
+                });
     }
 
     private void editMaterial() {
@@ -260,27 +250,24 @@ public class AdminSpecialItemEditGUI {
     }
 
     private void openRequiredPermEditor() {
-        player.closeInventory();
-
         String currentPerm = item.hasRequiredPermission() ? item.getRequiredPermission() : "none";
 
-        new AnvilGUI.Builder()
-                .title("§8Required Permission")
-                .text(currentPerm)
-                .itemLeft(new ItemStack(Material.PAPER))
-                .onClick((clickSlot, state) -> {
-                    String newPerm = state.getText().trim();
-
-                    if (newPerm.equalsIgnoreCase("none") || newPerm.isEmpty()) {
-                        plugin.getSpecialShopManager().updateItemRequiredPermission(item.getId(), null);
-                        player.sendMessage("§a✓ §7Required permission removed");
-                    } else {
-                        plugin.getSpecialShopManager().updateItemRequiredPermission(item.getId(), newPerm);
-                        player.sendMessage("§a✓ §7Required permission set to §e" + newPerm);
+        plugin.getInputManager().requestText(player,
+                "Required Permission",
+                currentPerm,
+                newPerm -> {
+                    if (newPerm != null) {
+                        if (newPerm.equalsIgnoreCase("none") || newPerm.isEmpty()) {
+                            plugin.getSpecialShopManager().updateItemRequiredPermission(item.getId(), null);
+                            player.sendMessage("§a✓ §7Required permission removed");
+                        } else {
+                            plugin.getSpecialShopManager().updateItemRequiredPermission(item.getId(), newPerm);
+                            player.sendMessage("§a✓ §7Required permission set to §e" + newPerm);
+                        }
                     }
 
                     // Reopen this GUI with fresh data
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
                         SpecialShopItem updated = plugin.getSpecialShopManager().getSpecialItem(item.getId());
                         if (updated != null) {
                             AdminSpecialItemEditGUI newGui = new AdminSpecialItemEditGUI(plugin, player, updated,
@@ -288,12 +275,8 @@ public class AdminSpecialItemEditGUI {
                             plugin.getShopListener().registerAdminSpecialEdit(player, newGui);
                             newGui.open();
                         }
-                    }, 2L);
-
-                    return Arrays.asList(AnvilGUI.ResponseAction.close());
-                })
-                .plugin(plugin)
-                .open(player);
+                    });
+                });
     }
 
     private void deleteItem() {

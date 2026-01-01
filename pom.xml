@@ -7,7 +7,7 @@
 
     <groupId>org.minecraftsmp</groupId>
     <artifactId>DynamicShop</artifactId>
-    <version>2.2.6</version>
+    <version>2.3.0</version>
     <packaging>jar</packaging>
 
     <name>DynamicShop</name>
@@ -43,11 +43,6 @@
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <relocations>
-                                <!-- Relocate AnvilGUI to avoid conflicts -->
-                                <relocation>
-                                    <pattern>net.wesjd.anvilgui</pattern>
-                                    <shadedPattern>org.minecraftsmp.dynamicshop.libs.anvilgui</shadedPattern>
-                                </relocation>
                                 <!-- Relocate bStats to avoid conflicts -->
                                 <relocation>
                                     <pattern>org.bstats</pattern>
@@ -60,15 +55,8 @@
                                     <excludes>
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
-                                </filter>
-                                <!-- AnvilGUI: Ensure VersionWrappers are included -->
-                                <filter>
-                                    <artifact>net.wesjd:anvilgui</artifact>
-                                    <excludeDefaults>false</excludeDefaults>
-                                    <includes>
-                                        <include>net/wesjd/anvilgui/**</include>
-                                    </includes>
                                 </filter>
                             </filters>
                         </configuration>
@@ -109,18 +97,15 @@
             <id>codemc-snapshots</id>
             <url>https://repo.codemc.io/repository/maven-snapshots/</url>
         </repository>
-
-        <repository>
-    <id>mvn-wesjd-net</id>
-    <url>https://mvn.wesjd.net/</url>
-</repository>
-
-        <!-- JitPack (for Vault if needed) -->
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
 
+        <repository>
+        <id>mvn-wesjd-net</id>
+        <url>https://mvn.wesjd.net/</url>
+    </repository>
         <!-- Official PlaceholderAPI Repository -->
         <repository>
             <id>placeholderapi</id>
@@ -129,18 +114,33 @@
     </repositories>
 
     <dependencies>
+        <!-- Gson for JSON parsing -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
         </dependency>
-
-        <!-- Spigot API (works for both Spigot and Paper) -->
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.20.4-R0.1-SNAPSHOT</version>
+            <groupId>com.github.LoneDev6</groupId>
+            <artifactId>api-itemsadder</artifactId>
+            <version>3.6.1</version>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- Paper API (1.21.7+ for Dialog API) -->
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- AnvilGUI - Fallback for Dialog API -->
+        <dependency>
+            <groupId>net.wesjd</groupId>
+            <artifactId>anvilgui</artifactId>
+            <version>1.10.11-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
 
         <!-- Vault API -->
@@ -159,12 +159,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- AnvilGUI (Snapshots) -->
-        <dependency>
-            <groupId>net.wesjd</groupId>
-            <artifactId>anvilgui</artifactId>
-            <version>1.10.11-SNAPSHOT</version>
-        </dependency>
+
 
         <!-- PlaceholderAPI (soft dependency for compile-time) -->
         <dependency>

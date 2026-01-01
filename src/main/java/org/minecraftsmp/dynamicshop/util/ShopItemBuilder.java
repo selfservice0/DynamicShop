@@ -3,6 +3,8 @@ package org.minecraftsmp.dynamicshop.util;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,31 +29,31 @@ public class ShopItemBuilder {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
 
-            meta.setDisplayName("§e§l" + prettify(mat.name()));
+            meta.displayName(component("§e§l" + prettify(mat.name())));
 
-            List<String> lore = new ArrayList<>();
-            lore.add("§7────────────────────");
-            lore.add("§a§lBUY: §f" + formattedBuyPrice);
-            
+            List<Component> lore = new ArrayList<>();
+            lore.add(component("§7────────────────────"));
+            lore.add(component("§a§lBUY: §f" + formattedBuyPrice));
+
             // Only show sell price if item can be sold
             if (formattedSellPrice != null && !formattedSellPrice.equals("N/A")) {
-                lore.add("§c§lSELL: §f" + formattedSellPrice);
-            }
-            
-            lore.add("§7────────────────────");
-            lore.add("§7Left-click to §aBUY");
-            
-            if (formattedSellPrice != null && !formattedSellPrice.equals("N/A")) {
-                lore.add("§7Right-click to §cSELL");
+                lore.add(component("§c§lSELL: §f" + formattedSellPrice));
             }
 
-            meta.setLore(lore);
+            lore.add(component("§7────────────────────"));
+            lore.add(component("§7Left-click to §aBUY"));
+
+            if (formattedSellPrice != null && !formattedSellPrice.equals("N/A")) {
+                lore.add(component("§7Right-click to §cSELL"));
+            }
+
+            meta.lore(lore);
             item.setItemMeta(meta);
         }
 
         return item;
     }
-    
+
     // Backward compatibility - defaults to no sell price
     public static ItemStack buildShopDisplayItem(Material mat, String formattedPrice) {
         return buildShopDisplayItem(mat, formattedPrice, null);
@@ -66,14 +68,15 @@ public class ShopItemBuilder {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
 
-            meta.setDisplayName(name);
+            // Handle both & and § in name if present
+            meta.displayName(LegacyComponentSerializer.legacyAmpersand().deserialize(name));
 
-            List<String> lore = new ArrayList<>();
+            List<Component> lore = new ArrayList<>();
             for (String line : loreLines) {
-                lore.add(line);
+                lore.add(LegacyComponentSerializer.legacyAmpersand().deserialize(line));
             }
 
-            meta.setLore(lore);
+            meta.lore(lore);
             item.setItemMeta(meta);
         }
 
@@ -88,7 +91,7 @@ public class ShopItemBuilder {
 
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(" ");
+            meta.displayName(component(" "));
             item.setItemMeta(meta);
         }
 
@@ -104,7 +107,8 @@ public class ShopItemBuilder {
         StringBuilder out = new StringBuilder();
 
         for (String s : parts) {
-            if (s.isEmpty()) continue;
+            if (s.isEmpty())
+                continue;
 
             out.append(s.substring(0, 1).toUpperCase());
             out.append(s.substring(1).toLowerCase());
@@ -112,5 +116,9 @@ public class ShopItemBuilder {
         }
 
         return out.toString().trim();
+    }
+
+    private static Component component(String text) {
+        return LegacyComponentSerializer.legacySection().deserialize(text);
     }
 }

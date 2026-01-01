@@ -1,6 +1,5 @@
 package org.minecraftsmp.dynamicshop.managers;
 
-import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.minecraftsmp.dynamicshop.DynamicShop;
@@ -83,7 +82,7 @@ public class MessageManager {
         }
 
         // Apply color codes
-        message = ChatColor.translateAlternateColorCodes('&', message);
+        message = message.replace('&', '§');
 
         return message;
     }
@@ -112,7 +111,7 @@ public class MessageManager {
         if (message == null) {
             return null; // Message is disabled
         }
-        String prefixColored = ChatColor.translateAlternateColorCodes('&', prefix);
+        String prefixColored = prefix.replace('&', '§');
         return prefixColored + message;
     }
 

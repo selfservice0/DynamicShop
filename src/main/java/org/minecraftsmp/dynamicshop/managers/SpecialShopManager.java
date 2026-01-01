@@ -82,7 +82,7 @@ public class SpecialShopManager {
         addServerShopItem(id, displayName, price, identifier, displayMaterial, requiredPermission, true);
     }
 
-    private void addServerShopItem(String id, String displayName, double price, String identifier,
+    public void addServerShopItem(String id, String displayName, double price, String identifier,
             Material displayMaterial, String requiredPermission, boolean save) {
         String path = "special_items." + id;
 
@@ -526,6 +526,32 @@ public class SpecialShopManager {
                     player.sendMessage("§cWarning: Special item data could not be applied");
                     return true;
                 }
+            }
+
+            // 5. ITEMSADDER DELIVERY
+            if (deliveryMethod.equalsIgnoreCase("itemsadder")) {
+                String iaId = item.getNbt(); // NBT field holds the Id
+                if (iaId == null || iaId.isEmpty()) {
+                    plugin.getLogger().warning(
+                            "[DynamicShop] Special item " + item.getId() + " has no ID (nbt) for ItemsAdder delivery.");
+                    return false;
+                }
+
+                if (Bukkit.getPluginManager().getPlugin("ItemsAdder") == null) {
+                    player.sendMessage("§cError: ItemsAdder plugin is missing!");
+                    return false;
+                }
+
+                ItemStack customStack = ItemsAdderWrapper.getItem(iaId);
+                if (customStack == null) {
+                    plugin.getLogger().warning("[DynamicShop] Could not find ItemsAdder item: " + iaId);
+                    player.sendMessage("§cError: Custom item not found: " + iaId);
+                    return false;
+                }
+
+                customStack.setAmount(Math.max(1, item.getAmount()));
+                player.getInventory().addItem(customStack);
+                return true;
             }
 
             plugin.getLogger().warning("Unknown delivery method '" + deliveryMethod +

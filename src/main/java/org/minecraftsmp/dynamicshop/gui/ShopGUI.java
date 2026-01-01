@@ -9,16 +9,17 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
+import org.minecraftsmp.dynamicshop.managers.ItemsAdderWrapper;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.managers.ProtocolShopManager;
 import org.minecraftsmp.dynamicshop.managers.MessageManager;
 import org.minecraftsmp.dynamicshop.managers.ConfigCacheManager;
 import org.minecraftsmp.dynamicshop.util.ShopItemBuilder;
 
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 
 public class ShopGUI {
 
@@ -76,7 +77,8 @@ public class ShopGUI {
         plugin.getShopListener().unregisterCategory(player);
         plugin.getShopListener().unregisterShop(player); // just in case
 
-        inventory = pm.createVirtualInventory(player, size, category.getDisplayName());
+        inventory = pm.createVirtualInventory(player, size,
+                org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getDisplayName(category));
         render();
         player.openInventory(inventory);
 
@@ -168,12 +170,21 @@ public class ShopGUI {
      */
     private ItemStack buildSpecialShopItem(SpecialShopItem specialItem) {
         // Use the saved display material from the item
-        Material icon = specialItem.getDisplayMaterial();
+        ItemStack item = null;
+        if ("itemsadder".equalsIgnoreCase(specialItem.getDeliveryMethod()) && specialItem.getNbt() != null) {
+            item = ItemsAdderWrapper.getItem(specialItem.getNbt());
+        }
 
-        ItemStack item = new ItemStack(icon, 1);
+        if (item == null) {
+            item = new ItemStack(specialItem.getDisplayMaterial(), 1);
+        } else {
+            item = item.clone();
+            item.setAmount(1);
+        }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§e§l" + specialItem.getDisplayName());
+            meta.displayName(
+                    LegacyComponentSerializer.legacySection().deserialize("§e§l" + specialItem.getDisplayName()));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
@@ -202,7 +213,7 @@ public class ShopGUI {
             lore.add("§7───────────────────");
             lore.add("§eLeft-click to BUY");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
 
@@ -224,19 +235,20 @@ public class ShopGUI {
             item = new ItemStack(Material.BARRIER);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName("§c§lINVALID ITEM");
+                meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§lINVALID ITEM"));
                 List<String> lore = new ArrayList<>();
                 lore.add("§7Material: " + mat);
                 lore.add("§cThis item is invalid");
                 lore.add("§cin this version.");
-                meta.setLore(lore);
+                meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
                 item.setItemMeta(meta);
             }
             return item;
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§e§l" + mat.name().replace("_", " "));
+            meta.displayName(
+                    LegacyComponentSerializer.legacySection().deserialize("§e§l" + mat.name().replace("_", " ")));
 
             List<String> lore = new ArrayList<>();
 
@@ -305,7 +317,7 @@ public class ShopGUI {
             MessageManager.addLoreIfNotEmpty(lore,
                     plugin.getMessageManager().getMessage("shop-lore-shift-right-click-sell"));
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;

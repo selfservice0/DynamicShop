@@ -9,9 +9,10 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
+import org.minecraftsmp.dynamicshop.managers.ItemsAdderWrapper;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.util.ShopItemBuilder;
-
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,10 +37,15 @@ public class AdminShopBrowseGUI {
     private int maxPage = 0;
 
     public AdminShopBrowseGUI(DynamicShop plugin, Player player) {
+        this(plugin, player, ItemCategory.BLOCKS);
+    }
+
+    public AdminShopBrowseGUI(DynamicShop plugin, Player player, ItemCategory startCategory) {
         this.plugin = plugin;
         this.player = player;
-        this.currentCategory = ItemCategory.BLOCKS; // Default category
-        this.inventory = Bukkit.createInventory(null, SIZE, "§4§lAdmin Shop");
+        this.currentCategory = startCategory;
+        this.inventory = Bukkit.createInventory(null, SIZE,
+                LegacyComponentSerializer.legacySection().deserialize("§4§lAdmin Shop"));
 
         loadItemsForCategory();
     }
@@ -106,10 +112,20 @@ public class AdminShopBrowseGUI {
     }
 
     private ItemStack buildSpecialItem(SpecialShopItem sItem) {
-        ItemStack item = new ItemStack(sItem.getDisplayMaterial());
+        ItemStack item = null;
+        if ("itemsadder".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
+            item = ItemsAdderWrapper.getItem(sItem.getNbt());
+        }
+
+        if (item == null) {
+            item = new ItemStack(sItem.getDisplayMaterial());
+        } else {
+            item = item.clone();
+            item.setAmount(1);
+        }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§e§l" + sItem.getName());
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e§l" + sItem.getName()));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
@@ -132,7 +148,7 @@ public class AdminShopBrowseGUI {
             lore.add("");
             lore.add("§e§lRight-click to EDIT");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -151,7 +167,7 @@ public class AdminShopBrowseGUI {
             item = new ItemStack(Material.BARRIER);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName("§c§lINVALID: " + mat.name());
+                meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§lINVALID: " + mat.name()));
                 item.setItemMeta(meta);
             }
             return item;
@@ -162,9 +178,10 @@ public class AdminShopBrowseGUI {
             // Show disabled status in name
             String displayName = mat.name().replace("_", " ");
             if (disabled) {
-                meta.setDisplayName("§c§m" + displayName + " §7(DISABLED)");
+                meta.displayName(
+                        LegacyComponentSerializer.legacySection().deserialize("§c§m" + displayName + " §7(DISABLED)"));
             } else {
-                meta.setDisplayName("§a§l" + displayName);
+                meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§a§l" + displayName));
             }
 
             List<String> lore = new ArrayList<>();
@@ -177,7 +194,7 @@ public class AdminShopBrowseGUI {
             lore.add("");
             lore.add("§e§lRight-click to EDIT");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
 
@@ -216,12 +233,14 @@ public class AdminShopBrowseGUI {
         ItemStack pageItem = new ItemStack(Material.PAPER);
         ItemMeta pageMeta = pageItem.getItemMeta();
         if (pageMeta != null) {
-            pageMeta.setDisplayName("§7Page §f" + (page + 1) + " §7/ §f" + (maxPage + 1));
+            pageMeta.displayName(LegacyComponentSerializer.legacySection()
+                    .deserialize("§7Page §f" + (page + 1) + " §7/ §f" + (maxPage + 1)));
             List<String> pageLore = new ArrayList<>();
             pageLore.add("§7Items: §e" + items.size());
             pageLore.add("");
             pageLore.add("§e§lClick to edit Config");
-            pageMeta.setLore(pageLore);
+            pageMeta.lore(
+                    pageLore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             pageItem.setItemMeta(pageMeta);
         }
         inventory.setItem(navRow + 4, pageItem);
@@ -237,7 +256,8 @@ public class AdminShopBrowseGUI {
         ItemStack item = new ItemStack(currentCategory.getIcon());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§b§lCategory: " + currentCategory.getDisplayName());
+            meta.displayName(LegacyComponentSerializer.legacySection()
+                    .deserialize("§b§lCategory: " + currentCategory.getDisplayName()));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
@@ -258,7 +278,7 @@ public class AdminShopBrowseGUI {
             lore.add("§7───────────────────");
             lore.add("§eClick to cycle category");
 
-            meta.setLore(lore);
+            meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -268,7 +288,7 @@ public class AdminShopBrowseGUI {
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(" ");
+            meta.displayName(LegacyComponentSerializer.legacySection().deserialize(" "));
             filler.setItemMeta(meta);
         }
         return filler;

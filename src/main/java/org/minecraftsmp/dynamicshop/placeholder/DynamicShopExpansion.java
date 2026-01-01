@@ -19,18 +19,24 @@ public class DynamicShopExpansion extends PlaceholderExpansion {
     }
 
     @Override
-    public @NotNull String getIdentifier() { return "dynamicshop"; }
-
-    @Override
-    public @NotNull String getAuthor() { return "selfservice0"; }
-
-    @Override
-    public @NotNull String getVersion() {
-        return plugin.getDescription().getVersion();
+    public @NotNull String getIdentifier() {
+        return "dynamicshop";
     }
 
     @Override
-    public boolean persist() { return true; }
+    public @NotNull String getAuthor() {
+        return "selfservice0";
+    }
+
+    @Override
+    public @NotNull String getVersion() {
+        return plugin.getPluginMeta().getVersion();
+    }
+
+    @Override
+    public boolean persist() {
+        return true;
+    }
 
     public @Nullable String onPlaceholderRequest(OfflinePlayer p, @NotNull String id) {
 
@@ -50,17 +56,15 @@ public class DynamicShopExpansion extends PlaceholderExpansion {
                 return String.format("%.2f", plugin.getTransactionLogger().getTotalMoneyExchanged());
             case "recent_transaction":
                 Transaction last = plugin.getTransactionLogger().getMostRecentTransaction();
-                return last == null ?
-                        "None" :
-                        String.format(
+                return last == null ? "None"
+                        : String.format(
                                 "%s | %s %s %dx %s | $%.2f",
                                 last.getTimestamp(),
                                 last.getPlayerName(),
                                 last.getType().name(),
                                 last.getAmount(),
                                 last.getItem(),
-                                last.getPrice()
-                        );
+                                last.getPrice());
 
             case "most_traded_item":
                 return plugin.getTransactionLogger().getMostTradedItem();
@@ -73,13 +77,15 @@ public class DynamicShopExpansion extends PlaceholderExpansion {
         if (id.startsWith("player_")) {
             // player_swiftxx_purchases
             String[] parts = id.split("_");
-            if (parts.length < 3) return "invalid_format";
+            if (parts.length < 3)
+                return "invalid_format";
 
             String player = parts[1];
             String stat = parts[2];
 
             Map<String, Object> stats = plugin.getTransactionLogger().getPlayerStats(player);
-            if (stats == null) return "0";
+            if (stats == null)
+                return "0";
 
             return String.valueOf(stats.getOrDefault(stat, "0"));
         }
@@ -90,24 +96,32 @@ public class DynamicShopExpansion extends PlaceholderExpansion {
         // ------------------------------
         if (id.startsWith("item_")) {
             String[] parts = id.split("_");
-            if (parts.length < 3) return "invalid_format";
+            if (parts.length < 3)
+                return "invalid_format";
 
             String stat = parts[1];
             String identifier = parts[2].toUpperCase();
 
             ShopDataManager.ItemStats s = ShopDataManager.getStats(identifier);
-            if (s == null) return "0";
+            if (s == null)
+                return "0";
 
             switch (stat) {
-                case "displayname": return s.displayName;
+                case "displayname":
+                    return s.displayName;
                 case "timesbought":
-                case "times_bought": return String.valueOf(s.timesBought);
+                case "times_bought":
+                    return String.valueOf(s.timesBought);
                 case "timessold":
-                case "times_sold": return String.valueOf(s.timesSold);
-                case "times_bought_quantity": return String.valueOf(s.quantityBought);
-                case "times_sold_quantity": return String.valueOf(s.quantitySold);
+                case "times_sold":
+                    return String.valueOf(s.timesSold);
+                case "times_bought_quantity":
+                    return String.valueOf(s.quantityBought);
+                case "times_sold_quantity":
+                    return String.valueOf(s.quantitySold);
                 case "net":
-                case "net_flow": return String.valueOf(s.getNetFlow());
+                case "net_flow":
+                    return String.valueOf(s.getNetFlow());
             }
         }
 

@@ -48,7 +48,9 @@ public class ProtocolShopManager {
         // Create inventory with NULL holder - this makes it "virtual"
         // Size must be multiple of 9
         int rows = Math.max(3, Math.min(6, (size + 8) / 9));
-        Inventory inv = Bukkit.createInventory(null, rows * 9, title);
+        Inventory inv = Bukkit.createInventory(null, rows * 9,
+                net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+                        .deserialize(title));
 
         // Register as shop inventory
         shopInventories.put(inv, true);

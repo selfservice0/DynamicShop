@@ -1,6 +1,6 @@
 package org.minecraftsmp.dynamicshop.listeners;
 
-import net.wesjd.anvilgui.AnvilGUI;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -16,6 +16,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
+import org.minecraftsmp.dynamicshop.gui.AdminCategoryEditGUI;
+import org.minecraftsmp.dynamicshop.gui.AdminCategoryGUI;
 import org.minecraftsmp.dynamicshop.gui.AdminConfigGUI;
 import org.minecraftsmp.dynamicshop.gui.AdminItemEditGUI;
 import org.minecraftsmp.dynamicshop.gui.AdminShopBrowseGUI;
@@ -40,6 +42,8 @@ public class ShopListener implements Listener {
     private final Map<Player, AdminItemEditGUI> openAdminEdit = new HashMap<>();
     private final Map<Player, AdminConfigGUI> openAdminConfig = new HashMap<>();
     private final Map<Player, AdminSpecialItemEditGUI> openAdminSpecialEdit = new HashMap<>();
+    private final Map<Player, AdminCategoryGUI> openAdminCategory = new HashMap<>();
+    private final Map<Player, AdminCategoryEditGUI> openAdminCategoryEdit = new HashMap<>();
     private final Map<UUID, Long> lastTransaction = new HashMap<>();
 
     public ShopListener(DynamicShop plugin) {
@@ -78,6 +82,8 @@ public class ShopListener implements Listener {
         openAdminEdit.remove(p);
         openAdminConfig.remove(p);
         openAdminSpecialEdit.remove(p);
+        openAdminCategory.remove(p);
+        openAdminCategoryEdit.remove(p);
         lastTransaction.remove(p.getUniqueId());
     }
 
@@ -114,6 +120,23 @@ public class ShopListener implements Listener {
         openAdminSpecialEdit.remove(p);
     }
 
+    // Admin Category GUI registration
+    public void registerAdminCategory(Player p, AdminCategoryGUI gui) {
+        openAdminCategory.put(p, gui);
+    }
+
+    public void unregisterAdminCategory(Player p) {
+        openAdminCategory.remove(p);
+    }
+
+    public void registerAdminCategoryEdit(Player p, AdminCategoryEditGUI gui) {
+        openAdminCategoryEdit.put(p, gui);
+    }
+
+    public void unregisterAdminCategoryEdit(Player p) {
+        openAdminCategoryEdit.remove(p);
+    }
+
     // ------------------------------------------------------------------
     // CLICK LISTENER
     // ------------------------------------------------------------------
@@ -123,6 +146,24 @@ public class ShopListener implements Listener {
             return;
         if (e.getClickedInventory() == null)
             return;
+
+        // -------------------------
+        // ADMIN CATEGORY EDIT GUI
+        // -------------------------
+        if (openAdminCategoryEdit.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminCategoryEdit.get(p).handleClick(e.getRawSlot(), e.isRightClick());
+            return;
+        }
+
+        // -------------------------
+        // ADMIN CATEGORY GUI
+        // -------------------------
+        if (openAdminCategory.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminCategory.get(p).handleClick(e.getRawSlot(), e.isRightClick(), e.isShiftClick());
+            return;
+        }
 
         // -------------------------
         // ADMIN SPECIAL EDIT GUI
@@ -224,6 +265,23 @@ public class ShopListener implements Listener {
         }
 
         Material mat = clicked.getType();
+
+        // Check if player is in a specific category - only allow selling items in that
+        // category
+        if (openShop.containsKey(p)) {
+            ShopGUI gui = openShop.get(p);
+            ItemCategory currentCategory = gui.getCategory();
+
+            // MISC/All category allows any item
+            if (currentCategory != ItemCategory.MISC) {
+                ItemCategory itemCategory = ShopDataManager.detectCategory(mat);
+                if (itemCategory != currentCategory) {
+                    p.sendMessage("§c✗ §7You can only sell §e" + currentCategory.getDisplayName() +
+                            " §7items in this category!");
+                    return;
+                }
+            }
+        }
 
         // use continuous pricing for single-unit sell
         double sellPrice = ShopDataManager.getTotalSellValue(mat, 1);
@@ -345,23 +403,21 @@ public class ShopListener implements Listener {
             p.closeInventory();
             unregisterShop(p);
 
-            new AnvilGUI.Builder()
-                    .title("§8Search Items")
-                    .text("diamond")
-                    .itemLeft(new ItemStack(Material.PAPER))
-                    .onClick((slot, state) -> {
-                        String text = state.getText().trim();
-                        if (text.isEmpty()) {
-                            p.sendMessage(plugin.getMessageManager().getMessage("search-enter-term"));
-                            return Arrays.asList(AnvilGUI.ResponseAction.close());
-                        }
+            // Capture category for use in callback
+            final org.minecraftsmp.dynamicshop.category.ItemCategory searchCategory = gui.getCategory();
 
-                        SearchResultsGUI s = new SearchResultsGUI(plugin, p, text);
-                        registerSearch(p, s);
-                        return Arrays.asList(AnvilGUI.ResponseAction.close());
-                    })
-                    .plugin(plugin)
-                    .open(p);
+            plugin.getInputManager().requestText(p,
+                    "Search Items",
+                    "",
+                    text -> {
+                        if (text == null || text.trim().isEmpty()) {
+                            p.sendMessage(plugin.getMessageManager().getMessage("search-enter-term"));
+                        } else {
+                            // Search within current category
+                            SearchResultsGUI s = new SearchResultsGUI(plugin, p, text.trim(), searchCategory);
+                            registerSearch(p, s);
+                        }
+                    });
         }
     }
 
@@ -667,7 +723,7 @@ public class ShopListener implements Listener {
         ItemMeta meta = fake.getItemMeta();
         if (meta == null)
             return;
-        meta.setLore(lore);
+        meta.lore(lore.stream().map(s -> LegacyComponentSerializer.legacySection().deserialize(s)).toList());
         fake.setItemMeta(meta);
 
         com.comphenix.protocol.events.PacketContainer packet = pm
@@ -730,7 +786,8 @@ public class ShopListener implements Listener {
         Player p = (Player) e.getWhoClicked();
         if (!openShop.containsKey(p) && !openCategory.containsKey(p) && !openSearch.containsKey(p)
                 && !openAdminBrowse.containsKey(p) && !openAdminEdit.containsKey(p) && !openAdminConfig.containsKey(p)
-                && !openAdminSpecialEdit.containsKey(p))
+                && !openAdminSpecialEdit.containsKey(p) && !openAdminCategory.containsKey(p)
+                && !openAdminCategoryEdit.containsKey(p))
             return;
         e.setCancelled(true);
     }
@@ -773,6 +830,15 @@ public class ShopListener implements Listener {
         }
         if (openAdminConfig.containsKey(p) && openAdminConfig.get(p).getInventory().equals(e.getInventory())) {
             openAdminConfig.remove(p);
+            return;
+        }
+        if (openAdminCategoryEdit.containsKey(p)
+                && openAdminCategoryEdit.get(p).getInventory().equals(e.getInventory())) {
+            openAdminCategoryEdit.remove(p);
+            return;
+        }
+        if (openAdminCategory.containsKey(p) && openAdminCategory.get(p).getInventory().equals(e.getInventory())) {
+            openAdminCategory.remove(p);
             return;
         }
     }
