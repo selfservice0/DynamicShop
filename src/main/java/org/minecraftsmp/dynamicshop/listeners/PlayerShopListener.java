@@ -60,9 +60,11 @@ public class PlayerShopListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
 
         // Only remove the specific GUI that's closing
-        if (title.equals("§6§lPlayer Shops")) {
+        // Note: PlainTextComponentSerializer strips formatting, so compare against
+        // plain text
+        if (title.equals("Player Shops")) {
             openBrowserGUIs.remove(playerId);
-        } else if (title.contains("'s Shop") || title.equals("§6§lYour Shop")) {
+        } else if (title.contains("'s Shop") || title.equals("Your Shop")) {
             openShopViewGUIs.remove(playerId);
         }
     }
@@ -80,14 +82,16 @@ public class PlayerShopListener implements Listener {
         String title = PlainTextComponentSerializer.plainText().serialize(event.getView().title());
 
         // Handle Player Shops Browser
-        if (title.equals("§6§lPlayer Shops")) {
+        // Note: PlainTextComponentSerializer strips formatting, so compare against
+        // plain text
+        if (title.equals("Player Shops")) {
             event.setCancelled(true);
             handleBrowserClick(player, event.getRawSlot());
             return;
         }
 
         // Handle Individual Player Shop View
-        if (title.contains("'s Shop") || title.equals("§6§lYour Shop")) {
+        if (title.contains("'s Shop") || title.equals("Your Shop")) {
             event.setCancelled(true);
             handleShopViewClick(player, event.getRawSlot());
         }
@@ -98,8 +102,11 @@ public class PlayerShopListener implements Listener {
      */
     private void handleBrowserClick(Player player, int slot) {
         PlayerShopBrowserGUI gui = openBrowserGUIs.get(player.getUniqueId());
-        if (gui == null)
-            return;
+        if (gui == null) {
+            // Fallback: create and register a new GUI based on the open inventory
+            gui = new PlayerShopBrowserGUI(plugin, player);
+            registerBrowserGUI(player, gui);
+        }
 
         // Navigation buttons
         if (slot == 48) { // Previous page
@@ -141,8 +148,16 @@ public class PlayerShopListener implements Listener {
      */
     private void handleShopViewClick(Player player, int slot) {
         PlayerShopViewGUI gui = openShopViewGUIs.get(player.getUniqueId());
-        if (gui == null)
+        if (gui == null) {
+            // Can't create fallback for shop view without knowing which shop
+            // Just handle navigation buttons directly
+            if (slot == 45) { // Back to browser
+                PlayerShopBrowserGUI browser = new PlayerShopBrowserGUI(plugin, player);
+                registerBrowserGUI(player, browser);
+                browser.open();
+            }
             return;
+        }
 
         // Navigation buttons
         if (slot == 48) { // Previous page
