@@ -1,6 +1,11 @@
 # DynamicShop Configuration File
 # Created for Paper/Spigot servers with ProtocolLib
 
+# Language / Localization
+# Supported out of the box: en, es
+# The plugin will look for messages_<language>.yml
+language: en
+
 # ================================================================
 # ECONOMY SETTINGS
 # ================================================================

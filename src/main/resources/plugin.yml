@@ -14,7 +14,7 @@ commands:
   shop:
     description: Open the dynamic shop GUI
     usage: /shop [<category>|sell <price>|sellhand|sellall]
-    aliases: [ dshop, market ]
+    aliases: [ dshop, market, tienda ]
     permission: dynamicshop.use
   shopadmin:
     description: Admin commands for managing the shop

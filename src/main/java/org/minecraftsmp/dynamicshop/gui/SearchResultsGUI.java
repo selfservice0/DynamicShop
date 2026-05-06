@@ -114,7 +114,7 @@ public class SearchResultsGUI {
         if (meta == null)
             return item;
 
-        meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e§l" + mat.name().replace("_", " ")));
+        meta.displayName(net.kyori.adventure.text.Component.translatable(mat.translationKey()).color(net.kyori.adventure.text.format.NamedTextColor.YELLOW).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
 
         double buy = ShopDataManager.getTotalBuyCost(mat, 1);
         double sell = ShopDataManager.getTotalSellValue(mat, 1);

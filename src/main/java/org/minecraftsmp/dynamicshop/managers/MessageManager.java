@@ -33,17 +33,28 @@ public class MessageManager {
     }
 
     private void loadMessages() {
-        messagesFile = new File(plugin.getDataFolder(), "messages.yml");
+        String lang = plugin.getConfig().getString("language", "en");
+        String fileName = "messages_" + lang + ".yml";
+        messagesFile = new File(plugin.getDataFolder(), fileName);
 
-        // Create messages.yml if it doesn't exist
+        // Create messages file if it doesn't exist
         if (!messagesFile.exists()) {
-            plugin.saveResource("messages.yml", false);
+            if (plugin.getResource(fileName) != null) {
+                plugin.saveResource(fileName, false);
+            } else {
+                plugin.getLogger().warning("[Messages] Language file " + fileName + " not found in jar. Falling back to messages_en.yml");
+                fileName = "messages_en.yml";
+                messagesFile = new File(plugin.getDataFolder(), fileName);
+                if (!messagesFile.exists()) {
+                    plugin.saveResource(fileName, false);
+                }
+            }
         }
 
         messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
 
         // Load defaults from jar and merge missing keys
-        InputStream defaultStream = plugin.getResource("messages.yml");
+        InputStream defaultStream = plugin.getResource(fileName);
         if (defaultStream != null) {
             YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(
                     new InputStreamReader(defaultStream));

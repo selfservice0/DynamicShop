@@ -1,0 +1,189 @@
+# Archivo de Mensajes de DynamicShop
+# Soporta códigos de color con & (ej. &a = verde, &c = rojo)
+# Soporta placeholders con {nombre_placeholder}
+
+messages:
+  # Prefijo mostrado antes de la mayoría de mensajes
+  prefix: "&6&lDynamicShop &7» "
+
+  # Mensajes generales
+  no-permission: "&cNo tienes permiso para hacer eso."
+  reloaded: "&a¡Configuración del plugin recargada con éxito!"
+  invalid-number: "&cNúmero introducido inválido."
+
+  # Mensajes de compra
+  purchase-success: "&a¡Has comprado &e{item} &apor &e{price}&a!"
+  purchase-failed: "&cLa compra ha fallado. Por favor, inténtalo de nuevo."
+  not-enough-money: "&c¡No tienes suficiente dinero! Necesitas: &e{price}"
+  cannot-purchase: "&cEste ítem no se puede comprar."
+  out-of-stock: "&c¡Este ítem está agotado!"
+
+  # Mensajes de venta
+  sold-item: "&a¡Has vendido &e{item} &apor &e{price}&a!"
+  cannot-sell: "&cEste ítem no se puede vender."
+  no-item-to-sell: "&cNo tienes ningún &e{item} &cpara vender."
+  cannot-sell-damaged: "&cNo puedes vender ítems dañados."
+
+  # Mensajes de categorías
+  category-opened: "&aCategoría abierta: &e{category}"
+  category-empty: "&cEsta categoría no tiene ítems disponibles para comprar."
+  unknown-category: "&cCategoría desconocida: &e{category}"
+  list-categories: "&7Categorías válidas:"
+  cannot-access-special-category: "&cNo puedes acceder directamente a esta categoría."
+
+  # Lore de la GUI de categorías
+  category-lore-items: "&7Ítems: &a{count}"
+  category-lore-click-to-browse: "&e¡Haz clic para explorar!"
+  category-lore-no-items: "&cNo hay ítems disponibles"
+
+  # Mensajes generales de GUI
+  gui-category-title: "&8&lCategorías de la Tienda"
+  gui-nav-previous: "&ePágina Anterior"
+  gui-nav-previous-lore: "&7Haz clic para retroceder"
+  gui-nav-previous-none: "&cNo hay página anterior"
+  gui-nav-next: "&ePágina Siguiente"
+  gui-nav-next-lore: "&7Haz clic para avanzar"
+  gui-nav-next-none: "&cNo hay página siguiente"
+  gui-nav-back: "&c&lVolver a Categorías"
+  gui-nav-back-lore: "&7Volver a la selección de categorías"
+  gui-nav-search: "&b&lBuscar Ítems"
+  gui-nav-search-lore: "&7Abrir menú de búsqueda"
+  gui-nav-page: "&ePágina &f{page} &7/ &f{max}"
+  gui-nav-page-lore: "&7Total de ítems: &e{total}"
+  gui-nav-filter: "&6Opciones de Filtro"
+  gui-nav-filter-hidden: "&aActualmente: &fOcultando Agotados"
+  gui-nav-filter-shown: "&cActualmente: &fMostrando Todos"
+  gui-nav-filter-lore: "&7Haz clic para alternar"
+
+  # Mensajes de búsqueda
+  search-no-results: "&cNo se encontraron ítems que coincidan con tu búsqueda."
+  search-gui-title: "&8Resultados: &f{count}"
+  search-gui-back-name: "&c&lVolver a Categorías"
+  search-gui-back-lore: "&7Volver al menú principal"
+  search-lore-buy: "&aComprar: &f{price}"
+  search-lore-sell: "&cVender: &f{price}"
+  search-lore-stock: "&7Stock: &f{stock}"
+  search-lore-stock-negative: "&cStock: {stock} (negativo)"
+  search-lore-out-of-stock: "&eAgotado"
+  search-lore-buy-1: "&eClic Izquierdo: &7Comprar 1"
+  search-lore-buy-64: "&eShift+Clic Izquierdo: &7Comprar 64"
+  search-lore-sell-1: "&cClic Derecho: &7Vender 1"
+  search-lore-sell-64: "&cShift+Clic Derecho: &7Vender 64"
+  search-message-no-item-sell: "&c¡No tienes &f{item} &cpara vender!"
+
+  # Mensajes de ítems especiales
+  special-permission-success: "&aPermiso concedido: &e{permission}"
+  special-permission-failed: "&cError al conceder permiso. Contacta con un administrador."
+  special-permission-already-owned: "&cYa tienes este permiso."
+
+  special-server-item-success: "&aHas recibido: &e{identifier}"
+  special-server-item-failed: "&cError al entregar ítem. Contacta con un administrador."
+
+  unknown-special-item: "&cTipo de ítem especial desconocido."
+  cannot-sell-special-item: "&c¡No puedes vender ítems especiales!"
+
+  # Mensajes de inventario
+  inventory-full: "&c¡Tu inventario está lleno!"
+  item-added: "&aAñadido &e{amount}x {item} &aa tu inventario."
+
+  # Transacciones
+  bought-item: "&a¡Compraste &e{amount}x &a{item} &7por &e{price}&a!"
+  sold-item-success: "&aVendiste &e{amount}x &a{item} &7por &e{price}"
+  not-enough-items: "&c¡No tienes ningún &e{item} &cpara vender!"
+  not-enough-money-need: "&c¡Dinero insuficiente! Necesitas &e{price}"
+  search-enter-term: "&c¡Por favor, introduce un término de búsqueda!"
+  transaction-cooldown: "&cPor favor, espera &e{time}s &cantes de tu próxima transacción."
+
+  # Lore de inventario (cuando la tienda está abierta)
+  lore-buy-price: "&7Comprar: &e{price}"
+  lore-sell-price: "&7Vender: &e{price}"
+  lore-stock: "&7Stock: &a{stock}"
+  lore-stock-negative: "&7Stock: &c{stock}"
+  lore-out-of-stock: "&c&lAGOTADO"
+  lore-click-to-sell-1: "&aClic Derecho para VENDER 1"
+  lore-shift-click-to-sell-64: "&aShift+Clic Derecho para VENDER 64"
+
+  # Lore de GUI de tienda
+  shop-lore-buy-price: "&7Precio de Compra: &e{price}"
+  shop-lore-sell-price: "&7Precio de Venta: &e{price}"
+  shop-lore-price-increase: "&7Incremento: &c+{percent}% (&c2% por hora&7)"
+  shop-lore-low-stock: "&e¡Aviso de Stock Bajo!"
+  shop-lore-left-click-buy: "&bClic Izquierdo: &7Comprar 1"
+  shop-lore-shift-left-click-buy: "&bShift+Clic Izq: &7Comprar 64"
+  shop-lore-right-click-sell: "&bClic Derecho: &7Vender 1"
+  shop-lore-shift-right-click-sell: "&bShift+Clic Der: &7Vender 64"
+  shop-lore-left-click-buy-arrow: "&bClic Izquierdo → Comprar 1"
+  shop-lore-shift-left-click-buy-arrow: "&bShift+Clic Izq → Comprar 64"
+  shop-lore-right-click-sell-arrow: "&bClic Derecho → Vender 1"
+  shop-lore-shift-right-click-sell-arrow: "&bShift+Clic Der → Vender 64"
+  shop-lore-price-increase-note: "&7(2% por hora mientras esté agotado)"
+  shop-lore-low-stock-emphasis: "&e&l¡STOCK BAJO!"
+
+  # Mensajes de Admin
+  admin-item-added: "&aAñadido &e{item} &aa la categoría &e{category} &acon precio &e${price}"
+  admin-item-removed: "&aRemovido &e{item} &ade la tienda."
+  admin-permission-added: "&aAñadido permiso de tienda: &e{permission} &7(${price})"
+  admin-server-shop-added: "&aAñadido ítem de server-shop: &e{identifier} &7(${price})"
+  admin-must-hold-item: "&cDebes sostener un ítem en la mano."
+  admin-unknown-category: "&cCategoría desconocida: &e{category}"
+  admin-list-categories: "&7Categorías válidas:"
+  admin-price-negative: "&cEl precio debe ser mayor o igual a 0."
+
+  # Uso de comandos Admin
+  admin-help-header: "&e&lComandos Admin de DynamicShop:"
+  admin-help-reload: "&7/shopadmin reload"
+  admin-help-add-item: "&7/shopadmin add item <precio>"
+  admin-help-add-perm: "&7/shopadmin add perm <precio> <nodo.permiso>"
+  admin-help-add-server-shop: "&7/shopadmin add server-shop <precio> <id>"
+
+  admin-add-usage-header: "&eUso:"
+  admin-usage-add-item: "&cUso: /shopadmin add item <precio>"
+  admin-usage-add-perm: "&cUso: /shopadmin add perm <precio> <nodo.permiso>"
+  admin-usage-add-server-shop: "&cUso: /shopadmin add server-shop <precio> <id>"
+
+  # Mensajes de Tienda de Jugadores (Player Shop)
+  playershop-listed: "&a✓ &7Listado &f{item} &7x{amount} &7por &a${price}"
+  playershop-listed-success: "&7¡Los jugadores ya pueden comprar esto en tu tienda!"
+  playershop-reclaimed: "&a✓ &7Reclamado &f{item} &7x{amount}"
+  playershop-purchased: "&a✓ &7Comprado &f{item} &7x{amount} &7por &a${price}"
+  playershop-sold-notification: "&a✓ &7Tu &f{item} &7x{amount} &7fue comprado por &e{buyer} &7por &a${price}"
+  playershop-max-listings: "&c✗ &7¡Has alcanzado el límite de &c{max} &7publicaciones!"
+  playershop-remove-items-first: "&7Primero quita algunos ítems de tu tienda."
+  playershop-shop-empty: "&7Tu tienda ahora está vacía."
+  playershop-other-shop-empty: "&7Esta tienda ahora está vacía."
+  playershop-hold-item: "&c✗ &7¡Sostén un ítem en la mano para publicarlo!"
+  playershop-invalid-price: "&c✗ &7¡Precio inválido! Uso: &e/shop sell <precio>"
+  playershop-price-example: "&7Ejemplo: &e/shop sell 100"
+  playershop-price-must-be-positive: "&c✗ &7¡El precio debe ser mayor a 0!"
+  playershop-no-permission-sell: "&c✗ &7¡No tienes permiso para vender ítems!"
+  playershop-listing-failed: "&c✗ &7¡Fallo al publicar el ítem!"
+  playershop-not-enough-money: "&c✗ &7¡Necesitas &c${price} &7para comprar este ítem!"
+  playershop-not-enough-space: "&c✗ &7¡No tienes espacio en el inventario!"
+  
+  # Límite de stock
+  shop-stock-limited: "&c¡Stock limitado! Solo compraste &e{stock} &cítems."
+
+  # Bedrock/Item Action GUI
+  item-action-title: "&8Comprar / Vender"
+  item-action-buy-1: "&a&lComprar ×1"
+  item-action-buy-64: "&a&lComprar ×64"
+  item-action-sell-1: "&c&lVender ×1"
+  item-action-sell-64: "&c&lVender ×64"
+  item-action-back: "&7&l← Volver"
+
+  # Categorías
+  category-blocks: "Bloques"
+  category-farming: "Agricultura"
+  category-minerals: "Minerales"
+  category-misc: "Miscelánea"
+  category-redstone: "Redstone"
+  category-tools: "Herramientas"
+  category-armor: "Armaduras"
+  category-food: "Comida"
+  category-wood: "Madera"
+  category-dyes: "Tintes"
+  category-permissions: "Permisos"
+  category-server_shop: "Tienda del Servidor"
+  category-player_shops: "Tiendas de Jugadores"
+
+# ================================================================

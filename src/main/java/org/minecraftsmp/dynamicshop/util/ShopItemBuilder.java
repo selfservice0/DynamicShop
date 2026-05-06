@@ -29,8 +29,6 @@ public class ShopItemBuilder {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
 
-            meta.displayName(component("§e§l" + prettify(mat.name())));
-
             List<Component> lore = new ArrayList<>();
             lore.add(component("§7────────────────────"));
             lore.add(component("§a§lBUY: §f" + formattedBuyPrice));

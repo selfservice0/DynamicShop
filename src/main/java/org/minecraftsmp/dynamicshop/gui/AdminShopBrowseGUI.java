@@ -176,12 +176,16 @@ public class AdminShopBrowseGUI {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             // Show disabled status in name
-            String displayName = mat.name().replace("_", " ");
             if (disabled) {
                 meta.displayName(
-                        LegacyComponentSerializer.legacySection().deserialize("§c§m" + displayName + " §7(DISABLED)"));
+                        net.kyori.adventure.text.Component.translatable(mat.translationKey())
+                                .color(net.kyori.adventure.text.format.NamedTextColor.RED)
+                                .decorate(net.kyori.adventure.text.format.TextDecoration.STRIKETHROUGH)
+                                .append(net.kyori.adventure.text.Component.text(" (DISABLED)").color(net.kyori.adventure.text.format.NamedTextColor.GRAY)));
             } else {
-                meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§a§l" + displayName));
+                meta.displayName(net.kyori.adventure.text.Component.translatable(mat.translationKey())
+                        .color(net.kyori.adventure.text.format.NamedTextColor.GREEN)
+                        .decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
             }
 
             List<String> lore = new ArrayList<>();
