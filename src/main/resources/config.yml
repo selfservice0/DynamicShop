@@ -4,7 +4,7 @@
 # Language / Localization
 # Supported out of the box: en, es
 # The plugin will look for messages_<language>.yml
-language: es
+language: en
 
 # ================================================================
 # ECONOMY SETTINGS
