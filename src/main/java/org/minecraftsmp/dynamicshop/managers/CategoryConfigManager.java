@@ -196,7 +196,16 @@ public class CategoryConfigManager {
      * Get the display name for a category (returns override or default from enum)
      */
     public static String getDisplayName(ItemCategory category) {
-        return categoryNames.getOrDefault(category, category.getDisplayName());
+        if (categoryNames.containsKey(category)) {
+            return categoryNames.get(category);
+        }
+        if (plugin != null) {
+            String langName = plugin.getMessageManager().getMessage("category-" + category.name().toLowerCase());
+            if (langName != null && !langName.startsWith("&cMessage not found")) {
+                return langName;
+            }
+        }
+        return category.getDisplayName();
     }
 
     /**

@@ -252,8 +252,7 @@ public class ShopGUI {
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(
-                    LegacyComponentSerializer.legacySection().deserialize("§e§l" + mat.name().replace("_", " ")));
+            meta.displayName(net.kyori.adventure.text.Component.translatable(mat.translationKey()).color(net.kyori.adventure.text.format.NamedTextColor.YELLOW).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
 
             List<String> lore = new ArrayList<>();
 

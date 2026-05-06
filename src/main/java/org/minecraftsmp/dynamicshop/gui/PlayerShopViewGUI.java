@@ -105,9 +105,7 @@ public class PlayerShopViewGUI {
             // Preserve original custom name if it exists
             // Otherwise use material name
             if (!meta.hasDisplayName()) {
-                String materialName = displayItem.getType().toString().replace("_", " ");
-                materialName = capitalizeWords(materialName);
-                meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§f" + materialName));
+                meta.displayName(net.kyori.adventure.text.Component.translatable(displayItem.getType().translationKey()).color(net.kyori.adventure.text.format.NamedTextColor.WHITE));
             }
             // If it has a custom name, keep it exactly as-is!
 
