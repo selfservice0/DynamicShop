@@ -29,7 +29,7 @@ public class ShopItemBuilder {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
 
-            meta.displayName(component("§e§l" + prettify(mat.name())));
+            meta.displayName(Component.translatable(mat.translationKey()).color(net.kyori.adventure.text.format.NamedTextColor.YELLOW).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
 
             List<Component> lore = new ArrayList<>();
             lore.add(component("§7────────────────────"));
