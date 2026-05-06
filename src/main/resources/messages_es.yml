@@ -170,6 +170,7 @@ messages:
   item-action-sell-1: "&c&lVender ×1"
   item-action-sell-64: "&c&lVender ×64"
   item-action-back: "&7&l← Volver"
+
   # Categorías
   category-blocks: "Bloques"
   category-farming: "Agricultura"
@@ -181,3 +182,8 @@ messages:
   category-food: "Comida"
   category-wood: "Madera"
   category-dyes: "Tintes"
+  category-permissions: "Permisos"
+  category-server_shop: "Tienda del Servidor"
+  category-player_shops: "Tiendas de Jugadores"
+
+# ================================================================

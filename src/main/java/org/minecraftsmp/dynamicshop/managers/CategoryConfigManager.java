@@ -201,7 +201,7 @@ public class CategoryConfigManager {
         }
         if (plugin != null) {
             String langName = plugin.getMessageManager().getMessage("category-" + category.name().toLowerCase());
-            if (langName != null && !langName.startsWith("&cMessage not found")) {
+            if (langName != null && !langName.contains("Message not found")) {
                 return langName;
             }
         }

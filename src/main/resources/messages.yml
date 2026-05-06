@@ -171,21 +171,6 @@ messages:
   item-action-sell-64: "&c&lSell ×64"
   item-action-back: "&7&l← Back"
 
-  # Categories
-  category-blocks: "Blocks"
-  category-farming: "Farming"
-  category-minerals: "Minerals"
-  category-misc: "Misc"
-  category-redstone: "Redstone"
-  category-tools: "Tools"
-  category-armor: "Armor"
-  category-food: "Food"
-  category-wood: "Wood"
-  category-dyes: "Dyes"
-  category-permissions: "Permissions"
-  category-server_shop: "Server Shop"
-  category-player_shops: "Player Shops"
-
 # ================================================================
 # Translation Guide
 # ================================================================
