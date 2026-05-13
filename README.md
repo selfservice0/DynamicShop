@@ -41,7 +41,7 @@ This version has been carefully migrated to the modern **Paper API** to ensure s
 Changes include:
 - Migrated all `BukkitScheduler` tasks to `AsyncScheduler` and `GlobalRegionScheduler`.
 - Used `EntityScheduler` for player-specific actions (GUIs and Messaging).
-- Full thread-safety for high-performance servers!
+- Added thread-safety
 
 ------------------------------------------------------------
 Major Features
