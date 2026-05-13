@@ -15,8 +15,7 @@ import java.util.List;
 /**
  * Admin GUI for editing special shop items (permissions and server-shop items).
  * Allows editing price, display material, required permission, and deletion.
- * 
- * Uses InputManager for Paper 1.21+ compatibility.
+ * * Uses InputManager for Paper 1.21+ compatibility.
  */
 public class AdminSpecialItemEditGUI {
 
@@ -218,8 +217,18 @@ public class AdminSpecialItemEditGUI {
                         }
                     }
 
-                    // Reopen this GUI with fresh data
-                    Bukkit.getScheduler().runTask(plugin, () -> {
+                    // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler to safely reopen GUI
+                    // Bukkit.getScheduler().runTask(plugin, () -> {
+                    //     SpecialShopItem updated = plugin.getSpecialShopManager().getSpecialItem(item.getId());
+                    //     if (updated != null) {
+                    //         AdminSpecialItemEditGUI newGui = new AdminSpecialItemEditGUI(plugin, player, updated,
+                    //                 parentGUI);
+                    //         plugin.getShopListener().registerAdminSpecialEdit(player, newGui);
+                    //         newGui.open();
+                    //     }
+                    // });
+                    
+                    player.getScheduler().run(plugin, task -> {
                         SpecialShopItem updated = plugin.getSpecialShopManager().getSpecialItem(item.getId());
                         if (updated != null) {
                             AdminSpecialItemEditGUI newGui = new AdminSpecialItemEditGUI(plugin, player, updated,
@@ -227,7 +236,7 @@ public class AdminSpecialItemEditGUI {
                             plugin.getShopListener().registerAdminSpecialEdit(player, newGui);
                             newGui.open();
                         }
-                    });
+                    }, null);
                 });
     }
 
@@ -260,8 +269,18 @@ public class AdminSpecialItemEditGUI {
                         }
                     }
 
-                    // Reopen this GUI with fresh data
-                    Bukkit.getScheduler().runTask(plugin, () -> {
+                    // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler
+                    // Bukkit.getScheduler().runTask(plugin, () -> {
+                    //     SpecialShopItem updated = plugin.getSpecialShopManager().getSpecialItem(item.getId());
+                    //     if (updated != null) {
+                    //         AdminSpecialItemEditGUI newGui = new AdminSpecialItemEditGUI(plugin, player, updated,
+                    //                 parentGUI);
+                    //         plugin.getShopListener().registerAdminSpecialEdit(player, newGui);
+                    //         newGui.open();
+                    //     }
+                    // });
+                    
+                    player.getScheduler().run(plugin, task -> {
                         SpecialShopItem updated = plugin.getSpecialShopManager().getSpecialItem(item.getId());
                         if (updated != null) {
                             AdminSpecialItemEditGUI newGui = new AdminSpecialItemEditGUI(plugin, player, updated,
@@ -269,7 +288,7 @@ public class AdminSpecialItemEditGUI {
                             plugin.getShopListener().registerAdminSpecialEdit(player, newGui);
                             newGui.open();
                         }
-                    });
+                    }, null);
                 });
     }
 

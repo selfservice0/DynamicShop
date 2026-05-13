@@ -1,21 +1,22 @@
-DynamicShop — Dynamic Global Trade Market
-=========================================
+DynamicShop — Dynamic Global Trade Market (Folia Supported! 🚀)
+===========================================================
 
-A fully dynamic, supply-and-demand driven economy system for Minecraft servers.
+A fully dynamic, supply-and-demand driven economy system for Minecraft servers. Now updated with 100% thread-safety for Folia! (✿◠‿◠) ✨
 
 ------------------------------------------------------------
 Project Information
 ------------------------------------------------------------
 
-Java Version: 21+
-License: All Rights Reserved
-Repository: https://github.com/selfservice0/DynamicShop
+- **Java Version:** 21+
+- **Platform:** Paper, Purpur, and **Folia** 1.20.1 - 1.21.x+
+- **License:** All Rights Reserved
+- **Repository:** https://github.com/selfservice0/DynamicShop
 
 ------------------------------------------------------------
 Overview
 ------------------------------------------------------------
 
-DynamicShop replaces static shop plugins with a global, fully dynamic economic marketplace.
+DynamicShop replaces static shop plugins with a global, fully dynamic economic marketplace. 
 
 Prices automatically adjust based on:
 - Server-wide supply levels
@@ -32,6 +33,17 @@ Prices automatically adjust based on:
 This system creates a scalable, MMO-style economy that reacts to player behavior in real time.
 
 ------------------------------------------------------------
+🌟 Folia Compatibility (New!)
+------------------------------------------------------------
+
+This version has been carefully migrated to the modern **Paper API** to ensure smooth and stable operation on multi-threaded server environments like **Folia**. 
+
+Changes include:
+- Migrated all `BukkitScheduler` tasks to `AsyncScheduler` and `GlobalRegionScheduler`.
+- Used `EntityScheduler` for player-specific actions (GUIs and Messaging).
+- Full thread-safety for high-performance servers!
+
+------------------------------------------------------------
 Major Features
 ------------------------------------------------------------
 
@@ -41,58 +53,25 @@ Global Dynamic Market
 - Prices decrease as stock rises.
 - Smooth price curves using adjustable curve strength.
 - Strong price inflation for items with zero or negative stock.
-- Configurable stock caps and multiplier limits.
-- Continuous price calculation avoids looping for bulk buys and sells.
+- Configurable stock caps and multipliers.
 
-Player Shops (Optional)
------------------------
-- Players can list custom items for sale.
-- Buyers automatically pay sellers, even if sellers are offline.
-- Safe transaction pipeline prevents item duplication or mispayments.
+Calculus-Based Pricing
+----------------------
+DynamicShop uses a continuous pricing model. Buying 64 items is mathematically identical to buying 1 item sixty-four times. This prevents price-sniping and ensures economic fairness.
 
-Search GUI
-----------
-- Built-in fuzzy search for item names.
-- Clean 6x9 inventory layout.
-- Supports buying and selling directly from search results.
+Advanced Web Dashboard
+----------------------
+- Real-time transaction feed.
+- Economic health analytics.
+- Price history and trends for every item.
+- Global leaderboards for earners and spenders.
+- Fully-featured **Web Admin Panel** for remote management.
 
-Smart Categorization
---------------------
-- Automatically detects item categories.
-- Used for organizing items inside shop pages.
-
-Economy System Integration
---------------------------
-- Supports Vault economy providers.
-- Supports custom economy managers.
-- Configurable number formatting system.
-
-Demand Tracking
----------------
-- Tracks purchases to slowly influence price weighting.
-
-Highly Configurable
--------------------
-DynamicShop allows control over:
-- maxStock
-- curveStrength
-- negativeStockPercentPerItem
-- hourlyIncreasePercent
-- sellTaxPercent
-- category GUI layout
-- stock restrictions
-- dynamic pricing enable/disable
-- many other internal tuning variables
-
-------------------------------------------------------------
-Installation
-------------------------------------------------------------
-
-1. Install Java 21 or newer.
-2. Drop the plugin JAR into the /plugins folder.
-3. Start the server to generate configuration files.
-4. Adjust config.yml for desired economic behavior.
-5. Restart server.
+Player-Run Shops
+----------------
+- Players can list their own items for sale.
+- Integrated with the main shop UI.
+- Secure virtual GUI-based trading.
 
 ------------------------------------------------------------
 Developer Notes
@@ -100,17 +79,17 @@ Developer Notes
 
 DynamicShop uses a calculus-based continuous pricing engine with the following model:
 
-P(s) =
-  BasePrice * (1 - k(s / L))                        if 0 <= s <= L  
-  BasePrice * (1 - k)                              if s > L  
-  BasePrice * (q^(-s)) * t                         if s < 0  
+**P(s) =**
+- `BasePrice * (1 - k(s / L))` if `0 <= s <= L`
+- `BasePrice * (1 - k)` if `s > L`
+- `BasePrice * (q^(-s)) * t` if `s < 0`
 
-Where:
-- s = stock
-- L = maxStock
-- k = curveStrength
-- q = 1 + negativeStockPercentPerItem
-- t = (1 + hourlyIncreasePercent)^(hoursInShortage)
+**Where:**
+- `s` = stock
+- `L` = maxStock
+- `k` = curveStrength
+- `q` = 1 + negativeStockPercentPerItem
+- `t` = (1 + hourlyIncreasePercent)^(hoursInShortage)
 
 This system ensures smooth price behavior and eliminates the need to loop through items one at a time.
 
@@ -129,7 +108,7 @@ You MAY:
 - View the source code for personal reference.
 
 You may NOT:
-- Copy, modify (other than  pull requests on this repo), distribute, or re-upload any part of this software.
+- Copy, modify (other than pull requests on this repo), distribute, or re-upload any part of this software.
 - Create or distribute derivative works.
 - Fork this repository on GitHub or any other platform.
 - Use portions of this project in your own software.
@@ -141,11 +120,12 @@ Commercial licensing requires explicit written permission from the author.
 Contributions
 ------------------------------------------------------------
 
-DynamicShop does accept pull requests due to the, but users must agree to All Rights Reserved license.  
+DynamicShop accepts pull requests for bug fixes and feature enhancements (like our new Folia support!). Contributors must agree to the All Rights Reserved license.  
+
 Bug reports may be submitted through GitHub Issues.
 
 ------------------------------------------------------------
 Support
 ------------------------------------------------------------
 
-If you find this project useful, consider starring the repository to support development.
+If you find this project useful, consider starring the repository to support development. Special thanks to the community for helping make this plugin better for everyone! (≧◡≦) ♡

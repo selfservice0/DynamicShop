@@ -109,9 +109,14 @@ public class ShopGUI {
         plugin.getShopListener().updatePlayerInventoryLore(player, 2L);
 
         // Update player inventory lore AFTER the GUI is open
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler to prevent region thread mismatch
+        // Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        //     plugin.getShopListener().updatePlayerInventoryLore(player);
+        // }, 3L);
+        
+        player.getScheduler().runDelayed(plugin, task -> {
             plugin.getShopListener().updatePlayerInventoryLore(player);
-        }, 3L);
+        }, null, 3L);
     }
 
     /**

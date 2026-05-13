@@ -66,19 +66,29 @@ public class EmbeddedP2PManager {
         startListener();
 
         // Ask who has newer data (after flushing our queue)
-        new BukkitRunnable() {
-            @Override public void run() {
-                // Flush queue and save before requesting sync
-                // This ensures we send our true current state
-                ShopDataManager.flushQueue();
-                ShopDataManager.saveDynamicData();
+        // [Folia/Paper API] Replaced BukkitRunnable with GlobalRegionScheduler for Folia compatibility
+        // new BukkitRunnable() {
+        //     @Override public void run() {
+        //         // Flush queue and save before requesting sync
+        //         // This ensures we send our true current state
+        //         ShopDataManager.flushQueue();
+        //         ShopDataManager.saveDynamicData();
+        //
+        //         long myTx = plugin.getTransactionLogger().getMostRecentTransactionTime();
+        //         publisher.send(TOPIC_SYNC_REQUEST + " " + myTx);
+        //
+        //         plugin.getLogger().info("[P2P] Requesting sync with transaction time: " + myTx);
+        //     }
+        // }.runTaskLater(plugin, 60L);
+        plugin.getServer().getGlobalRegionScheduler().runDelayed(plugin, task -> {
+            ShopDataManager.flushQueue();
+            ShopDataManager.saveDynamicData();
 
-                long myTx = plugin.getTransactionLogger().getMostRecentTransactionTime();
-                publisher.send(TOPIC_SYNC_REQUEST + " " + myTx);
+            long myTx = plugin.getTransactionLogger().getMostRecentTransactionTime();
+            publisher.send(TOPIC_SYNC_REQUEST + " " + myTx);
 
-                plugin.getLogger().info("[P2P] Requesting sync with transaction time: " + myTx);
-            }
-        }.runTaskLater(plugin, 60L);
+            plugin.getLogger().info("[P2P] Requesting sync with transaction time: " + myTx);
+        }, 60L);
     }
 
     private String parsePeerAddress(String input) {
@@ -116,9 +126,11 @@ public class EmbeddedP2PManager {
                         handleSyncResponse(msg);
                     } else if (msg.startsWith(TOPIC_STOCK + " ")) {
                         String json = msg.substring(TOPIC_STOCK.length() + 1);
-                        new BukkitRunnable() {
-                            @Override public void run() { handleStock(json); }
-                        }.runTask(plugin);
+                        // [Folia/Paper API] Replaced BukkitRunnable with GlobalRegionScheduler
+                        // new BukkitRunnable() {
+                        //     @Override public void run() { handleStock(json); }
+                        // }.runTask(plugin);
+                        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> handleStock(json));
                     }
 
                 } catch (Exception ignored) {}
@@ -139,23 +151,38 @@ public class EmbeddedP2PManager {
 
         // CRITICAL: Flush queue and save data before checking/responding
         // This ensures we send the most up-to-date data as source of truth
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                // Force process all pending updates immediately
-                ShopDataManager.flushQueue();
+        // [Folia/Paper API] Replaced BukkitRunnable with GlobalRegionScheduler
+        // new BukkitRunnable() {
+        //     @Override
+        //     public void run() {
+        //         // Force process all pending updates immediately
+        //         ShopDataManager.flushQueue();
+        //
+        //         // Force immediate save to disk (synchronous)
+        //         ShopDataManager.saveDynamicData();
+        //
+        //         // Now check if we have newer data
+        //         long myTx = plugin.getTransactionLogger().getMostRecentTransactionTime();
+        //         if (myTx > requesterTx) {
+        //             publisher.send(TOPIC_SYNC_RESPONSE + " " + myTx);
+        //             sendFullSync(myTx);
+        //         }
+        //     }
+        // }.runTask(plugin);
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
+            // Force process all pending updates immediately
+            ShopDataManager.flushQueue();
 
-                // Force immediate save to disk (synchronous)
-                ShopDataManager.saveDynamicData();
+            // Force immediate save to disk (synchronous)
+            ShopDataManager.saveDynamicData();
 
-                // Now check if we have newer data
-                long myTx = plugin.getTransactionLogger().getMostRecentTransactionTime();
-                if (myTx > requesterTx) {
-                    publisher.send(TOPIC_SYNC_RESPONSE + " " + myTx);
-                    sendFullSync(myTx);
-                }
+            // Now check if we have newer data
+            long myTx = plugin.getTransactionLogger().getMostRecentTransactionTime();
+            if (myTx > requesterTx) {
+                publisher.send(TOPIC_SYNC_RESPONSE + " " + myTx);
+                sendFullSync(myTx);
             }
-        }.runTask(plugin);
+        });
     }
 
     // --------------------------------------------------------------------

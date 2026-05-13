@@ -3,7 +3,9 @@ package org.minecraftsmp.dynamicshop.managers;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.scheduler.BukkitRunnable;
+// [Folia/Paper API] Commented out old BukkitRunnable import
+// import org.bukkit.scheduler.BukkitRunnable;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 
@@ -16,11 +18,11 @@ import java.util.List;
  * Config format (config.yml):
  * <pre>
  * restock:
- *   enabled: true
- *   rules:
- *     - category: FOOD
- *       stock: 200
- *       interval-minutes: 30
+ * enabled: true
+ * rules:
+ * - category: FOOD
+ * stock: 200
+ * interval-minutes: 30
  * </pre>
  */
 public class RestockManager {
@@ -28,7 +30,9 @@ public class RestockManager {
     private record RestockRule(ItemCategory category, double targetStock, long intervalTicks) {}
 
     private final DynamicShop plugin;
-    private final List<BukkitRunnable> timers = new ArrayList<>();
+    // [Folia/Paper API] Replaced BukkitRunnable with ScheduledTask
+    // private final List<BukkitRunnable> timers = new ArrayList<>();
+    private final List<ScheduledTask> timers = new ArrayList<>();
 
     public RestockManager(DynamicShop plugin) {
         this.plugin = plugin;
@@ -81,25 +85,44 @@ public class RestockManager {
     }
 
     private void scheduleRule(RestockRule rule) {
-        BukkitRunnable task = new BukkitRunnable() {
-            @Override
-            public void run() {
-                List<Material> items = ShopDataManager.getItemsInCategory(rule.category());
-                int count = 0;
-                for (Material mat : items) {
-                    ShopDataManager.setStockDirect(mat, rule.targetStock());
-                    count++;
-                }
-                Bukkit.getLogger().info("[DynamicShop] Restocked " + count + " items in "
-                        + rule.category().getDisplayName() + " to " + (int) rule.targetStock());
+        // [Folia/Paper API] Replaced BukkitRunnable with GlobalRegionScheduler for Folia compatibility
+        // BukkitRunnable task = new BukkitRunnable() {
+        //     @Override
+        //     public void run() {
+        //         List<Material> items = ShopDataManager.getItemsInCategory(rule.category());
+        //         int count = 0;
+        //         for (Material mat : items) {
+        //             ShopDataManager.setStockDirect(mat, rule.targetStock());
+        //             count++;
+        //         }
+        //         Bukkit.getLogger().info("[DynamicShop] Restocked " + count + " items in "
+        //                 + rule.category().getDisplayName() + " to " + (int) rule.targetStock());
+        //     }
+        // };
+        // task.runTaskTimer(plugin, rule.intervalTicks(), rule.intervalTicks());
+        // timers.add(task);
+
+        ScheduledTask task = plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(plugin, scheduledTask -> {
+            List<Material> items = ShopDataManager.getItemsInCategory(rule.category());
+            int count = 0;
+            for (Material mat : items) {
+                ShopDataManager.setStockDirect(mat, rule.targetStock());
+                count++;
             }
-        };
-        task.runTaskTimer(plugin, rule.intervalTicks(), rule.intervalTicks());
+            Bukkit.getLogger().info("[DynamicShop] Restocked " + count + " items in "
+                    + rule.category().getDisplayName() + " to " + (int) rule.targetStock());
+        }, rule.intervalTicks(), rule.intervalTicks());
         timers.add(task);
     }
 
     public void shutdown() {
-        for (BukkitRunnable timer : timers) {
+        // [Folia/Paper API] Replaced BukkitRunnable with ScheduledTask
+        // for (BukkitRunnable timer : timers) {
+        //     if (!timer.isCancelled()) {
+        //         timer.cancel();
+        //     }
+        // }
+        for (ScheduledTask timer : timers) {
             if (!timer.isCancelled()) {
                 timer.cancel();
             }

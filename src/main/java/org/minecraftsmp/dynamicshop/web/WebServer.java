@@ -233,9 +233,9 @@ public class WebServer {
     }
 
     /** Extracts version from markers in three comment styles:
-     *  HTML: {@code <!-- DS-WEB-VERSION: 2.5.3 -->}
-     *  CSS:  {@code /* DS-WEB-VERSION: 2.5.3 * /}
-     *  JS:   {@code // DS-WEB-VERSION: 2.5.3}
+     * HTML: {@code }
+     * CSS:  {@code /* DS-WEB-VERSION: 2.5.3 * /}
+     * JS:   {@code // DS-WEB-VERSION: 2.5.3}
      */
     private String parseVersionMarker(String line) {
         if (line == null) return null;
@@ -1029,7 +1029,7 @@ public class WebServer {
     /**
      * POST /api/admin/item/{item}
      * Update item properties. Accepts JSON body with optional fields:
-     *   basePrice, stock, stockRate, shortageHours, buyDisabled, sellDisabled, disabled, category
+     * basePrice, stock, stockRate, shortageHours, buyDisabled, sellDisabled, disabled, category
      */
     private void handleAdminItemUpdate(Context ctx) {
         if (ctx.statusCode() == 401) return;
@@ -1049,8 +1049,10 @@ public class WebServer {
             return;
         }
 
-        // Apply changes on main thread for thread safety
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // Apply changes safely on GlobalRegionScheduler for Folia
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             boolean isDisabled = false;
             if (body.containsKey("disabled")) {
                 isDisabled = (Boolean) body.get("disabled");
@@ -1139,7 +1141,9 @@ public class WebServer {
              }
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             for (Material mat : materialsToUpdate) {
                 if (updates.containsKey("disabled")) {
                     ShopDataManager.setItemDisabled(mat, (Boolean) updates.get("disabled"));
@@ -1229,7 +1233,9 @@ public class WebServer {
             return;
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             if (body.containsKey("dynamicPricingEnabled")) {
                 boolean val = (Boolean) body.get("dynamicPricingEnabled");
                 plugin.getConfig().set("dynamic-pricing.enabled", val);
@@ -1387,7 +1393,9 @@ public class WebServer {
     private void handleAdminResetShortage(Context ctx) {
         if (ctx.statusCode() == 401) return;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             ShopDataManager.resetAllShortageData();
         });
         auditLog.log(getAdminUsername(ctx), "shortage_reset", "ALL", "All shortage data reset");
@@ -1407,7 +1415,9 @@ public class WebServer {
             return;
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             ShopDataManager.setHoursInShortage(mat, 0.0);
             ShopDataManager.setLastUpdate(mat, System.currentTimeMillis());
             ShopDataManager.saveDynamicData();
@@ -1424,7 +1434,9 @@ public class WebServer {
     private void handleAdminReload(Context ctx) {
         if (ctx.statusCode() == 401) return;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             plugin.reload();
         });
 
@@ -1540,7 +1552,9 @@ public class WebServer {
             return;
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             boolean categoryChanged = false;
             
             if (body.containsKey("slot")) {
@@ -1641,7 +1655,9 @@ public class WebServer {
         }
         final ItemCategory finalCat = catOverride;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             ShopDataManager.setBasePrice(mat, basePrice);
             ShopDataManager.setStockDirect(mat, 0);
             if (finalCat != null) ShopDataManager.setCategoryOverride(mat, finalCat);
@@ -1665,7 +1681,9 @@ public class WebServer {
             ctx.status(404).json(Map.of("error", "Item not in shop"));
             return;
         }
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             ShopDataManager.setItemDisabled(mat, true);
             ShopDataManager.saveDynamicData();
             invalidateShopItemsCache();
@@ -1753,7 +1771,9 @@ public class WebServer {
         }
 
         final Material finalMat = displayMat;
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             if ("group".equalsIgnoreCase(type)) {
                 String group = (String) body.get("group");
                 String groupWorld = (String) body.get("groupWorld");
@@ -1797,7 +1817,9 @@ public class WebServer {
         try { body = ctx.bodyAsClass(Map.class); }
         catch (Exception e) { ctx.status(400).json(Map.of("error", "Invalid JSON")); return; }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        plugin.getServer().getGlobalRegionScheduler().run(plugin, task -> {
             if (body.containsKey("price")) {
                 double price = ((Number) body.get("price")).doubleValue();
                 plugin.getSpecialShopManager().updateItemPrice(id, price);
@@ -1845,7 +1867,10 @@ public class WebServer {
             ctx.status(404).json(Map.of("error", "Listing not found: " + id));
             return;
         }
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, this::invalidateShopItemsCache);
+        // [Folia/Paper API] Replaced runTaskAsynchronously with AsyncScheduler
+        // Bukkit.getScheduler().runTaskAsynchronously(plugin, this::invalidateShopItemsCache);
+        plugin.getServer().getAsyncScheduler().runNow(plugin, task -> this.invalidateShopItemsCache());
+        
         auditLog.log(getAdminUsername(ctx), "playershop_delete", id, "Admin deleted player shop listing: " + id);
         ctx.json(Map.of("success", true));
     }

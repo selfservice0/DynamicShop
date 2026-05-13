@@ -209,11 +209,20 @@ public class AdminCategoryEditGUI {
                     }
 
                     // Reopen GUI with a NEW instance to avoid stale onClose handler
-                    Bukkit.getScheduler().runTask(plugin, () -> {
+                    
+                    // [Folia/Paper API] Commented out the old Bukkit scheduler to prevent Folia crashes
+                    // Bukkit.getScheduler().runTask(plugin, () -> {
+                    //     AdminCategoryEditGUI newGUI = new AdminCategoryEditGUI(plugin, player, category, parentGUI);
+                    //     plugin.getShopListener().registerAdminCategoryEdit(player, newGUI);
+                    //     newGUI.open();
+                    // });
+
+                    // [Folia/Paper API] Use Paper's EntityScheduler which is fully compatible with Folia for GUI tasks
+                    player.getScheduler().run(plugin, task -> {
                         AdminCategoryEditGUI newGUI = new AdminCategoryEditGUI(plugin, player, category, parentGUI);
                         plugin.getShopListener().registerAdminCategoryEdit(player, newGUI);
                         newGUI.open();
-                    });
+                    }, null);
                 });
     }
 

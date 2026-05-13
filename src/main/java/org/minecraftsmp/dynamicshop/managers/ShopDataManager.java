@@ -4,7 +4,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.scheduler.BukkitRunnable;
+// [Folia/Paper API] Commented out old BukkitRunnable import
+// import org.bukkit.scheduler.BukkitRunnable;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 
@@ -56,8 +58,11 @@ public class ShopDataManager {
     private static File shopDataFile;
     private static YamlConfiguration shopDataConfig;
 
-    public static BukkitRunnable saveTimer;
-    private static BukkitRunnable shortageTicker;
+    // [Folia/Paper API] Replaced BukkitRunnable with ScheduledTask
+    // public static BukkitRunnable saveTimer;
+    // private static BukkitRunnable shortageTicker;
+    public static ScheduledTask saveTimer;
+    private static ScheduledTask shortageTicker;
 
     // ------------------------------------------------------------------------
     // INIT
@@ -79,14 +84,19 @@ public class ShopDataManager {
 
         if (ConfigCacheManager.crossServerEnabled) {
             if (saveTimer == null || saveTimer.isCancelled()) {
-                saveTimer = new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        saveQueuedItems();
-                    }
-                };
+                // [Folia/Paper API] Replaced BukkitRunnable with GlobalRegionScheduler
+                // saveTimer = new BukkitRunnable() {
+                //     @Override
+                //     public void run() {
+                //         saveQueuedItems();
+                //     }
+                // };
+                // int seconds = ConfigCacheManager.crossServerSaveInterval;
+                // saveTimer.runTaskTimer(plugin, seconds * 20L, seconds * 20L);
                 int seconds = ConfigCacheManager.crossServerSaveInterval;
-                saveTimer.runTaskTimer(plugin, seconds * 20L, seconds * 20L);
+                saveTimer = plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(plugin, task -> {
+                    saveQueuedItems();
+                }, seconds * 20L, seconds * 20L);
             }
         }
 
@@ -96,13 +106,17 @@ public class ShopDataManager {
         if (shortageTicker != null && !shortageTicker.isCancelled()) {
             shortageTicker.cancel();
         }
-        shortageTicker = new BukkitRunnable() {
-            @Override
-            public void run() {
-                tickAllShortage();
-            }
-        };
-        shortageTicker.runTaskTimer(plugin, 72000L, 72000L); // 1 hour = 72000 ticks
+        // [Folia/Paper API] Replaced BukkitRunnable with GlobalRegionScheduler
+        // shortageTicker = new BukkitRunnable() {
+        //     @Override
+        //     public void run() {
+        //         tickAllShortage();
+        //     }
+        // };
+        // shortageTicker.runTaskTimer(plugin, 72000L, 72000L); // 1 hour = 72000 ticks
+        shortageTicker = plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(plugin, task -> {
+            tickAllShortage();
+        }, 72000L, 72000L); // 1 hour = 72000 ticks
     }
 
     public static void reload() {
@@ -1063,12 +1077,12 @@ public class ShopDataManager {
     /**
      * Calculates the total hours this item has been in a shortage (stock <= 0).
      * Returns: Stored Accumulated Hours + Live Current Duration (if stock <= 0)
-     *          OR Stored Hours - Decay (if stock > 0)
+     * OR Stored Hours - Decay (if stock > 0)
      *
      * When stock is positive, shortage hours decay over time proportional to
      * how close the stock is to max-stock:
-     *   decayRate = configuredRate * (stock / maxStock)
-     *   effectiveHours = storedHours - (decayRate * timeSinceLastUpdate)
+     * decayRate = configuredRate * (stock / maxStock)
+     * effectiveHours = storedHours - (decayRate * timeSinceLastUpdate)
      */
     public static double getHoursInShortage(Material mat) {
         double stored = shortageHoursMap.getOrDefault(mat, 0.0);

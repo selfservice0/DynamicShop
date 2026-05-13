@@ -20,6 +20,7 @@ import java.util.logging.Level;
  */
 public class UpdateChecker implements Listener {
 
+
     private static final String GITHUB_API_URL =
             "https://api.github.com/repos/selfservice0/DynamicShop/releases/latest";
 
@@ -35,7 +36,11 @@ public class UpdateChecker implements Listener {
      * Kick off an async check against the GitHub releases API.
      */
     public void check() {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        // [Folia/Paper API] remove Bukkit Scheduler
+        // Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        
+        // [Folia/Paper API] Use Paper API AsyncScheduler
+        Bukkit.getAsyncScheduler().runNow(plugin, task -> {
             try {
                 URL url = URI.create(GITHUB_API_URL).toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -77,6 +82,7 @@ public class UpdateChecker implements Listener {
                     updateAvailable = true;
                     plugin.getLogger().info("§e[UpdateChecker] A new version is available: §a" + latestVersion
                             + " §e(you are running §c" + currentVersion + "§e)");
+                    
                     plugin.getLogger().info("§e[UpdateChecker] Download: https://github.com/selfservice0/DynamicShop/releases/latest");
                 } else {
                     plugin.getLogger().info("[UpdateChecker] You are running the latest version (" + currentVersion + ").");
@@ -99,14 +105,26 @@ public class UpdateChecker implements Listener {
         if (!player.isOp()) return;
 
         // Delay the message so it doesn't get buried in join spam
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        // [Folia/Paper API] Remove Bukkit Scheduler
+        // Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        //     if (player.isOnline()) {
+        //         String currentVersion = plugin.getDescription().getVersion();
+        //         player.sendMessage("§e[DynamicShop] §fA new version is available: §a" + latestVersion
+        //                 + " §f(you are running §c" + currentVersion + "§f)");
+        //         player.sendMessage("§e[DynamicShop] §fDownload: §bhttps://github.com/selfservice0/DynamicShop/releases/latest");
+        //     }
+        // }, 60L); // 3 second delay
+        
+        // [Folia/Paper API] Use Paper API EntityScheduler
+        player.getScheduler().runDelayed(plugin, task -> {
             if (player.isOnline()) {
                 String currentVersion = plugin.getDescription().getVersion();
                 player.sendMessage("§e[DynamicShop] §fA new version is available: §a" + latestVersion
                         + " §f(you are running §c" + currentVersion + "§f)");
+                        
                 player.sendMessage("§e[DynamicShop] §fDownload: §bhttps://github.com/selfservice0/DynamicShop/releases/latest");
             }
-        }, 60L); // 3 second delay
+        }, null, 60L); // 3 second delay (60 ticks)
     }
 
     /**

@@ -1,6 +1,10 @@
 package org.minecraftsmp.dynamicshop.transactions;
 
-import org.bukkit.scheduler.BukkitTask;
+// [Folia/Paper API] Commented out old BukkitTask import
+// import org.bukkit.scheduler.BukkitTask;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import java.util.concurrent.TimeUnit;
+
 import org.minecraftsmp.dynamicshop.DynamicShop;
 
 import java.io.*;
@@ -23,7 +27,9 @@ public class TransactionLogger {
             new java.util.concurrent.ConcurrentLinkedQueue<>();
 
     // Batch update system - writes to disk periodically
-    private BukkitTask periodicTask = null;
+    // [Folia/Paper API] Replaced BukkitTask with ScheduledTask
+    // private BukkitTask periodicTask = null;
+    private ScheduledTask periodicTask = null;
 
     public TransactionLogger(DynamicShop plugin) {
         this.plugin = plugin;
@@ -63,9 +69,13 @@ public class TransactionLogger {
             periodicTask.cancel();
         }
 
-        periodicTask = plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with AsyncScheduler
+        // periodicTask = plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+        //     flushPendingWrites();
+        // }, 100L, 100L); // Every 5 seconds (100 ticks)
+        periodicTask = plugin.getServer().getAsyncScheduler().runAtFixedRate(plugin, task -> {
             flushPendingWrites();
-        }, 100L, 100L); // Every 5 seconds (100 ticks)
+        }, 5000L, 5000L, TimeUnit.MILLISECONDS);
     }
 
     /**

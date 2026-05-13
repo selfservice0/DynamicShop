@@ -573,7 +573,9 @@ public class ShopListener implements Listener {
         if (gui instanceof SearchResultsGUI)
             ((SearchResultsGUI) gui).render();
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
+        // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler for delayed player updates
+        // Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
+        p.getScheduler().runDelayed(plugin, task -> updateSingleItemLore(p, mat), null, 3L);
     }
 
     // ------------------------------------------------------------------
@@ -677,7 +679,9 @@ public class ShopListener implements Listener {
         if (gui instanceof SearchResultsGUI)
             ((SearchResultsGUI) gui).render();
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
+        // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler for delayed player updates
+        // Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
+        p.getScheduler().runDelayed(plugin, task -> updateSingleItemLore(p, mat), null, 3L);
     }
 
     // ------------------------------------------------------------------
@@ -691,7 +695,17 @@ public class ShopListener implements Listener {
         if (!openShop.containsKey(player) && !openSearch.containsKey(player))
             return;
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler for protocol packet sending
+        // Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        //     try {
+        //         com.comphenix.protocol.ProtocolManager pm = com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
+        //         ...
+        //     } catch (Exception ex) {
+        //         plugin.getLogger().warning("Failed to send fake inventory lore: " + ex.getMessage());
+        //         ex.printStackTrace();
+        //     }
+        // }, delay);
+        player.getScheduler().runDelayed(plugin, task -> {
             try {
                 com.comphenix.protocol.ProtocolManager pm = com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
 
@@ -714,7 +728,7 @@ public class ShopListener implements Listener {
                 plugin.getLogger().warning("Failed to send fake inventory lore: " + ex.getMessage());
                 ex.printStackTrace();
             }
-        }, delay);
+        }, null, delay);
     }
 
     // ------------------------------------------------------------------
@@ -847,9 +861,13 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     private void clearFakeInventoryLore(Player player) {
         // Force update all inventory slots to remove fake packet-based lore
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler to safely update player inventory
+        // Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        //     player.updateInventory();
+        // }, 1L);
+        player.getScheduler().runDelayed(plugin, task -> {
             player.updateInventory();
-        }, 1L);
+        }, null, 1L);
     }
 
     // ------------------------------------------------------------------

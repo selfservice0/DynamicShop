@@ -329,8 +329,7 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     /**
      * Remove a special item by its ID.
-     * 
-     * @param id The ID of the item to remove
+     * * @param id The ID of the item to remove
      * @return true if removed, false if not found
      */
     public boolean removeSpecialItem(String id) {
@@ -442,8 +441,13 @@ public class SpecialShopManager {
                     cmd = cmd.replace("{player}", p.getName())
                              .replace("{uuid}", p.getUniqueId().toString());
                     final String finalCmd = cmd;
-                    Bukkit.getScheduler().runTask(plugin, () ->
+
+                    // [Folia/Paper API] Replaced Bukkit Scheduler with GlobalRegionScheduler for dispatching console commands safely
+                    // Bukkit.getScheduler().runTask(plugin, () ->
+                    //         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCmd));
+                    plugin.getServer().getGlobalRegionScheduler().run(plugin, task ->
                             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCmd));
+
                     p.sendMessage("§a✔ §7" + item.getName() + " §aapplied!");
                     Transaction tx = Transaction.now(p.getName(), Transaction.TransactionType.BUY,
                             "CMD:" + item.getId(), 1, price, "PERMISSIONS", "command=" + item.getCommandOnPurchase());

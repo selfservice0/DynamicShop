@@ -41,8 +41,7 @@ public class ChatInputListener implements Listener {
 
     /**
      * Request generic text input from a player with a callback
-     * 
-     * @param player   The player to request input from
+     * * @param player   The player to request input from
      * @param prompt   The prompt message to show
      * @param hint     Optional hint message (can be null)
      * @param callback Called with the input text (null if cancelled)
@@ -136,11 +135,15 @@ public class ChatInputListener implements Listener {
 
             if (input.equalsIgnoreCase("cancel")) {
                 player.sendMessage("§c[DynamicShop] §fCancelled.");
-                Bukkit.getScheduler().runTask(plugin, () -> genericPending.callback.accept(null));
+                // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler to safely return to the player's region thread
+                // Bukkit.getScheduler().runTask(plugin, () -> genericPending.callback.accept(null));
+                player.getScheduler().run(plugin, task -> genericPending.callback.accept(null), null);
                 return;
             }
 
-            Bukkit.getScheduler().runTask(plugin, () -> genericPending.callback.accept(input));
+            // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler
+            // Bukkit.getScheduler().runTask(plugin, () -> genericPending.callback.accept(input));
+            player.getScheduler().run(plugin, task -> genericPending.callback.accept(input), null);
             return;
         }
 
@@ -183,12 +186,19 @@ public class ChatInputListener implements Listener {
     }
 
     private void reopenCategoryGUI(Player player, PendingCategoryInput pending) {
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // [Folia/Paper API] Replaced Bukkit Scheduler with EntityScheduler for GUI operations
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        //     AdminCategoryEditGUI editGUI = new AdminCategoryEditGUI(plugin, player, pending.category,
+        //             pending.parentGUI);
+        //     plugin.getShopListener().registerAdminCategoryEdit(player, editGUI);
+        //     editGUI.open();
+        // });
+        player.getScheduler().run(plugin, task -> {
             AdminCategoryEditGUI editGUI = new AdminCategoryEditGUI(plugin, player, pending.category,
                     pending.parentGUI);
             plugin.getShopListener().registerAdminCategoryEdit(player, editGUI);
             editGUI.open();
-        });
+        }, null);
     }
 
     @EventHandler

@@ -7,11 +7,11 @@
 
     <groupId>org.minecraftsmp</groupId>
     <artifactId>DynamicShop</artifactId>
-    <version>2.5.8</version>
+    <version>2.5.8-folia_(BETA-0.1)</version>
     <packaging>jar</packaging>
 
-    <name>DynamicShop</name>
-    <description>Dynamic economy shop plugin for Paper/Spigot</description>
+    <name>DynamicShop_folia_Support</name>
+    <description>Dynamic economy shop plugin for Paper/Spigot/folia</description>
 
     <properties>
         <java.version>21</java.version>

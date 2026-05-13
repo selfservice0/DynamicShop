@@ -55,7 +55,9 @@ public class WebAdminAuditLog {
         }
 
         // Save async
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::save);
+        // [Folia/Paper API] Replaced Bukkit Scheduler with AsyncScheduler
+        // plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::save);
+        plugin.getServer().getAsyncScheduler().runNow(plugin, task -> this.save());
 
         plugin.getLogger().info("[WebAdmin Audit] " + user + " | " + action + " | " + target + " | " + details);
     }

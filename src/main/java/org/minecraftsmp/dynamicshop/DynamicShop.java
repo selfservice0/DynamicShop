@@ -16,7 +16,7 @@ import org.minecraftsmp.dynamicshop.listeners.PlayerShopListener;
 import org.bstats.bukkit.Metrics;
 
 public class DynamicShop extends JavaPlugin {
-
+    // :3
     // bStats plugin ID - get yours from https://bstats.org
     private static final int BSTATS_PLUGIN_ID = 28506;
 
@@ -46,6 +46,8 @@ public class DynamicShop extends JavaPlugin {
 
         saveDefaultConfig();
 
+        // [Folia/Paper API] Added a cute startup message just for fun! (✿◠‿◠)
+        getLogger().info("§d(✿◠‿◠) DynamicShop is ready to shine on Folia!");
         getLogger().info("§aDynamicShop is enabling...");
 
         // --------------------------------------------------------------------
