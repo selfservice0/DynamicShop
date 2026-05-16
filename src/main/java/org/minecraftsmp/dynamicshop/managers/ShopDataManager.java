@@ -32,11 +32,17 @@ public class ShopDataManager {
 
     public static final Map<Material, ShopItemConfig> itemConfigs = new ConcurrentHashMap<>();
 
-    // dynamic data
+    // dynamic data (keyed by Material for regular items)
     static final Map<Material, Double> stockMap = new ConcurrentHashMap<>();
     private static final Map<Material, Double> purchasesMap = new ConcurrentHashMap<>();
     private static final Map<Material, Long> lastUpdateMap = new ConcurrentHashMap<>();
     private static final Map<Material, Double> shortageHoursMap = new ConcurrentHashMap<>();
+
+    // dynamic data for stored_item variants (keyed by variant ID string)
+    static final Map<String, Double> variantStockMap = new ConcurrentHashMap<>();
+    private static final Map<String, Double> variantPurchasesMap = new ConcurrentHashMap<>();
+    private static final Map<String, Long> variantLastUpdateMap = new ConcurrentHashMap<>();
+    private static final Map<String, Double> variantShortageHoursMap = new ConcurrentHashMap<>();
 
     // cached category mapping
     private static final Map<Material, ItemCategory> categoryCache = new ConcurrentHashMap<>();
@@ -57,6 +63,7 @@ public class ShopDataManager {
     // Save queue
     // which items need to be written to YAML
     private static final Set<Material> saveQueue = ConcurrentHashMap.newKeySet();
+    private static final Set<String> variantSaveQueue = ConcurrentHashMap.newKeySet();
 
     private static DynamicShop plugin;
 
@@ -299,6 +306,105 @@ public class ShopDataManager {
     }
 
     // ------------------------------------------------------------------------
+    // VARIANT DYNAMIC DATA (independent stock/inflation per stored_item variant)
+    // ------------------------------------------------------------------------
+
+    public static double getVariantStock(String variantId) {
+        return variantStockMap.getOrDefault(variantId, 0.0);
+    }
+
+    public static void setVariantStock(String variantId, double stock) {
+        accumulateVariantShortage(variantId);
+        variantStockMap.put(variantId, stock);
+        variantLastUpdateMap.put(variantId, System.currentTimeMillis());
+        markVariantDirty(variantId);
+    }
+
+    public static double getVariantShortageHours(String variantId) {
+        double stored = variantShortageHoursMap.getOrDefault(variantId, 0.0);
+        double stock = variantStockMap.getOrDefault(variantId, 0.0);
+
+        if (stock <= 0) {
+            long diff = System.currentTimeMillis() - variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis());
+            stored += (diff / 3600000.0);
+        } else if (stored > 0) {
+            double decayRate = ConfigCacheManager.shortageDecayPercentPerHour;
+            if (decayRate > 0) {
+                double L = ConfigCacheManager.maxStock;
+                double stockRatio = Math.min(stock / L, 1.0);
+                long diff = System.currentTimeMillis() - variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis());
+                double hoursSinceUpdate = diff / 3600000.0;
+                double decay = decayRate * stockRatio * hoursSinceUpdate;
+                stored = Math.max(0.0, stored - decay);
+            }
+        }
+        return stored;
+    }
+
+    public static void setVariantShortageHours(String variantId, double hours) {
+        variantShortageHoursMap.put(variantId, hours);
+        markVariantDirty(variantId);
+    }
+
+    public static void setVariantLastUpdate(String variantId, long time) {
+        variantLastUpdateMap.put(variantId, time);
+        markVariantDirty(variantId);
+    }
+
+    /**
+     * Get the inflation multiplier for a variant based on its own shortage hours.
+     */
+    public static double getVariantInflationMultiplier(String variantId) {
+        double hours = getVariantShortageHours(variantId);
+        if (hours <= 0) return 1.0;
+        double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+        double multiplier = Math.pow(1.0 + hourlyRate, hours);
+        return Math.min(multiplier, ConfigCacheManager.maxPriceMultiplier);
+    }
+
+    public static boolean hasVariantData(String variantId) {
+        return variantStockMap.containsKey(variantId)
+                || variantPurchasesMap.containsKey(variantId)
+                || variantLastUpdateMap.containsKey(variantId)
+                || variantShortageHoursMap.containsKey(variantId);
+    }
+
+    public static void initializeVariantData(String variantId, Material baseMat) {
+        if (variantId == null || hasVariantData(variantId)) {
+            return;
+        }
+
+        variantStockMap.put(variantId, 0.0);
+        variantPurchasesMap.put(variantId, 0.0);
+        variantLastUpdateMap.put(variantId, System.currentTimeMillis());
+        variantShortageHoursMap.put(variantId, 0.0);
+        markVariantDirty(variantId);
+    }
+
+    /**
+     * Update variant stock after a buy/sell transaction.
+     */
+    public static void updateVariantStock(String variantId, double delta) {
+        if (variantId == null) {
+            return;
+        }
+        double oldStock = variantStockMap.getOrDefault(variantId, 0.0);
+        double newStock = oldStock + delta;
+
+        // Accumulate shortage before changing stock
+        accumulateVariantShortage(variantId);
+        long now = System.currentTimeMillis();
+        variantStockMap.put(variantId, newStock);
+        variantLastUpdateMap.put(variantId, now);
+
+        if (delta < 0) {
+            variantPurchasesMap.put(variantId, variantPurchasesMap.getOrDefault(variantId, 0.0) + Math.abs(delta));
+        }
+
+        markVariantDirty(variantId);
+    }
+
+    // ------------------------------------------------------------------------
     // BASE PRICE ACCESS
     // ------------------------------------------------------------------------
     public static double getBasePrice(Material mat) {
@@ -359,6 +465,18 @@ public class ShopDataManager {
         return currentStock - amount >= minLimit;
     }
 
+    public static boolean canBuyVariant(String variantId, Material mat, int amount) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null || cfg.disableBuy)
+            return false;
+
+        double currentStock = getVariantStock(variantId);
+        double minLimit = cfg.minStockStorage != null ? cfg.minStockStorage
+                : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
+
+        return currentStock - amount >= minLimit;
+    }
+
     public static boolean canSell(Material mat, int amount) {
         ShopItemConfig cfg = itemConfigs.get(mat);
         if (cfg == null || cfg.basePrice < 0)
@@ -368,6 +486,17 @@ public class ShopDataManager {
 
         // Check max stock storage
         double currentStock = getStock(mat);
+        double maxLimit = cfg.maxStockStorage != null ? cfg.maxStockStorage : Double.MAX_VALUE;
+
+        return currentStock + amount <= maxLimit;
+    }
+
+    public static boolean canSellVariant(String variantId, Material mat, int amount) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null || cfg.disableSell)
+            return false;
+
+        double currentStock = getVariantStock(variantId);
         double maxLimit = cfg.maxStockStorage != null ? cfg.maxStockStorage : Double.MAX_VALUE;
 
         return currentStock + amount <= maxLimit;
@@ -394,6 +523,22 @@ public class ShopDataManager {
         return (int) Math.max(0, maxBuy);
     }
 
+    public static int getVariantBuyLimit(String variantId, Material mat) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null)
+            return 0;
+
+        double currentStock = getVariantStock(variantId);
+        double minLimit = cfg.minStockStorage != null ? cfg.minStockStorage
+                : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
+
+        if (minLimit == -Double.MAX_VALUE)
+            return Integer.MAX_VALUE;
+
+        double maxBuy = currentStock - minLimit;
+        return (int) Math.max(0, maxBuy);
+    }
+
     /**
      * Get the maximum amount that can be sold given current stock limits.
      * Returns Integer.MAX_VALUE if no limit.
@@ -410,6 +555,21 @@ public class ShopDataManager {
             return Integer.MAX_VALUE;
 
         // maxSell = max - current
+        double maxSell = maxLimit - currentStock;
+        return (int) Math.max(0, maxSell);
+    }
+
+    public static int getVariantSellLimit(String variantId, Material mat) {
+        ShopItemConfig cfg = itemConfigs.get(mat);
+        if (cfg == null)
+            return 0;
+
+        double currentStock = getVariantStock(variantId);
+        double maxLimit = cfg.maxStockStorage != null ? cfg.maxStockStorage : Double.MAX_VALUE;
+
+        if (maxLimit == Double.MAX_VALUE)
+            return Integer.MAX_VALUE;
+
         double maxSell = maxLimit - currentStock;
         return (int) Math.max(0, maxSell);
     }
@@ -482,6 +642,60 @@ public class ShopDataManager {
         double b = s0 + amount;
 
         double total = computeClampedIntegral(B, a, b, L, minStock, k, q, t);
+
+        return Math.max(0.0, total * (1.0 - tax));
+    }
+
+    public static double getTotalVariantBuyCost(String variantId, Material baseMat, double basePrice, double amount) {
+        ShopItemConfig cfg = itemConfigs.get(baseMat);
+        if (variantId == null || cfg == null || basePrice < 0)
+            return -1.0;
+
+        if (!ConfigCacheManager.dynamicPricingEnabled) {
+            return basePrice * amount;
+        }
+
+        double s0 = getVariantStock(variantId);
+        double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
+        double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
+        double k = ConfigCacheManager.curveStrength;
+        double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
+        double q = 1.0 + negPercent;
+        double hourlyIncrease = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+        double h = getVariantShortageHours(variantId);
+        double t = Math.pow(1.0 + hourlyIncrease, h);
+
+        double a = s0 - amount;
+        double b = s0;
+
+        return computeClampedIntegral(basePrice, a, b, L, minStock, k, q, t);
+    }
+
+    public static double getTotalVariantSellValue(String variantId, Material baseMat, double basePrice, int amount) {
+        ShopItemConfig cfg = itemConfigs.get(baseMat);
+        if (variantId == null || cfg == null || basePrice < 0)
+            return -1.0;
+
+        double tax = ConfigCacheManager.sellTaxPercent;
+
+        if (!ConfigCacheManager.dynamicPricingEnabled) {
+            return basePrice * amount * (1.0 - tax);
+        }
+
+        double s0 = getVariantStock(variantId);
+        double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
+        double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
+        double k = ConfigCacheManager.curveStrength;
+        double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
+        double q = 1.0 + negPercent;
+        double hourlyIncrease = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+        double h = getVariantShortageHours(variantId);
+        double t = Math.pow(1.0 + hourlyIncrease, h);
+
+        double a = s0;
+        double b = s0 + amount;
+
+        double total = computeClampedIntegral(basePrice, a, b, L, minStock, k, q, t);
 
         return Math.max(0.0, total * (1.0 - tax));
     }
@@ -1043,6 +1257,21 @@ public class ShopDataManager {
             sec.set("shortage_hours", shortageHoursMap.getOrDefault(mat, 0.0));
         }
 
+        // Save variant dynamic data
+        ConfigurationSection variantsSec = shopDataConfig.getConfigurationSection("variants");
+        if (variantsSec == null) {
+            variantsSec = shopDataConfig.createSection("variants");
+        }
+        for (String variantId : variantStockMap.keySet()) {
+            ConfigurationSection sec = variantsSec.getConfigurationSection(variantId);
+            if (sec == null) sec = variantsSec.createSection(variantId);
+            sec.set("stock", variantStockMap.getOrDefault(variantId, 0.0));
+            sec.set("purchases", variantPurchasesMap.getOrDefault(variantId, 0.0));
+            sec.set("last_update", variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis()));
+            sec.set("shortage_hours", variantShortageHoursMap.getOrDefault(variantId, 0.0));
+        }
+        variantSaveQueue.clear();
+
         try {
             shopDataConfig.save(shopDataFile);
         } catch (IOException e) {
@@ -1051,7 +1280,7 @@ public class ShopDataManager {
     }
 
     public static void saveQueuedItems() {
-        if (saveQueue.isEmpty())
+        if (saveQueue.isEmpty() && variantSaveQueue.isEmpty())
             return;
 
         ConfigurationSection itemsSec = shopDataConfig.getConfigurationSection("items");
@@ -1076,8 +1305,26 @@ public class ShopDataManager {
             sec.set("shortage_hours", shortageHoursMap.getOrDefault(mat, 0.0));
         }
 
+        ConfigurationSection variantsSec = shopDataConfig.getConfigurationSection("variants");
+        if (variantsSec == null) {
+            variantsSec = shopDataConfig.createSection("variants");
+        }
+        Set<String> variantsToSave = new HashSet<>(variantSaveQueue);
+        for (String variantId : variantsToSave) {
+            ConfigurationSection sec = variantsSec.getConfigurationSection(variantId);
+            if (sec == null) {
+                sec = variantsSec.createSection(variantId);
+            }
+
+            sec.set("stock", variantStockMap.getOrDefault(variantId, 0.0));
+            sec.set("purchases", variantPurchasesMap.getOrDefault(variantId, 0.0));
+            sec.set("last_update", variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis()));
+            sec.set("shortage_hours", variantShortageHoursMap.getOrDefault(variantId, 0.0));
+        }
+
         // Now clear the ones we just saved
         saveQueue.removeAll(toSave);
+        variantSaveQueue.removeAll(variantsToSave);
 
         try {
             shopDataConfig.save(shopDataFile);
@@ -1094,6 +1341,10 @@ public class ShopDataManager {
         purchasesMap.clear();
         lastUpdateMap.clear();
         shortageHoursMap.clear();
+        variantStockMap.clear();
+        variantPurchasesMap.clear();
+        variantLastUpdateMap.clear();
+        variantShortageHoursMap.clear();
 
         if (!shopDataFile.exists()) {
             plugin.getLogger().info("§e[ShopData] No shopdata.yml found — starting fresh.");
@@ -1172,12 +1423,54 @@ public class ShopDataManager {
             shortageHoursMap.put(mat, shortageHours);
         }
 
+        // Load variant dynamic data
+        ConfigurationSection variantsSec = shopDataConfig.getConfigurationSection("variants");
+        if (variantsSec != null) {
+            for (String variantId : variantsSec.getKeys(false)) {
+                ConfigurationSection sec = variantsSec.getConfigurationSection(variantId);
+                if (sec == null) continue;
+                variantStockMap.put(variantId, sec.getDouble("stock", 0.0));
+                variantPurchasesMap.put(variantId, sec.getDouble("purchases", 0.0));
+                variantLastUpdateMap.put(variantId, sec.getLong("last_update", now));
+                variantShortageHoursMap.put(variantId, sec.getDouble("shortage_hours", 0.0));
+            }
+        }
+
+        initializeMissingStoredItemVariants();
+
         // Cleanup old root-level sections (migrated into items.*)
         shopDataConfig.set("stock", null);
         shopDataConfig.set("last_update", null);
         shopDataConfig.set("purchases", null);
 
         saveDynamicData();
+    }
+
+    private static void initializeMissingStoredItemVariants() {
+        if (plugin == null || plugin.getConfig() == null) {
+            return;
+        }
+
+        ConfigurationSection specialSec = plugin.getConfig().getConfigurationSection("special_items");
+        if (specialSec == null) {
+            return;
+        }
+
+        for (String variantId : specialSec.getKeys(false)) {
+            String basePath = "special_items." + variantId + ".";
+            String deliveryMethod = plugin.getConfig().getString(basePath + "delivery_method");
+            if (!"stored_item".equalsIgnoreCase(deliveryMethod) || hasVariantData(variantId)) {
+                continue;
+            }
+
+            String materialName = plugin.getConfig().getString(basePath + "material");
+            if (materialName == null || materialName.isEmpty()) {
+                materialName = plugin.getConfig().getString(basePath + "display_material");
+            }
+
+            Material baseMat = materialName != null ? Material.matchMaterial(materialName) : null;
+            initializeVariantData(variantId, baseMat);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -1255,6 +1548,31 @@ public class ShopDataManager {
         }
     }
 
+    private static void accumulateVariantShortage(String variantId) {
+        if (variantId == null) {
+            return;
+        }
+
+        double stored = variantShortageHoursMap.getOrDefault(variantId, 0.0);
+        double stock = getVariantStock(variantId);
+        long now = System.currentTimeMillis();
+        long last = variantLastUpdateMap.getOrDefault(variantId, now);
+        double deltaHours = (now - last) / 3600000.0;
+
+        if (stock <= 0) {
+            variantShortageHoursMap.put(variantId, stored + deltaHours);
+            markVariantDirty(variantId);
+        } else if (stored > 0) {
+            double decayRate = ConfigCacheManager.shortageDecayPercentPerHour;
+            if (decayRate > 0) {
+                double stockRatio = Math.min(stock / ConfigCacheManager.maxStock, 1.0);
+                double decay = decayRate * stockRatio * deltaHours;
+                variantShortageHoursMap.put(variantId, Math.max(0.0, stored - decay));
+                markVariantDirty(variantId);
+            }
+        }
+    }
+
     public static void setHoursInShortage(Material mat, double hours) {
         shortageHoursMap.put(mat, hours);
         markDirty(mat);
@@ -1272,6 +1590,10 @@ public class ShopDataManager {
             accumulateShortage(mat);
             lastUpdateMap.put(mat, now);
         }
+        for (String variantId : variantStockMap.keySet()) {
+            accumulateVariantShortage(variantId);
+            variantLastUpdateMap.put(variantId, now);
+        }
     }
 
     public static void addHoursInShortage(Material mat, double deltaHours) {
@@ -1285,11 +1607,16 @@ public class ShopDataManager {
 
     public static void resetAllShortageData() {
         shortageHoursMap.clear();
+        variantShortageHoursMap.clear();
         long now = System.currentTimeMillis();
         for (Material mat : itemConfigs.keySet()) {
             // Reset last update to now so "live" tracking doesn't jump
             lastUpdateMap.put(mat, now);
             markDirty(mat);
+        }
+        for (String variantId : variantStockMap.keySet()) {
+            variantLastUpdateMap.put(variantId, now);
+            markVariantDirty(variantId);
         }
         saveDynamicData();
     }
@@ -1331,6 +1658,12 @@ public class ShopDataManager {
     private static void markDirty(Material mat) {
         if (mat != null) {
             saveQueue.add(mat);
+        }
+    }
+
+    private static void markVariantDirty(String variantId) {
+        if (variantId != null && !variantId.isEmpty()) {
+            variantSaveQueue.add(variantId);
         }
     }
 
@@ -1406,6 +1739,12 @@ public class ShopDataManager {
             purchasesMap.put(mat, 0.0);
             lastUpdateMap.put(mat, System.currentTimeMillis());
             shortageHoursMap.put(mat, 0.0);
+        }
+        for (String variantId : variantStockMap.keySet()) {
+            variantStockMap.put(variantId, 0.0);
+            variantPurchasesMap.put(variantId, 0.0);
+            variantLastUpdateMap.put(variantId, System.currentTimeMillis());
+            variantShortageHoursMap.put(variantId, 0.0);
         }
 
         shopDataConfig.set("stock", null);

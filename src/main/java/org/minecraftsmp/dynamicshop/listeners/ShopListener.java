@@ -375,6 +375,7 @@ public class ShopListener implements Listener {
         Material mat = gui.getItemFromSlot(slot);
         ItemStack deliveryOverride = null; // For stored_item variants
         double variantBasePrice = -1; // -1 means use normal pricing
+        String variantId = null;
 
         // If no regular item found, check for stored_item variants in this category.
         // stored_item variants (e.g., custom disc variants of the same base material)
@@ -385,6 +386,8 @@ public class ShopListener implements Listener {
                     && "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
                 mat = sItem.getDisplayMaterial();
                 variantBasePrice = sItem.getPrice();
+                variantId = sItem.getId();
+                ShopDataManager.initializeVariantData(variantId, mat);
                 // Load the specific stored ItemStack so the correct variant is delivered
                 String configPath = "special_items." + sItem.getId() + ".stored_item";
                 deliveryOverride = plugin.getConfig().getItemStack(configPath);
@@ -406,7 +409,7 @@ public class ShopListener implements Listener {
         // Dialog-based buy/sell (configurable, Java edition only)
         if (ConfigCacheManager.useDialogGui) {
             p.closeInventory();
-            plugin.getShopDialogManager().openDialog(p, mat, gui, deliveryOverride, variantBasePrice);
+            plugin.getShopDialogManager().openDialog(p, mat, gui, deliveryOverride, variantBasePrice, variantId);
             return;
         }
 
@@ -417,7 +420,7 @@ public class ShopListener implements Listener {
             int has = 0;
             if (shift) {
                 for (ItemStack item : p.getInventory().getContents()) {
-                    if (item != null && item.getType() == mat && !isDamaged(item)) {
+                    if (isSellMatch(item, mat, deliveryOverride) && !isDamaged(item)) {
                         has += item.getAmount();
                     }
                 }
@@ -431,11 +434,11 @@ public class ShopListener implements Listener {
                 return;
             }
 
-            sellItem(p, mat, amount, gui);
+            sellItem(p, mat, amount, gui, deliveryOverride, variantBasePrice, variantId);
 
         } else {
             // BUY — pass delivery override for stored_item variants
-            buyItem(p, mat, amount, gui, deliveryOverride, variantBasePrice);
+            buyItem(p, mat, amount, gui, deliveryOverride, variantBasePrice, variantId);
         }
     }
 
@@ -498,14 +501,18 @@ public class ShopListener implements Listener {
     // BUY ACTION (CONTINUOUS PRICING)
     // ------------------------------------------------------------------
     public void buyItem(Player p, Material mat, int amount, Object gui) {
-        buyItem(p, mat, amount, gui, null, -1);
+        buyItem(p, mat, amount, gui, null, -1, null);
     }
 
     public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride) {
-        buyItem(p, mat, amount, gui, deliveryOverride, -1);
+        buyItem(p, mat, amount, gui, deliveryOverride, -1, null);
     }
 
     public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride, double variantBasePrice) {
+        buyItem(p, mat, amount, gui, deliveryOverride, variantBasePrice, null);
+    }
+
+    public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride, double variantBasePrice, String variantId) {
 
         if (ConfigCacheManager.transactionCooldownMs > 0 && !p.hasPermission("dynamicshop.bypass.cooldown")) {
             long now = System.currentTimeMillis();
@@ -532,8 +539,13 @@ public class ShopListener implements Listener {
         }
 
         if (!p.hasPermission("dynamicshop.bypass.stock")) {
-            if (!ShopDataManager.canBuy(mat, amount)) {
-                int limit = ShopDataManager.getBuyLimit(mat);
+            boolean canBuy = variantId != null
+                    ? ShopDataManager.canBuyVariant(variantId, mat, amount)
+                    : ShopDataManager.canBuy(mat, amount);
+            if (!canBuy) {
+                int limit = variantId != null
+                        ? ShopDataManager.getVariantBuyLimit(variantId, mat)
+                        : ShopDataManager.getBuyLimit(mat);
                 if (limit <= 0) {
                     p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
                     return;
@@ -548,12 +560,8 @@ public class ShopListener implements Listener {
         }
 
         double totalCost;
-        if (variantBasePrice > 0) {
-            // Stored_item variant: use its own base price with the material's inflation multiplier
-            double baseMatPrice = ShopDataManager.getBasePrice(mat);
-            double currentDynPrice = ShopDataManager.getTotalBuyCost(mat, 1);
-            double inflationMultiplier = baseMatPrice > 0 ? currentDynPrice / baseMatPrice : 1.0;
-            totalCost = variantBasePrice * inflationMultiplier * amount;
+        if (variantId != null && variantBasePrice > 0) {
+            totalCost = ShopDataManager.getTotalVariantBuyCost(variantId, mat, variantBasePrice, amount);
         } else {
             totalCost = ShopDataManager.getTotalBuyCost(mat, amount);
         }
@@ -598,7 +606,11 @@ public class ShopListener implements Listener {
             }
         }
 
-        ShopDataManager.updateStock(mat, -amount);
+        if (variantId != null) {
+            ShopDataManager.updateVariantStock(variantId, -amount);
+        } else {
+            ShopDataManager.updateStock(mat, -amount);
+        }
 
         Map<String, String> ph = new HashMap<>();
         ph.put("amount", String.valueOf(amount));
@@ -609,7 +621,7 @@ public class ShopListener implements Listener {
         plugin.getTransactionLogger().log(Transaction.now(
                 p.getName(),
                 Transaction.TransactionType.BUY,
-                mat.name(),
+                variantId != null ? "VARIANT:" + variantId : mat.name(),
                 amount,
                 totalCost,
                 ShopDataManager.detectCategory(mat).name(),
@@ -629,6 +641,10 @@ public class ShopListener implements Listener {
     // SELL ACTION (CONTINUOUS PRICING)
     // ------------------------------------------------------------------
     public void sellItem(Player p, Material mat, int amount, Object gui) {
+        sellItem(p, mat, amount, gui, null, -1, null);
+    }
+
+    public void sellItem(Player p, Material mat, int amount, Object gui, ItemStack variantTemplate, double variantBasePrice, String variantId) {
 
         if (ConfigCacheManager.transactionCooldownMs > 0 && !p.hasPermission("dynamicshop.bypass.cooldown")) {
             long now = System.currentTimeMillis();
@@ -656,7 +672,7 @@ public class ShopListener implements Listener {
 
         int removed = 0;
         for (ItemStack item : p.getInventory().getContents()) {
-            if (item != null && item.getType() == mat && removed < amount && !isDamaged(item)) {
+            if (isSellMatch(item, mat, variantTemplate) && removed < amount && !isDamaged(item)) {
                 removed += Math.min(item.getAmount(), amount - removed);
             }
         }
@@ -669,8 +685,13 @@ public class ShopListener implements Listener {
         }
 
         if (!p.hasPermission("dynamicshop.bypass.stock")) {
-            if (!ShopDataManager.canSell(mat, removed)) {
-                int limit = ShopDataManager.getSellLimit(mat);
+            boolean canSell = variantId != null
+                    ? ShopDataManager.canSellVariant(variantId, mat, removed)
+                    : ShopDataManager.canSell(mat, removed);
+            if (!canSell) {
+                int limit = variantId != null
+                        ? ShopDataManager.getVariantSellLimit(variantId, mat)
+                        : ShopDataManager.getSellLimit(mat);
                 if (limit <= 0) {
                     p.sendMessage("§cShop storage is full for this item.");
                     return;
@@ -683,12 +704,14 @@ public class ShopListener implements Listener {
             }
         }
 
-        double totalPayout = ShopDataManager.getTotalSellValue(mat, removed);
+        double totalPayout = variantId != null && variantBasePrice > 0
+                ? ShopDataManager.getTotalVariantSellValue(variantId, mat, variantBasePrice, removed)
+                : ShopDataManager.getTotalSellValue(mat, removed);
 
         int actuallyRemoved = 0;
         for (int i = 0; i < p.getInventory().getSize(); i++) {
             ItemStack item = p.getInventory().getItem(i);
-            if (item != null && item.getType() == mat && actuallyRemoved < removed && !isDamaged(item)) {
+            if (isSellMatch(item, mat, variantTemplate) && actuallyRemoved < removed && !isDamaged(item)) {
                 int take = Math.min(item.getAmount(), removed - actuallyRemoved);
                 int newAmt = item.getAmount() - take;
                 if (newAmt <= 0) {
@@ -700,7 +723,11 @@ public class ShopListener implements Listener {
             }
         }
 
-        ShopDataManager.updateStock(mat, actuallyRemoved);
+        if (variantId != null) {
+            ShopDataManager.updateVariantStock(variantId, actuallyRemoved);
+        } else {
+            ShopDataManager.updateStock(mat, actuallyRemoved);
+        }
 
         plugin.getEconomyManager().deposit(p, totalPayout);
 
@@ -713,7 +740,7 @@ public class ShopListener implements Listener {
         plugin.getTransactionLogger().log(Transaction.now(
                 p.getName(),
                 Transaction.TransactionType.SELL,
-                mat.name(),
+                variantId != null ? "VARIANT:" + variantId : mat.name(),
                 actuallyRemoved,
                 totalPayout,
                 ShopDataManager.detectCategory(mat).name(),
@@ -976,6 +1003,21 @@ public class ShopListener implements Listener {
             return damageable.hasDamage();
         }
         return false;
+    }
+
+    private boolean isSellMatch(ItemStack item, Material mat, ItemStack variantTemplate) {
+        if (item == null || item.getType() != mat) {
+            return false;
+        }
+        if (variantTemplate == null) {
+            return true;
+        }
+
+        ItemStack oneItem = item.clone();
+        oneItem.setAmount(1);
+        ItemStack oneTemplate = variantTemplate.clone();
+        oneTemplate.setAmount(1);
+        return oneItem.isSimilar(oneTemplate);
     }
 
     /**

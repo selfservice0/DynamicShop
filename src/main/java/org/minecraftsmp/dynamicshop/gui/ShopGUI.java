@@ -269,28 +269,22 @@ public class ShopGUI {
                 boolean buyDisabled = ShopDataManager.isBuyDisabled(baseMat);
                 boolean sellDisabled = ShopDataManager.isSellDisabled(baseMat);
 
-                // Use the stored_item's own price as base, with inflation from the base material
+                String variantId = specialItem.getId();
+                ShopDataManager.initializeVariantData(variantId, baseMat);
                 double specialBasePrice = specialItem.getPrice();
-                double baseMatPrice = ShopDataManager.getBasePrice(baseMat);
-                // Calculate the inflation multiplier from the base material's dynamic pricing
-                double currentDynPrice = ShopDataManager.getTotalBuyCost(baseMat, 1);
-                double inflationMultiplier = baseMatPrice > 0 ? currentDynPrice / baseMatPrice : 1.0;
 
                 // Buy price
                 if (!buyDisabled) {
-                    double buyPrice = specialBasePrice * inflationMultiplier;
+                    double buyPrice = ShopDataManager.getTotalVariantBuyCost(variantId, baseMat, specialBasePrice, 1);
                     java.util.Map<String, String> buyPlaceholders = new java.util.HashMap<>();
                     buyPlaceholders.put("price", plugin.getEconomyManager().format(buyPrice));
                     MessageManager.addLoreIfNotEmpty(lore,
                             plugin.getMessageManager().getMessage("shop-lore-buy-price", buyPlaceholders));
                 }
 
-                // Sell price — use the same ratio of sell:base from the regular material
+                // Sell price
                 if (!sellDisabled) {
-                    double baseSellValue = ShopDataManager.getTotalSellValue(baseMat, 1);
-                    double baseBuyValue = ShopDataManager.getTotalBuyCost(baseMat, 1);
-                    double sellRatio = baseBuyValue > 0 ? baseSellValue / baseBuyValue : 0.7;
-                    double sellPrice = specialBasePrice * inflationMultiplier * sellRatio;
+                    double sellPrice = ShopDataManager.getTotalVariantSellValue(variantId, baseMat, specialBasePrice, 1);
                     java.util.Map<String, String> sellPlaceholders = new java.util.HashMap<>();
                     sellPlaceholders.put("price", plugin.getEconomyManager().format(sellPrice));
                     MessageManager.addLoreIfNotEmpty(lore,
@@ -299,14 +293,14 @@ public class ShopGUI {
 
                 // Stock info
                 if (!buyDisabled) {
-                    double stock = ShopDataManager.getStock(baseMat);
+                    double stock = ShopDataManager.getVariantStock(variantId);
                     if (stock < 0) {
                         java.util.Map<String, String> stockPlaceholders = new java.util.HashMap<>();
                         stockPlaceholders.put("stock", String.format("%.0f", stock));
                         MessageManager.addLoreIfNotEmpty(lore,
                                 plugin.getMessageManager().getMessage("lore-stock-negative", stockPlaceholders));
 
-                        double hours = ShopDataManager.getHoursInShortage(baseMat);
+                        double hours = ShopDataManager.getVariantShortageHours(variantId);
                         double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
                         double multiplier = Math.pow(1.0 + hourlyRate, hours);
                         double percentIncrease = (multiplier - 1.0) * 100.0;
@@ -324,7 +318,7 @@ public class ShopGUI {
                     } else if (stock == 0) {
                         MessageManager.addLoreIfNotEmpty(lore, plugin.getMessageManager().getMessage("lore-out-of-stock"));
 
-                        double hours = ShopDataManager.getHoursInShortage(baseMat);
+                        double hours = ShopDataManager.getVariantShortageHours(variantId);
                         double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
                         double multiplier = Math.pow(1.0 + hourlyRate, hours);
                         double percentIncrease = (multiplier - 1.0) * 100.0;

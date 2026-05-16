@@ -39,10 +39,14 @@ public class ShopDialogManager {
      * @param gui    The ShopGUI to return to (can be ShopGUI or SearchResultsGUI)
      */
     public void openDialog(Player player, Material mat, Object gui) {
-        openDialog(player, mat, gui, null, -1);
+        openDialog(player, mat, gui, null, -1, null);
     }
 
     public void openDialog(Player player, Material mat, Object gui, ItemStack deliveryOverride, double variantBasePrice) {
+        openDialog(player, mat, gui, deliveryOverride, variantBasePrice, null);
+    }
+
+    public void openDialog(Player player, Material mat, Object gui, ItemStack deliveryOverride, double variantBasePrice, String variantId) {
         // Use delivery override or template if available so the dialog shows the item with components
         ItemStack displayItem;
         if (deliveryOverride != null) {
@@ -55,8 +59,12 @@ public class ShopDialogManager {
         }
         String itemName = formatMaterialName(mat);
 
-        double buyPrice1 = ShopDataManager.getTotalBuyCost(mat, 1);
-        double sellPrice1 = ShopDataManager.getTotalSellValue(mat, 1);
+        double buyPrice1 = variantId != null && variantBasePrice > 0
+                ? ShopDataManager.getTotalVariantBuyCost(variantId, mat, variantBasePrice, 1)
+                : ShopDataManager.getTotalBuyCost(mat, 1);
+        double sellPrice1 = variantId != null && variantBasePrice > 0
+                ? ShopDataManager.getTotalVariantSellValue(variantId, mat, variantBasePrice, 1)
+                : ShopDataManager.getTotalSellValue(mat, 1);
 
         java.util.Map<String, String> placeholders = new java.util.HashMap<>();
         placeholders.put("item", itemName);
@@ -145,7 +153,7 @@ public class ShopDialogManager {
                                                     return;
                                                 }
                                                 
-                                                plugin.getShopListener().buyItem(p, mat, qty, gui, deliveryOverride, variantBasePrice);
+                                                plugin.getShopListener().buyItem(p, mat, qty, gui, deliveryOverride, variantBasePrice, variantId);
                                             }
                                         },
                                         ClickCallback.Options.builder().uses(ClickCallback.UNLIMITED_USES).lifetime(java.time.Duration.ofMinutes(5)).build()
@@ -164,12 +172,12 @@ public class ShopDialogManager {
                                                     // Sell all logic
                                                     int totalItems = 0;
                                                     for (ItemStack invItem : p.getInventory().getContents()) {
-                                                        if (invItem != null && invItem.getType() == mat) {
+                                                        if (isSellMatch(invItem, mat, deliveryOverride)) {
                                                             totalItems += invItem.getAmount();
                                                         }
                                                     }
                                                     if (totalItems > 0) {
-                                                        plugin.getShopListener().sellItem(p, mat, totalItems, gui);
+                                                        plugin.getShopListener().sellItem(p, mat, totalItems, gui, deliveryOverride, variantBasePrice, variantId);
                                                     } else {
                                                         p.sendMessage(org.minecraftsmp.dynamicshop.managers.MessageManager.parseComponent(
                                                                 plugin.getMessageManager().getMessage("dialog-error-no-items-sell"), p));
@@ -186,7 +194,7 @@ public class ShopDialogManager {
                                                     return;
                                                 }
                                                 
-                                                plugin.getShopListener().sellItem(p, mat, qty, gui);
+                                                plugin.getShopListener().sellItem(p, mat, qty, gui, deliveryOverride, variantBasePrice, variantId);
                                             }
                                         },
                                         ClickCallback.Options.builder().uses(ClickCallback.UNLIMITED_USES).lifetime(java.time.Duration.ofMinutes(5)).build()
@@ -226,5 +234,20 @@ public class ShopDialogManager {
             }
         }
         return sb.toString().trim();
+    }
+
+    private boolean isSellMatch(ItemStack item, Material mat, ItemStack variantTemplate) {
+        if (item == null || item.getType() != mat) {
+            return false;
+        }
+        if (variantTemplate == null) {
+            return true;
+        }
+
+        ItemStack oneItem = item.clone();
+        oneItem.setAmount(1);
+        ItemStack oneTemplate = variantTemplate.clone();
+        oneTemplate.setAmount(1);
+        return oneItem.isSimilar(oneTemplate);
     }
 }
