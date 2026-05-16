@@ -39,10 +39,10 @@ public class ShopDialogManager {
      * @param gui    The ShopGUI to return to (can be ShopGUI or SearchResultsGUI)
      */
     public void openDialog(Player player, Material mat, Object gui) {
-        openDialog(player, mat, gui, null);
+        openDialog(player, mat, gui, null, -1);
     }
 
-    public void openDialog(Player player, Material mat, Object gui, ItemStack deliveryOverride) {
+    public void openDialog(Player player, Material mat, Object gui, ItemStack deliveryOverride, double variantBasePrice) {
         // Use delivery override or template if available so the dialog shows the item with components
         ItemStack displayItem;
         if (deliveryOverride != null) {
@@ -145,7 +145,7 @@ public class ShopDialogManager {
                                                     return;
                                                 }
                                                 
-                                                plugin.getShopListener().buyItem(p, mat, qty, gui, deliveryOverride);
+                                                plugin.getShopListener().buyItem(p, mat, qty, gui, deliveryOverride, variantBasePrice);
                                             }
                                         },
                                         ClickCallback.Options.builder().uses(ClickCallback.UNLIMITED_USES).lifetime(java.time.Duration.ofMinutes(5)).build()

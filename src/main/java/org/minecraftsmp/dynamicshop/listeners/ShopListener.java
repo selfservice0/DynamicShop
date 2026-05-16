@@ -374,6 +374,7 @@ public class ShopListener implements Listener {
         // REGULAR ITEM
         Material mat = gui.getItemFromSlot(slot);
         ItemStack deliveryOverride = null; // For stored_item variants
+        double variantBasePrice = -1; // -1 means use normal pricing
 
         // If no regular item found, check for stored_item variants in this category.
         // stored_item variants (e.g., custom disc variants of the same base material)
@@ -383,6 +384,7 @@ public class ShopListener implements Listener {
             if (sItem != null && sItem.getDisplayMaterial() != null
                     && "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
                 mat = sItem.getDisplayMaterial();
+                variantBasePrice = sItem.getPrice();
                 // Load the specific stored ItemStack so the correct variant is delivered
                 String configPath = "special_items." + sItem.getId() + ".stored_item";
                 deliveryOverride = plugin.getConfig().getItemStack(configPath);
@@ -404,7 +406,7 @@ public class ShopListener implements Listener {
         // Dialog-based buy/sell (configurable, Java edition only)
         if (ConfigCacheManager.useDialogGui) {
             p.closeInventory();
-            plugin.getShopDialogManager().openDialog(p, mat, gui, deliveryOverride);
+            plugin.getShopDialogManager().openDialog(p, mat, gui, deliveryOverride, variantBasePrice);
             return;
         }
 
@@ -433,7 +435,7 @@ public class ShopListener implements Listener {
 
         } else {
             // BUY — pass delivery override for stored_item variants
-            buyItem(p, mat, amount, gui, deliveryOverride);
+            buyItem(p, mat, amount, gui, deliveryOverride, variantBasePrice);
         }
     }
 
@@ -496,10 +498,14 @@ public class ShopListener implements Listener {
     // BUY ACTION (CONTINUOUS PRICING)
     // ------------------------------------------------------------------
     public void buyItem(Player p, Material mat, int amount, Object gui) {
-        buyItem(p, mat, amount, gui, null);
+        buyItem(p, mat, amount, gui, null, -1);
     }
 
     public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride) {
+        buyItem(p, mat, amount, gui, deliveryOverride, -1);
+    }
+
+    public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride, double variantBasePrice) {
 
         if (ConfigCacheManager.transactionCooldownMs > 0 && !p.hasPermission("dynamicshop.bypass.cooldown")) {
             long now = System.currentTimeMillis();
@@ -541,7 +547,16 @@ public class ShopListener implements Listener {
             }
         }
 
-        double totalCost = ShopDataManager.getTotalBuyCost(mat, amount);
+        double totalCost;
+        if (variantBasePrice > 0) {
+            // Stored_item variant: use its own base price with the material's inflation multiplier
+            double baseMatPrice = ShopDataManager.getBasePrice(mat);
+            double currentDynPrice = ShopDataManager.getTotalBuyCost(mat, 1);
+            double inflationMultiplier = baseMatPrice > 0 ? currentDynPrice / baseMatPrice : 1.0;
+            totalCost = variantBasePrice * inflationMultiplier * amount;
+        } else {
+            totalCost = ShopDataManager.getTotalBuyCost(mat, amount);
+        }
 
         if (!plugin.getEconomyManager().hasEnough(p, totalCost)) {
             Map<String, String> ph = new HashMap<>();

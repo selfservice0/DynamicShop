@@ -269,18 +269,28 @@ public class ShopGUI {
                 boolean buyDisabled = ShopDataManager.isBuyDisabled(baseMat);
                 boolean sellDisabled = ShopDataManager.isSellDisabled(baseMat);
 
+                // Use the stored_item's own price as base, with inflation from the base material
+                double specialBasePrice = specialItem.getPrice();
+                double baseMatPrice = ShopDataManager.getBasePrice(baseMat);
+                // Calculate the inflation multiplier from the base material's dynamic pricing
+                double currentDynPrice = ShopDataManager.getTotalBuyCost(baseMat, 1);
+                double inflationMultiplier = baseMatPrice > 0 ? currentDynPrice / baseMatPrice : 1.0;
+
                 // Buy price
                 if (!buyDisabled) {
-                    double buyPrice = ShopDataManager.getTotalBuyCost(baseMat, 1);
+                    double buyPrice = specialBasePrice * inflationMultiplier;
                     java.util.Map<String, String> buyPlaceholders = new java.util.HashMap<>();
                     buyPlaceholders.put("price", plugin.getEconomyManager().format(buyPrice));
                     MessageManager.addLoreIfNotEmpty(lore,
                             plugin.getMessageManager().getMessage("shop-lore-buy-price", buyPlaceholders));
                 }
 
-                // Sell price
+                // Sell price — use the same ratio of sell:base from the regular material
                 if (!sellDisabled) {
-                    double sellPrice = ShopDataManager.getTotalSellValue(baseMat, 1);
+                    double baseSellValue = ShopDataManager.getTotalSellValue(baseMat, 1);
+                    double baseBuyValue = ShopDataManager.getTotalBuyCost(baseMat, 1);
+                    double sellRatio = baseBuyValue > 0 ? baseSellValue / baseBuyValue : 0.7;
+                    double sellPrice = specialBasePrice * inflationMultiplier * sellRatio;
                     java.util.Map<String, String> sellPlaceholders = new java.util.HashMap<>();
                     sellPlaceholders.put("price", plugin.getEconomyManager().format(sellPrice));
                     MessageManager.addLoreIfNotEmpty(lore,
