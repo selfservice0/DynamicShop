@@ -373,6 +373,22 @@ public class ShopListener implements Listener {
 
         // REGULAR ITEM
         Material mat = gui.getItemFromSlot(slot);
+        ItemStack deliveryOverride = null; // For stored_item variants
+
+        // If no regular item found, check for stored_item variants in this category.
+        // stored_item variants (e.g., custom disc variants of the same base material)
+        // should behave like regular items with dynamic pricing and stock.
+        if (mat == null) {
+            SpecialShopItem sItem = gui.getSpecialItemFromSlot(slot);
+            if (sItem != null && sItem.getDisplayMaterial() != null
+                    && "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
+                mat = sItem.getDisplayMaterial();
+                // Load the specific stored ItemStack so the correct variant is delivered
+                String configPath = "special_items." + sItem.getId() + ".stored_item";
+                deliveryOverride = plugin.getConfig().getItemStack(configPath);
+            }
+        }
+
         if (mat == null)
             return;
 
@@ -416,8 +432,8 @@ public class ShopListener implements Listener {
             sellItem(p, mat, amount, gui);
 
         } else {
-            // BUY
-            buyItem(p, mat, amount, gui);
+            // BUY — pass delivery override for stored_item variants
+            buyItem(p, mat, amount, gui, deliveryOverride);
         }
     }
 
@@ -480,6 +496,10 @@ public class ShopListener implements Listener {
     // BUY ACTION (CONTINUOUS PRICING)
     // ------------------------------------------------------------------
     public void buyItem(Player p, Material mat, int amount, Object gui) {
+        buyItem(p, mat, amount, gui, null);
+    }
+
+    public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride) {
 
         if (ConfigCacheManager.transactionCooldownMs > 0 && !p.hasPermission("dynamicshop.bypass.cooldown")) {
             long now = System.currentTimeMillis();
@@ -537,21 +557,30 @@ public class ShopListener implements Listener {
 
         plugin.getEconomyManager().charge(p, totalCost);
 
-        // Deliver item: use template if available, otherwise plain item
-        ItemStack template = ShopDataManager.getTemplate(mat);
-        if (template != null) {
-            // Template item — clone with all components preserved
+        // Deliver item: use deliveryOverride (stored_item variant), template, or plain
+        if (deliveryOverride != null) {
+            // stored_item variant — deliver the specific stored ItemStack
             for (int i = 0; i < amount; i++) {
-                ItemStack clone = template.clone();
+                ItemStack clone = deliveryOverride.clone();
                 clone.setAmount(1);
                 p.getInventory().addItem(clone);
             }
-        } else if (mat == Material.ENCHANTED_BOOK) {
-            for (int i = 0; i < amount; i++) {
-                p.getInventory().addItem(createRandomEnchantedBook());
-            }
         } else {
-            p.getInventory().addItem(new ItemStack(mat, amount));
+            ItemStack template = ShopDataManager.getTemplate(mat);
+            if (template != null) {
+                // Template item — clone with all components preserved
+                for (int i = 0; i < amount; i++) {
+                    ItemStack clone = template.clone();
+                    clone.setAmount(1);
+                    p.getInventory().addItem(clone);
+                }
+            } else if (mat == Material.ENCHANTED_BOOK) {
+                for (int i = 0; i < amount; i++) {
+                    p.getInventory().addItem(createRandomEnchantedBook());
+                }
+            } else {
+                p.getInventory().addItem(new ItemStack(mat, amount));
+            }
         }
 
         ShopDataManager.updateStock(mat, -amount);

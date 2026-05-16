@@ -131,7 +131,10 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     private void openCategoryDirect(Player p, ItemCategory cat) {
         // Check if category has items
         List<org.bukkit.Material> items = ShopDataManager.getItemsInCategory(cat);
-        if (items.isEmpty()) {
+        boolean hasSpecialItems = plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
+                .anyMatch(item -> item.getCategory() == cat);
+                
+        if (items.isEmpty() && !hasSpecialItems) {
             p.sendMessage(plugin.getMessageManager().categoryEmpty());
             return;
         }

@@ -629,7 +629,7 @@ public class WebServer {
 
             items.add(new ShopItemDTO(
                     mat.name(),
-                    prettifyItemName(mat.name()),
+                    ShopDataManager.getCustomName(mat) != null ? ShopDataManager.getCustomName(mat) : prettifyItemName(mat.name()),
                     category.name(),
                     buyPrice,
                     sellPrice,
@@ -754,7 +754,9 @@ public class WebServer {
 
         Map<String, Object> result = new HashMap<>();
         result.put("item", mat.name());
-        result.put("displayName", prettifyItemName(mat.name()));
+        String customName = ShopDataManager.getCustomName(mat);
+        result.put("displayName", customName != null ? customName : prettifyItemName(mat.name()));
+        result.put("customName", customName);
         result.put("category", category.name());
         result.put("buyPrice", buyPrice);
         result.put("sellPrice", sellPrice);
@@ -1095,6 +1097,14 @@ public class WebServer {
                     ItemCategory cat = ItemCategory.valueOf(((String) body.get("category")).toUpperCase());
                     ShopDataManager.setCategoryOverride(mat, cat);
                 } catch (Exception ignored) {}
+            }
+            if (body.containsKey("displayName")) {
+                String name = (String) body.get("displayName");
+                if (name == null || name.isEmpty() || name.equals(prettifyItemName(mat.name()))) {
+                    ShopDataManager.removeCustomName(mat);
+                } else {
+                    ShopDataManager.setCustomName(mat, name);
+                }
             }
 
             ShopDataManager.saveDynamicData();
@@ -1884,7 +1894,9 @@ public class WebServer {
 
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("item", mat.name());
-        item.put("displayName", prettifyItemName(mat.name()));
+        String adminCustomName = ShopDataManager.getCustomName(mat);
+        item.put("displayName", adminCustomName != null ? adminCustomName : prettifyItemName(mat.name()));
+        item.put("customName", adminCustomName);
         item.put("category", category.name());
         item.put("basePrice", basePrice);
         item.put("buyPrice", buyPrice);

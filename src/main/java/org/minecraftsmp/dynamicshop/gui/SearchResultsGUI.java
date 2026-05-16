@@ -57,9 +57,11 @@ public class SearchResultsGUI {
             }
         }
 
-        // Filter by query
+        // Filter by query (match material name or custom display name)
         for (Material mat : searchPool) {
-            if (mat.name().toLowerCase().contains(lower)) {
+            String customName = ShopDataManager.getCustomName(mat);
+            if (mat.name().toLowerCase().contains(lower)
+                    || (customName != null && customName.toLowerCase().contains(lower))) {
                 results.add(mat);
             }
         }
@@ -119,8 +121,13 @@ public class SearchResultsGUI {
         if (meta == null)
             return item;
 
-        // Use template's custom name if it has one, otherwise use material name
-        if (!meta.hasDisplayName()) {
+        // Display name priority: custom_name > template's name > prettified material name
+        String customName = ShopDataManager.getCustomName(mat);
+        if (customName != null) {
+            net.kyori.adventure.text.Component nameComponent = MessageManager.parseComponent("§e§l" + customName);
+            meta.displayName(nameComponent);
+            meta.itemName(nameComponent);
+        } else if (!meta.hasDisplayName()) {
             meta.displayName(MessageManager.parseComponent("§e§l" + mat.name().replace("_", " ")));
         }
 

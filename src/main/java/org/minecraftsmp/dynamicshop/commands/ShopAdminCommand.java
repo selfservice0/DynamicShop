@@ -128,6 +128,62 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
             }
 
             // --------------------------------------------------------------
+            // /shopadmin setname <item> <name...>
+            // Sets a custom display name for an item in the shop.
+            // Use "clear" or "reset" as name to remove the custom name.
+            // --------------------------------------------------------------
+            case "setname" -> {
+                if (args.length < 3) {
+                    sender.sendMessage("§cUsage: /shopadmin setname <item> <name...>");
+                    sender.sendMessage("§7Use §f/shopadmin setname <item> clear §7to remove.");
+                    return true;
+                }
+
+                String itemArg = args[1];
+                String newName = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+
+                // Check if it's a special item
+                if (itemArg.startsWith("special:")) {
+                    String specialId = itemArg.substring("special:".length());
+                    var specialItem = plugin.getSpecialShopManager().getAllSpecialItems().get(specialId);
+                    if (specialItem == null) {
+                        sender.sendMessage("§cSpecial item not found: §e" + specialId);
+                        return true;
+                    }
+                    if (newName.equalsIgnoreCase("clear") || newName.equalsIgnoreCase("reset")) {
+                        plugin.getConfig().set("special_items." + specialId + ".name", specialId);
+                        plugin.saveConfig();
+                        plugin.getSpecialShopManager().reload();
+                        sender.sendMessage("§a[DynamicShop] §fDisplay name for §e" + specialId + " §fhas been reset.");
+                    } else {
+                        plugin.getConfig().set("special_items." + specialId + ".name", newName);
+                        plugin.saveConfig();
+                        plugin.getSpecialShopManager().reload();
+                        sender.sendMessage("§a[DynamicShop] §fDisplay name for §e" + specialId + " §fset to: §e" + newName);
+                    }
+                    if (plugin.getWebServer() != null) plugin.getWebServer().invalidateShopItemsCache();
+                    return true;
+                }
+
+                // Regular material item
+                Material mat = Material.matchMaterial(itemArg);
+                if (mat == null || ShopDataManager.getBasePrice(mat) < 0) {
+                    sender.sendMessage("§cItem not found in shop: §e" + itemArg);
+                    return true;
+                }
+
+                if (newName.equalsIgnoreCase("clear") || newName.equalsIgnoreCase("reset")) {
+                    ShopDataManager.removeCustomName(mat);
+                    sender.sendMessage("§a[DynamicShop] §fCustom name for §e" + mat.name() + " §fhas been removed.");
+                } else {
+                    ShopDataManager.setCustomName(mat, newName);
+                    sender.sendMessage("§a[DynamicShop] §fDisplay name for §e" + mat.name() + " §fset to: §e" + newName);
+                }
+                if (plugin.getWebServer() != null) plugin.getWebServer().invalidateShopItemsCache();
+                return true;
+            }
+
+            // --------------------------------------------------------------
             // /shopadmin setinflation <percent>
             // --------------------------------------------------------------
             case "setinflation" -> {
@@ -432,17 +488,28 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
                     Material mat = held.getType();
                     ItemCategory category = ShopDataManager.detectCategory(mat);
+                    String customName = null;
 
-                    // Optional category override: /shopadmin add item <price> <category>
+                    // Optional category override: /shopadmin add item <price> <category> [custom name...]
                     if (args.length >= 4) {
+                        // Try to parse args[3] as a category
                         try {
                             category = ItemCategory.valueOf(args[3].toUpperCase());
+                            // If category parsed, remaining args are the custom name
+                            if (args.length >= 5) {
+                                customName = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
+                            }
                         } catch (IllegalArgumentException e) {
-                            sender.sendMessage("§cUnknown category: §e" + args[3]);
-                            sender.sendMessage("§7Valid categories: §f" + java.util.Arrays.stream(ItemCategory.values())
-                                    .map(Enum::name).collect(java.util.stream.Collectors.joining(", ")));
-                            return true;
+                            // args[3] is not a category — treat it and everything after as the custom name
+                            customName = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
                         }
+                    }
+
+                    // Apply custom name to the base material IMMEDIATELY, before any plugin-specific
+                    // paths (ItemsAdder, Nexo, ValhallaMMO) that may return early.
+                    if (customName != null && ShopDataManager.itemConfigs.containsKey(mat)) {
+                        ShopDataManager.setCustomName(mat, customName);
+                        sender.sendMessage("§a✓ §7Display name for §e" + mat.name().replace("_", " ") + " §7set to: §e" + customName);
                     }
 
                     String iaId = null;
@@ -493,26 +560,39 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                     if (hasCustomComponents && ShopDataManager.itemConfigs.containsKey(mat)) {
                         // Generate a unique ID based on material + timestamp
                         String id = mat.name().toLowerCase() + "_custom_" + System.currentTimeMillis() % 100000;
+                        String displayName = customName != null ? customName : id;
 
                         // Store as a special server-shop item with stored_item delivery
-                        plugin.getSpecialShopManager().addServerShopItem(id, id, price, id, mat, null, true);
+                        plugin.getSpecialShopManager().addServerShopItem(id, displayName, price, id, mat, null, true);
 
                         // Place it in the same category as the base material (e.g., TOOLS, COMBAT)
                         String basePath = "special_items." + id;
                         plugin.getConfig().set(basePath + ".delivery_method", "stored_item");
                         plugin.getConfig().set(basePath + ".stored_item", held.clone());
                         plugin.getConfig().set(basePath + ".category", category.name());
+                        if (customName != null) {
+                            plugin.getConfig().set(basePath + ".name", customName);
+                        }
                         plugin.saveConfig();
                         plugin.getSpecialShopManager().reload();
 
                         sender.sendMessage("§a✓ §7Added as custom variant in §e" + category.getDisplayName() + "§7.");
                         sender.sendMessage("§7ID: §f" + id);
+                        if (customName != null) {
+                            sender.sendMessage("§7Display name: §e" + customName);
+                        }
                         sender.sendMessage("§7The regular §e" + mat.name().replace("_", " ") + " §7in the shop is unchanged.");
                         return true;
                     }
 
                     // Write to config as a regular shop item
                     plugin.getConfig().set("items." + mat.name() + ".base", price);
+
+                    // Save the category override if explicitly specified
+                    if (category != ShopDataManager.detectCategory(mat)) {
+                        plugin.getConfig().set("items." + mat.name() + ".category", category.name());
+                    }
+
                     plugin.saveConfig();
 
                     // If item has custom components and material is NOT yet in the shop,
@@ -527,6 +607,25 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
                     ShopDataManager.reload();
 
+                    // Set custom display name AFTER reload so it persists in both config and memory
+                    if (customName != null) {
+                        ShopDataManager.setCustomName(mat, customName);
+                    }
+
+                    // Initialize stock so the item is immediately purchasable at ~base price.
+                    // Half of maxStock is the pricing midpoint where price ≈ base price.
+                    if (ShopDataManager.getStock(mat) == 0) {
+                        double initialStock = ConfigCacheManager.maxStock / 2.0;
+                        ShopDataManager.ShopItemConfig cfg = ShopDataManager.itemConfigs.get(mat);
+                        if (cfg != null && cfg.maxStock() != null) {
+                            initialStock = cfg.maxStock() / 2.0;
+                        }
+                        ShopDataManager.setStockDirect(mat, initialStock);
+                        ShopDataManager.setHoursInShortage(mat, 0.0);
+                        ShopDataManager.saveDynamicData();
+                        sender.sendMessage("§7Initial stock set to §e" + (int) initialStock + "§7. Adjust with §f/shopadmin setstock " + mat.name() + " <amount>");
+                    }
+
                     Map<String, String> placeholders = new HashMap<>();
                     placeholders.put("item", mat.name().replace("_", " ").toLowerCase());
                     placeholders.put("price", String.valueOf(price));
@@ -534,6 +633,9 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
                     sender.sendMessage(plugin.getMessageManager().getMessageWithPrefix(
                             "admin-item-added", placeholders));
+                    if (customName != null) {
+                        sender.sendMessage("§7Display name: §e" + customName);
+                    }
                     return true;
                 }
 
@@ -673,13 +775,18 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                             true); // Temporary step
 
                     // Check for special modes
-                    if (args.length >= modeStartIndex + 2) {
+                    if (args.length >= modeStartIndex + 1) {
                         String mode = args[modeStartIndex].toLowerCase();
                         String itemId = id.toLowerCase().replace(" ", "_");
                         String basePath = "special_items." + itemId;
 
                         // SPAWNER MODE (shortcut for 1.21 spawners)
                         if (mode.equals("spawner")) {
+                            if (args.length < modeStartIndex + 2) {
+                                sender.sendMessage(
+                                        "§cUsage: /shopadmin add server-shop <price> <id> spawner <mob_type>");
+                                return true;
+                            }
                             String mobType = args[modeStartIndex + 1].toLowerCase();
 
                             // Build 1.21 component data
@@ -701,6 +808,11 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
                         // COMMAND MODE (run any command when purchased)
                         if (mode.equals("command")) {
+                            if (args.length < modeStartIndex + 2) {
+                                sender.sendMessage(
+                                        "§cUsage: /shopadmin add server-shop <price> <id> command <command_string>");
+                                return true;
+                            }
                             String command = String.join(" ",
                                     Arrays.copyOfRange(args, modeStartIndex + 1, args.length));
 
@@ -739,7 +851,36 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                         }
 
                         // COMPONENT MODE (generic 1.21 components)
+                        // Usage 1: /shopadmin add server-shop <price> <id> component
+                        //   → Captures held item as stored_item (preserves all components)
+                        // Usage 2: /shopadmin add server-shop <price> <id> component <material> <component_data>
+                        //   → Manual component string (for spawner shortcuts, etc.)
                         if (mode.equals("component")) {
+                            if (args.length < modeStartIndex + 2) {
+                                // No extra args — capture the held item as stored_item
+                                ItemStack heldCustom = p.getInventory().getItemInMainHand();
+                                if (heldCustom == null || heldCustom.getType() == Material.AIR) {
+                                    sender.sendMessage("§cHold the item you want to add, or provide material + component data.");
+                                    sender.sendMessage("§7Usage: /shopadmin add server-shop <price> <id> component [material] [component_data]");
+                                    return true;
+                                }
+
+                                ItemCategory detectedCategory = ShopDataManager.detectCategory(heldCustom.getType());
+
+                                plugin.getConfig().set(basePath + ".delivery_method", "stored_item");
+                                plugin.getConfig().set(basePath + ".stored_item", heldCustom.clone());
+                                plugin.getConfig().set(basePath + ".display_material", heldCustom.getType().name());
+                                plugin.getConfig().set(basePath + ".category", detectedCategory.name());
+
+                                plugin.saveConfig();
+                                plugin.getSpecialShopManager().reload();
+
+                                sender.sendMessage("§a✓ §7Stored custom item as §e" + id + " §7(stored_item).");
+                                sender.sendMessage("§7All item components preserved. Category: §e" + detectedCategory.name());
+                                return true;
+                            }
+
+                            // Extra args provided — manual component string mode
                             if (args.length < modeStartIndex + 3) {
                                 sender.sendMessage(
                                         "§cUsage: /shopadmin add server-shop <price> <id> component <material> <component_data>");
@@ -949,6 +1090,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
             out.add("add");
             out.add("remove");
             out.add("setstock");
+            out.add("setname");
             out.add("resetshortage");
             out.add("setinflation");
             out.add("setshortagerate");
@@ -997,6 +1139,17 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 3 && args[0].equalsIgnoreCase("setstock")) {
             out.add("<amount>");
+            return out;
+        }
+
+        // /shopadmin setname <item>
+        if (args.length == 2 && args[0].equalsIgnoreCase("setname")) {
+            String partial = args[1].toUpperCase();
+            for (Material m : Material.values()) {
+                if (ShopDataManager.getBasePrice(m) >= 0 && m.name().startsWith(partial)) {
+                    out.add(m.name());
+                }
+            }
             return out;
         }
 

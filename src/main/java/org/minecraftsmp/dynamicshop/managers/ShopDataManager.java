@@ -47,10 +47,12 @@ public class ShopDataManager {
     // Admin features: category overrides
     private static final Map<Material, ItemCategory> categoryOverrides = new ConcurrentHashMap<>();
 
+    // Custom display names for shop items (overrides material name in GUI)
+    private static final Map<Material, String> customNames = new ConcurrentHashMap<>();
+
     // Item templates (items with custom components like enchantments, names, lore)
+    // Stored in config.yml under items.MATERIAL.template
     private static final Map<Material, ItemStack> itemTemplates = new ConcurrentHashMap<>();
-    private static File templateFile;
-    private static YamlConfiguration templateConfig;
 
     // Save queue
     // which items need to be written to YAML
@@ -75,6 +77,7 @@ public class ShopDataManager {
         categoryCache.clear();
         categoryItems.clear();
         categoryOverrides.clear();
+        customNames.clear();
         itemTemplates.clear();
 
         loadConfigItems();
@@ -159,6 +162,12 @@ public class ShopDataManager {
                 }
             }
 
+            // Load custom display name
+            String customName = data.getString("custom_name", null);
+            if (customName != null && !customName.isEmpty()) {
+                customNames.put(mat, customName);
+            }
+
             ShopItemConfig config = new ShopItemConfig(base, maxStock, minStock, maxStorage, minStorage, disableBuy,
                     disableSell, overrideCat, stockRate);
             itemConfigs.put(mat, config);
@@ -171,21 +180,40 @@ public class ShopDataManager {
 
     // ------------------------------------------------------------------------
     // ITEM TEMPLATES (items with custom components)
-    // Stored in item_templates.yml using Bukkit's native ItemStack serialization
+    // Stored in config.yml under items.MATERIAL.template
     // ------------------------------------------------------------------------
     private static void loadTemplates() {
-        templateFile = new File(plugin.getDataFolder(), "item_templates.yml");
-        if (!templateFile.exists()) {
-            templateConfig = new YamlConfiguration();
-            return;
+        // Migrate from old item_templates.yml if it exists
+        File oldTemplateFile = new File(plugin.getDataFolder(), "item_templates.yml");
+        if (oldTemplateFile.exists()) {
+            YamlConfiguration oldConfig = YamlConfiguration.loadConfiguration(oldTemplateFile);
+            int migrated = 0;
+            for (String key : oldConfig.getKeys(false)) {
+                Material mat = Material.matchMaterial(key);
+                if (mat == null) continue;
+                ItemStack template = oldConfig.getItemStack(key);
+                if (template != null) {
+                    plugin.getConfig().set("items." + mat.name() + ".template", template);
+                    migrated++;
+                }
+            }
+            if (migrated > 0) {
+                plugin.saveConfig();
+                Bukkit.getLogger().info("[DynamicShop] Migrated " + migrated + " templates from item_templates.yml to config.yml");
+            }
+            // Rename old file so it's not loaded again
+            oldTemplateFile.renameTo(new File(plugin.getDataFolder(), "item_templates.yml.old"));
         }
-        templateConfig = YamlConfiguration.loadConfiguration(templateFile);
+
+        // Load templates from config.yml
+        ConfigurationSection sec = plugin.getConfig().getConfigurationSection("items");
+        if (sec == null) return;
 
         int count = 0;
-        for (String key : templateConfig.getKeys(false)) {
+        for (String key : sec.getKeys(false)) {
             Material mat = Material.matchMaterial(key);
             if (mat == null) continue;
-            ItemStack template = templateConfig.getItemStack(key);
+            ItemStack template = sec.getItemStack(key + ".template");
             if (template != null) {
                 itemTemplates.put(mat, template);
                 count++;
@@ -207,11 +235,8 @@ public class ShopDataManager {
         clean.setAmount(1);
         itemTemplates.put(mat, clean);
 
-        if (templateConfig == null) {
-            templateConfig = new YamlConfiguration();
-        }
-        templateConfig.set(mat.name(), clean);
-        saveTemplates();
+        plugin.getConfig().set("items." + mat.name() + ".template", clean);
+        plugin.saveConfig();
     }
 
     /**
@@ -235,19 +260,42 @@ public class ShopDataManager {
      */
     public static void removeTemplate(Material mat) {
         itemTemplates.remove(mat);
-        if (templateConfig != null) {
-            templateConfig.set(mat.name(), null);
-            saveTemplates();
-        }
+        plugin.getConfig().set("items." + mat.name() + ".template", null);
+        plugin.saveConfig();
     }
 
-    private static void saveTemplates() {
-        if (templateConfig == null || templateFile == null) return;
-        try {
-            templateConfig.save(templateFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("[DynamicShop] Failed to save item_templates.yml: " + e.getMessage());
+    // ------------------------------------------------------------------------
+    // CUSTOM DISPLAY NAMES
+    // Stored in config.yml under items.MATERIAL.custom_name
+    // ------------------------------------------------------------------------
+
+    /**
+     * Get the custom display name for a material, or null if none is set.
+     */
+    public static String getCustomName(Material mat) {
+        return customNames.get(mat);
+    }
+
+    /**
+     * Set a custom display name for a material.
+     */
+    public static void setCustomName(Material mat, String name) {
+        if (name == null || name.isEmpty()) {
+            removeCustomName(mat);
+            return;
         }
+        customNames.put(mat, name);
+        plugin.getConfig().set("items." + mat.name() + ".custom_name", name);
+        plugin.saveConfig();
+    }
+
+    /**
+     * Remove a custom display name for a material.
+     */
+    public static void removeCustomName(Material mat) {
+        customNames.remove(mat);
+        plugin.getConfig().set("items." + mat.name() + ".custom_name", null);
+        plugin.saveConfig();
     }
 
     // ------------------------------------------------------------------------

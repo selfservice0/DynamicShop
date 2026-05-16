@@ -254,12 +254,113 @@ public class ShopGUI {
                 meta.displayName(MessageManager.parseComponent("§e§l" + prettyName));
             }
 
-            List<String> lore = new ArrayList<>();
-            lore.add("§7───────────────────");
-
-            // Prices — use dynamic pricing from base material if available
             Material baseMat = specialItem.getDisplayMaterial();
             boolean hasDynamicPrice = baseMat != null && ShopDataManager.itemConfigs.containsKey(baseMat);
+
+            // stored_item variants in regular categories: render like a normal shop item
+            if ("stored_item".equalsIgnoreCase(specialItem.getDeliveryMethod()) && hasDynamicPrice
+                    && category != ItemCategory.PERMISSIONS && category != ItemCategory.SERVER_SHOP) {
+                List<String> lore = new ArrayList<>();
+
+                boolean buyDisabled = ShopDataManager.isBuyDisabled(baseMat);
+                boolean sellDisabled = ShopDataManager.isSellDisabled(baseMat);
+
+                // Buy price
+                if (!buyDisabled) {
+                    double buyPrice = ShopDataManager.getTotalBuyCost(baseMat, 1);
+                    java.util.Map<String, String> buyPlaceholders = new java.util.HashMap<>();
+                    buyPlaceholders.put("price", plugin.getEconomyManager().format(buyPrice));
+                    MessageManager.addLoreIfNotEmpty(lore,
+                            plugin.getMessageManager().getMessage("shop-lore-buy-price", buyPlaceholders));
+                }
+
+                // Sell price
+                if (!sellDisabled) {
+                    double sellPrice = ShopDataManager.getTotalSellValue(baseMat, 1);
+                    java.util.Map<String, String> sellPlaceholders = new java.util.HashMap<>();
+                    sellPlaceholders.put("price", plugin.getEconomyManager().format(sellPrice));
+                    MessageManager.addLoreIfNotEmpty(lore,
+                            plugin.getMessageManager().getMessage("shop-lore-sell-price", sellPlaceholders));
+                }
+
+                // Stock info
+                if (!buyDisabled) {
+                    double stock = ShopDataManager.getStock(baseMat);
+                    if (stock < 0) {
+                        java.util.Map<String, String> stockPlaceholders = new java.util.HashMap<>();
+                        stockPlaceholders.put("stock", String.format("%.0f", stock));
+                        MessageManager.addLoreIfNotEmpty(lore,
+                                plugin.getMessageManager().getMessage("lore-stock-negative", stockPlaceholders));
+
+                        double hours = ShopDataManager.getHoursInShortage(baseMat);
+                        double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+                        double multiplier = Math.pow(1.0 + hourlyRate, hours);
+                        double percentIncrease = (multiplier - 1.0) * 100.0;
+                        double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
+                        boolean capped = percentIncrease >= maxPercent;
+                        if (capped) percentIncrease = maxPercent;
+
+                        java.util.Map<String, String> percentPlaceholders = new java.util.HashMap<>();
+                        percentPlaceholders.put("percent", String.format("%,.0f", percentIncrease) + (capped ? " (MAX)" : ""));
+                        percentPlaceholders.put("hourly_rate", String.format("%.1f", ConfigCacheManager.hourlyIncreasePercent));
+                        MessageManager.addLoreIfNotEmpty(lore,
+                                plugin.getMessageManager().getMessage("shop-lore-price-increase", percentPlaceholders));
+                        MessageManager.addLoreIfNotEmpty(lore,
+                                plugin.getMessageManager().getMessage("shop-lore-price-increase-note", percentPlaceholders));
+                    } else if (stock == 0) {
+                        MessageManager.addLoreIfNotEmpty(lore, plugin.getMessageManager().getMessage("lore-out-of-stock"));
+
+                        double hours = ShopDataManager.getHoursInShortage(baseMat);
+                        double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+                        double multiplier = Math.pow(1.0 + hourlyRate, hours);
+                        double percentIncrease = (multiplier - 1.0) * 100.0;
+                        double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
+                        boolean capped = percentIncrease >= maxPercent;
+                        if (capped) percentIncrease = maxPercent;
+
+                        java.util.Map<String, String> percentPlaceholders = new java.util.HashMap<>();
+                        percentPlaceholders.put("percent", String.format("%,.0f", percentIncrease) + (capped ? " (MAX)" : ""));
+                        percentPlaceholders.put("hourly_rate", String.format("%.1f", ConfigCacheManager.hourlyIncreasePercent));
+                        MessageManager.addLoreIfNotEmpty(lore,
+                                plugin.getMessageManager().getMessage("shop-lore-price-increase", percentPlaceholders));
+                        MessageManager.addLoreIfNotEmpty(lore,
+                                plugin.getMessageManager().getMessage("shop-lore-price-increase-note", percentPlaceholders));
+                    } else {
+                        java.util.Map<String, String> stockPlaceholders = new java.util.HashMap<>();
+                        stockPlaceholders.put("stock", String.format("%.0f", stock));
+                        MessageManager.addLoreIfNotEmpty(lore,
+                                plugin.getMessageManager().getMessage("lore-stock", stockPlaceholders));
+                        if (stock < 10) {
+                            MessageManager.addLoreIfNotEmpty(lore,
+                                    plugin.getMessageManager().getMessage("shop-lore-low-stock"));
+                        }
+                    }
+                }
+
+                lore.add("");
+                if (ConfigCacheManager.useDialogGui) {
+                    MessageManager.addLoreIfNotEmpty(lore, plugin.getMessageManager().getMessage("dialog-lore-click-to-open"));
+                } else {
+                    if (!buyDisabled) {
+                        MessageManager.addLoreIfNotEmpty(lore, plugin.getMessageManager().getMessage("shop-lore-left-click-buy"));
+                        MessageManager.addLoreIfNotEmpty(lore,
+                                plugin.getMessageManager().getMessage("shop-lore-shift-left-click-buy"));
+                    }
+                    if (!sellDisabled) {
+                        MessageManager.addLoreIfNotEmpty(lore, plugin.getMessageManager().getMessage("shop-lore-right-click-sell"));
+                        MessageManager.addLoreIfNotEmpty(lore,
+                                plugin.getMessageManager().getMessage("shop-lore-shift-right-click-sell"));
+                    }
+                }
+
+                meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+                item.setItemMeta(meta);
+                return item;
+            }
+
+            // --- Original special item lore (permissions, server-shop, nexo, etc.) ---
+            List<String> lore = new ArrayList<>();
+            lore.add("§7───────────────────");
 
             if (hasDynamicPrice) {
                 // Use the base material's dynamic pricing
@@ -378,8 +479,15 @@ public class ShopGUI {
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            // Use template's custom name if it has one, otherwise use material name
-            if (!meta.hasDisplayName()) {
+            // Display name priority: custom_name > template's name > prettified material name
+            String customName = ShopDataManager.getCustomName(mat);
+            if (customName != null) {
+                // Custom name always wins — set BOTH to override any template name
+                net.kyori.adventure.text.Component nameComponent = MessageManager.parseComponent("§e§l" + customName);
+                meta.displayName(nameComponent);
+                meta.itemName(nameComponent);
+            } else if (!meta.hasDisplayName()) {
+                // No custom name and no template name — use prettified material name
                 meta.displayName(
                         MessageManager.parseComponent("§e§l" + mat.name().replace("_", " ")));
             }
