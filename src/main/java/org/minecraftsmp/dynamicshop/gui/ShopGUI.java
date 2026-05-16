@@ -245,13 +245,17 @@ public class ShopGUI {
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            // Use the item's existing display name if it has one (e.g., from stored_item)
-            // Otherwise prettify the material name
+            // Display name: use the configured name from the special item,
+            // falling back to the stored_item's existing name, then prettified material name
             if (!meta.hasDisplayName()) {
-                String prettyName = specialItem.getDisplayMaterial() != null
-                        ? prettifyMaterialName(specialItem.getDisplayMaterial().name())
-                        : specialItem.getDisplayName();
-                meta.displayName(MessageManager.parseComponent("§e§l" + prettyName));
+                String displayName = specialItem.getDisplayName();
+                // If the display name is just the auto-generated ID, prettify the material name instead
+                if (displayName == null || displayName.equals(specialItem.getId())) {
+                    displayName = specialItem.getDisplayMaterial() != null
+                            ? prettifyMaterialName(specialItem.getDisplayMaterial().name())
+                            : specialItem.getId();
+                }
+                meta.displayName(MessageManager.parseComponent("§e§l" + displayName));
             }
 
             Material baseMat = specialItem.getDisplayMaterial();
