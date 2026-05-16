@@ -39,10 +39,20 @@ public class ShopDialogManager {
      * @param gui    The ShopGUI to return to (can be ShopGUI or SearchResultsGUI)
      */
     public void openDialog(Player player, Material mat, Object gui) {
-        // Use template if available so the dialog shows the item with components
-        org.bukkit.inventory.ItemStack template = ShopDataManager.getTemplate(mat);
-        ItemStack displayItem = template != null ? template.clone() : new ItemStack(mat);
-        if (template != null) displayItem.setAmount(1);
+        openDialog(player, mat, gui, null);
+    }
+
+    public void openDialog(Player player, Material mat, Object gui, ItemStack deliveryOverride) {
+        // Use delivery override or template if available so the dialog shows the item with components
+        ItemStack displayItem;
+        if (deliveryOverride != null) {
+            displayItem = deliveryOverride.clone();
+            displayItem.setAmount(1);
+        } else {
+            org.bukkit.inventory.ItemStack template = ShopDataManager.getTemplate(mat);
+            displayItem = template != null ? template.clone() : new ItemStack(mat);
+            if (template != null) displayItem.setAmount(1);
+        }
         String itemName = formatMaterialName(mat);
 
         double buyPrice1 = ShopDataManager.getTotalBuyCost(mat, 1);
@@ -135,7 +145,7 @@ public class ShopDialogManager {
                                                     return;
                                                 }
                                                 
-                                                plugin.getShopListener().buyItem(p, mat, qty, gui);
+                                                plugin.getShopListener().buyItem(p, mat, qty, gui, deliveryOverride);
                                             }
                                         },
                                         ClickCallback.Options.builder().uses(ClickCallback.UNLIMITED_USES).lifetime(java.time.Duration.ofMinutes(5)).build()

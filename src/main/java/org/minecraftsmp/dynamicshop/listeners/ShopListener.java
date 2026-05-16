@@ -404,7 +404,7 @@ public class ShopListener implements Listener {
         // Dialog-based buy/sell (configurable, Java edition only)
         if (ConfigCacheManager.useDialogGui) {
             p.closeInventory();
-            plugin.getShopDialogManager().openDialog(p, mat, gui);
+            plugin.getShopDialogManager().openDialog(p, mat, gui, deliveryOverride);
             return;
         }
 
