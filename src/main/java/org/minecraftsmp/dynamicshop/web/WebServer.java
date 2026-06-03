@@ -22,6 +22,8 @@ import java.io.File;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -50,7 +52,7 @@ public class WebServer {
 
         try {
             int port = plugin.getConfig().getInt("webserver.port", 7713);
-            String host = plugin.getConfig().getString("webserver.bind", "0.0.0.0");
+            String host = plugin.getConfig().getString("webserver.bind", "127.0.0.1");
 
             app = Javalin.create(config -> {
                 File webDir = new File(plugin.getDataFolder(), "web");
@@ -66,7 +68,7 @@ public class WebServer {
 
                 config.jsonMapper(new JavalinJackson(createFixedMapper()));
 
-                if (plugin.getConfig().getBoolean("webserver.cors.enabled", true)) {
+                if (plugin.getConfig().getBoolean("webserver.cors.enabled", false)) {
                     config.plugins.enableCors(cors -> cors.add(rule -> rule.anyHost()));
                 }
 
@@ -176,6 +178,27 @@ public class WebServer {
     public void stop() {
         if (app != null)
             app.stop();
+    }
+
+    private boolean runSyncAdminTask(Context ctx, Runnable task) {
+        Boolean result = callSyncAdminTask(ctx, () -> {
+            task.run();
+            return true;
+        });
+        return Boolean.TRUE.equals(result);
+    }
+
+    private <T> T callSyncAdminTask(Context ctx, Callable<T> task) {
+        try {
+            if (Bukkit.isPrimaryThread()) {
+                return task.call();
+            }
+            return Bukkit.getScheduler().callSyncMethod(plugin, task).get(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            plugin.getLogger().warning("[WebAdmin] Failed to apply admin request: " + e.getMessage());
+            ctx.status(500).json(Map.of("error", "Failed to apply admin request"));
+            return null;
+        }
     }
 
     private void extractWebFiles(File webDir) {
@@ -849,8 +872,8 @@ public class WebServer {
             return;
         }
 
-        if (password.length() < 4) {
-            ctx.status(400).json(Map.of("error", "Password must be at least 4 characters"));
+        if (password.length() < 8) {
+            ctx.status(400).json(Map.of("error", "Password must be at least 8 characters"));
             return;
         }
 
@@ -1052,7 +1075,7 @@ public class WebServer {
         }
 
         // Apply changes on main thread for thread safety
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             boolean isDisabled = false;
             if (body.containsKey("disabled")) {
                 isDisabled = (Boolean) body.get("disabled");
@@ -1109,7 +1132,7 @@ public class WebServer {
 
             ShopDataManager.saveDynamicData();
             invalidateShopItemsCache();
-        });
+        })) return;
 
         // Audit log
         StringBuilder changes = new StringBuilder();
@@ -1149,7 +1172,7 @@ public class WebServer {
              }
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             for (Material mat : materialsToUpdate) {
                 if (updates.containsKey("disabled")) {
                     ShopDataManager.setItemDisabled(mat, (Boolean) updates.get("disabled"));
@@ -1163,7 +1186,7 @@ public class WebServer {
             }
             ShopDataManager.saveDynamicData();
             invalidateShopItemsCache();
-        });
+        })) return;
 
         auditLog.log(getAdminUsername(ctx), "bulk_item_update", items.size() + " items", updates.toString());
         ctx.json(Map.of("success", true, "updated", materialsToUpdate.size()));
@@ -1207,8 +1230,8 @@ public class WebServer {
         // Webserver
         config.put("webserverEnabled", plugin.getConfig().getBoolean("webserver.enabled", false));
         config.put("webserverPort", plugin.getConfig().getInt("webserver.port", 7713));
-        config.put("webserverBind", plugin.getConfig().getString("webserver.bind", "0.0.0.0"));
-        config.put("webserverCorsEnabled", plugin.getConfig().getBoolean("webserver.cors.enabled", true));
+        config.put("webserverBind", plugin.getConfig().getString("webserver.bind", "127.0.0.1"));
+        config.put("webserverCorsEnabled", plugin.getConfig().getBoolean("webserver.cors.enabled", false));
         config.put("webserverForceUpdate", plugin.getConfig().getBoolean("webserver.force-update-files", false));
         config.put("webserverAdminEnabled", plugin.getConfig().getBoolean("webserver.admin-enabled", true));
         config.put("webserverHostname", plugin.getConfig().getString("webserver.hostname", ""));
@@ -1239,7 +1262,7 @@ public class WebServer {
             return;
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             if (body.containsKey("dynamicPricingEnabled")) {
                 boolean val = (Boolean) body.get("dynamicPricingEnabled");
                 plugin.getConfig().set("dynamic-pricing.enabled", val);
@@ -1380,7 +1403,7 @@ public class WebServer {
             }
             plugin.saveConfig();
             invalidateShopItemsCache();
-        });
+        })) return;
 
         // Audit log
         StringBuilder changes = new StringBuilder();
@@ -1397,9 +1420,9 @@ public class WebServer {
     private void handleAdminResetShortage(Context ctx) {
         if (ctx.statusCode() == 401) return;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             ShopDataManager.resetAllShortageData();
-        });
+        })) return;
         auditLog.log(getAdminUsername(ctx), "shortage_reset", "ALL", "All shortage data reset");
         ctx.json(Map.of("success", true, "message", "All shortage data reset"));
     }
@@ -1417,11 +1440,11 @@ public class WebServer {
             return;
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             ShopDataManager.setHoursInShortage(mat, 0.0);
             ShopDataManager.setLastUpdate(mat, System.currentTimeMillis());
             ShopDataManager.saveDynamicData();
-        });
+        })) return;
 
         auditLog.log(getAdminUsername(ctx), "shortage_reset", mat.name(), "Shortage hours reset to 0");
         ctx.json(Map.of("success", true, "item", mat.name()));
@@ -1434,9 +1457,9 @@ public class WebServer {
     private void handleAdminReload(Context ctx) {
         if (ctx.statusCode() == 401) return;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             plugin.reload();
-        });
+        })) return;
 
         auditLog.log(getAdminUsername(ctx), "plugin_reload", "global", "Plugin configuration reloaded via web admin");
         invalidateShopItemsCache();
@@ -1550,7 +1573,7 @@ public class WebServer {
             return;
         }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             boolean categoryChanged = false;
             
             if (body.containsKey("slot")) {
@@ -1603,7 +1626,7 @@ public class WebServer {
             }
             
             auditLog.log(getAdminUsername(ctx), "category_update", cat.name(), "Updated category layout/restock rules");
-        });
+        })) return;
 
         ctx.json(Map.of("success", true));
     }
@@ -1651,13 +1674,13 @@ public class WebServer {
         }
         final ItemCategory finalCat = catOverride;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             ShopDataManager.setBasePrice(mat, basePrice);
             ShopDataManager.setStockDirect(mat, 0);
             if (finalCat != null) ShopDataManager.setCategoryOverride(mat, finalCat);
             ShopDataManager.saveDynamicData();
             invalidateShopItemsCache();
-        });
+        })) return;
 
         auditLog.log(getAdminUsername(ctx), "item_create", mat.name(),
                 "basePrice=" + basePrice + (catOverride != null ? ", category=" + catOverride : ""));
@@ -1675,11 +1698,11 @@ public class WebServer {
             ctx.status(404).json(Map.of("error", "Item not in shop"));
             return;
         }
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             ShopDataManager.setItemDisabled(mat, true);
             ShopDataManager.saveDynamicData();
             invalidateShopItemsCache();
-        });
+        })) return;
         auditLog.log(getAdminUsername(ctx), "item_remove", mat.name(), "Disabled/removed from shop");
         ctx.json(Map.of("success", true));
     }
@@ -1762,28 +1785,40 @@ public class WebServer {
             displayMat = "group".equalsIgnoreCase(type) ? Material.NETHER_STAR : Material.ENCHANTED_BOOK;
         }
 
+        String group = (String) body.get("group");
+        String groupWorld = (String) body.get("groupWorld");
+        String displayName = (String) body.getOrDefault("name", "Command");
+        String command = (String) body.get("command");
+        String perm = (String) body.get("permission");
+        String permWorld = (String) body.get("permissionWorld");
+
+        if ("group".equalsIgnoreCase(type) && (group == null || group.isBlank())) {
+            ctx.status(400).json(Map.of("error", "group is required"));
+            return;
+        }
+        if ("command".equalsIgnoreCase(type) && (command == null || command.isBlank())) {
+            ctx.status(400).json(Map.of("error", "command is required"));
+            return;
+        }
+        if (!"group".equalsIgnoreCase(type) && !"command".equalsIgnoreCase(type)
+                && (perm == null || perm.isBlank())) {
+            ctx.status(400).json(Map.of("error", "permission is required"));
+            return;
+        }
+
         final Material finalMat = displayMat;
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             if ("group".equalsIgnoreCase(type)) {
-                String group = (String) body.get("group");
-                String groupWorld = (String) body.get("groupWorld");
-                if (group == null || group.isBlank()) return;
                 plugin.getSpecialShopManager().addGroupItem(group, groupWorld, price, finalMat,
                         (requiredPerm != null && !requiredPerm.isBlank()) ? requiredPerm : null);
             } else if ("command".equalsIgnoreCase(type)) {
-                String displayName = (String) body.getOrDefault("name", "Command");
-                String command = (String) body.get("command");
-                if (command == null || command.isBlank()) return;
                 plugin.getSpecialShopManager().addCommandItem(displayName, price, command, finalMat,
                         (requiredPerm != null && !requiredPerm.isBlank()) ? requiredPerm : null);
             } else {
-                String perm = (String) body.get("permission");
-                String permWorld = (String) body.get("permissionWorld");
-                if (perm == null || perm.isBlank()) return;
                 plugin.getSpecialShopManager().addPermissionItem(perm, permWorld, price, finalMat,
                         (requiredPerm != null && !requiredPerm.isBlank()) ? requiredPerm : null);
             }
-        });
+        })) return;
 
         auditLog.log(getAdminUsername(ctx), "special_item_create", type,
                 "type=" + type + ", price=" + price);
@@ -1807,7 +1842,7 @@ public class WebServer {
         try { body = ctx.bodyAsClass(Map.class); }
         catch (Exception e) { ctx.status(400).json(Map.of("error", "Invalid JSON")); return; }
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        if (!runSyncAdminTask(ctx, () -> {
             if (body.containsKey("price")) {
                 double price = ((Number) body.get("price")).doubleValue();
                 plugin.getSpecialShopManager().updateItemPrice(id, price);
@@ -1823,7 +1858,7 @@ public class WebServer {
                 plugin.getSpecialShopManager().updateItemRequiredPermission(id,
                         (rp != null && !rp.isBlank()) ? rp : null);
             }
-        });
+        })) return;
 
         auditLog.log(getAdminUsername(ctx), "special_item_update", id, body.toString());
         ctx.json(Map.of("success", true));
@@ -1835,7 +1870,8 @@ public class WebServer {
     private void handleAdminSpecialItemDelete(Context ctx) {
         if (ctx.statusCode() == 401) return;
         String id = ctx.pathParam("id");
-        boolean removed = plugin.getSpecialShopManager().removeSpecialItem(id);
+        Boolean removed = callSyncAdminTask(ctx, () -> plugin.getSpecialShopManager().removeSpecialItem(id));
+        if (removed == null) return;
         if (!removed) {
             ctx.status(404).json(Map.of("error", "Special item not found: " + id));
             return;
@@ -1850,12 +1886,13 @@ public class WebServer {
     private void handleAdminPlayerShopDelete(Context ctx) {
         if (ctx.statusCode() == 401) return;
         String id = ctx.pathParam("id");
-        boolean removed = plugin.getPlayerShopManager().removeListing(id);
+        Boolean removed = callSyncAdminTask(ctx, () -> plugin.getPlayerShopManager().removeListing(id));
+        if (removed == null) return;
         if (!removed) {
             ctx.status(404).json(Map.of("error", "Listing not found: " + id));
             return;
         }
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, this::invalidateShopItemsCache);
+        invalidateShopItemsCache();
         auditLog.log(getAdminUsername(ctx), "playershop_delete", id, "Admin deleted player shop listing: " + id);
         ctx.json(Map.of("success", true));
     }

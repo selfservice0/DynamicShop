@@ -213,6 +213,11 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         Material mat = held.getType();
         int amount = held.getAmount();
 
+        if (!isShopSellMatch(held, mat)) {
+            p.sendMessage(plugin.getMessageManager().cannotSell());
+            return true;
+        }
+
         if (ShopDataManager.getBasePrice(mat) < 0) {
             p.sendMessage(plugin.getMessageManager().cannotSell());
             return true;
@@ -277,6 +282,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             Material mat = item.getType();
             if (ShopDataManager.getBasePrice(mat) < 0) continue;
             if (ShopDataManager.isSellDisabled(mat)) continue;
+            if (!isShopSellMatch(item, mat)) continue;
 
             sellable.merge(mat, item.getAmount(), Integer::sum);
         }
@@ -309,7 +315,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             int toRemove = amount;
             for (int i = 0; i < p.getInventory().getSize(); i++) {
                 ItemStack item = p.getInventory().getItem(i);
-                if (item != null && item.getType() == mat && !isDamaged(item) && toRemove > 0) {
+                if (isShopSellMatch(item, mat) && !isDamaged(item) && toRemove > 0) {
                     int take = Math.min(item.getAmount(), toRemove);
                     int newAmt = item.getAmount() - take;
                     if (newAmt <= 0) {
@@ -429,5 +435,22 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             return damageable.hasDamage();
         }
         return false;
+    }
+
+    private boolean isShopSellMatch(ItemStack item, Material mat) {
+        if (item == null || item.getType() != mat) {
+            return false;
+        }
+
+        ItemStack template = ShopDataManager.getTemplate(mat);
+        if (template == null) {
+            template = new ItemStack(mat, 1);
+        }
+
+        ItemStack oneItem = item.clone();
+        oneItem.setAmount(1);
+        ItemStack oneTemplate = template.clone();
+        oneTemplate.setAmount(1);
+        return oneItem.isSimilar(oneTemplate);
     }
 }

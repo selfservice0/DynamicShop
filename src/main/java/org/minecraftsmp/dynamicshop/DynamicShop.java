@@ -68,7 +68,9 @@ public class DynamicShop extends JavaPlugin {
         protocolShopManager = new ProtocolShopManager(this);
 
         economyManager = new MultiCurrencyEconomyManager(this);
-        economyManager.init();
+        if (!economyManager.init()) {
+            return;
+        }
 
         permissionsManager = new PermissionsManager(this);
         permissionsManager.init();
@@ -169,11 +171,11 @@ public class DynamicShop extends JavaPlugin {
             configChanged = true;
         }
         if (!getConfig().isSet("webserver.bind")) {
-            getConfig().set("webserver.bind", "0.0.0.0");
+            getConfig().set("webserver.bind", "127.0.0.1");
             configChanged = true;
         }
         if (!getConfig().isSet("webserver.cors.enabled")) {
-            getConfig().set("webserver.cors.enabled", true);
+            getConfig().set("webserver.cors.enabled", false);
             configChanged = true;
         }
         if (!getConfig().isSet("webserver.force-update-files")) {

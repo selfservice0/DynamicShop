@@ -181,11 +181,26 @@ public class EmbeddedP2PManager {
             double purchases = ShopDataManager.getPurchases(mat);
             publishStock(mat, stock, purchases, tx);
         }
+        for (String variantId : ShopDataManager.getAllVariantIds()) {
+            double stock = ShopDataManager.getVariantStock(variantId);
+            double purchases = ShopDataManager.getVariantPurchases(variantId);
+            publishVariantStock(variantId, stock, purchases, tx);
+        }
     }
 
     private void publishStock(Material mat, double stock, double purchases, long tx) {
         JsonObject json = new JsonObject();
         json.addProperty("material", mat.name());
+        json.addProperty("stock", stock);
+        json.addProperty("purchases", purchases);
+        json.addProperty("lastTx", tx);
+
+        publisher.send(TOPIC_STOCK + " " + json);
+    }
+
+    private void publishVariantStock(String variantId, double stock, double purchases, long tx) {
+        JsonObject json = new JsonObject();
+        json.addProperty("variantId", variantId);
         json.addProperty("stock", stock);
         json.addProperty("purchases", purchases);
         json.addProperty("lastTx", tx);
@@ -207,6 +222,13 @@ public class EmbeddedP2PManager {
         publisher.send(TOPIC_STOCK + " " + json);
     }
 
+    public void publishVariantStockUpdate(String variantId, double stock, double purchases) {
+        if (!running.get()) return;
+
+        long tx = plugin.getTransactionLogger().getMostRecentTransactionTime();
+        publishVariantStock(variantId, stock, purchases, tx);
+    }
+
     // --------------------------------------------------------------------
     // RECEIVE STOCK UPDATE (queues for processing)
     // --------------------------------------------------------------------
@@ -218,9 +240,15 @@ public class EmbeddedP2PManager {
             if (remoteTx < lastKnownTransactionTime) return;
             lastKnownTransactionTime = remoteTx;
 
-            Material mat = Material.valueOf(obj.get("material").getAsString());
             double stock = obj.get("stock").getAsDouble();
             double purchases = obj.get("purchases").getAsDouble();
+
+            if (obj.has("variantId")) {
+                ShopDataManager.receiveRemoteVariantStockUpdate(obj.get("variantId").getAsString(), stock, purchases);
+                return;
+            }
+
+            Material mat = Material.valueOf(obj.get("material").getAsString());
 
             // Use new queue-based method for receiving remote updates
             ShopDataManager.receiveRemoteStockUpdate(mat, stock, purchases);

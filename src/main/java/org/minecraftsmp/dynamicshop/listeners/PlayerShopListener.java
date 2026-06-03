@@ -179,8 +179,12 @@ public class PlayerShopListener implements Listener {
 
         // Clicked on an item
         PlayerShopListing listing = gui.getListingAtSlot(slot);
-        if (listing == null)
+        if (listing == null) {
+            PlayerShopViewGUI newGui = new PlayerShopViewGUI(plugin, player, gui.getShopOwnerId());
+            registerShopViewGUI(player, newGui);
+            newGui.open();
             return;
+        }
 
         boolean isOwnShop = player.getUniqueId().equals(gui.getShopOwnerId());
 
@@ -227,7 +231,12 @@ public class PlayerShopListener implements Listener {
 
         // Give item back
         ItemStack item = listing.getItem();
-        player.getInventory().addItem(item);
+        if (!hasInventorySpace(player, item)) {
+            player.sendMessage(plugin.getMessageManager().getMessage("playershop-not-enough-space"));
+            return;
+        }
+
+        player.getInventory().addItem(item.clone());
 
         // Remove listing
         manager.removeListing(listing.getListingId());
@@ -266,8 +275,14 @@ public class PlayerShopListener implements Listener {
             return;
         }
 
-        // Charge buyer first
-        plugin.getEconomyManager().charge(player, price);
+        // Charge buyer first; abort if the economy provider rejects the transaction
+        if (!plugin.getEconomyManager().charge(player, price)) {
+            Map<String, String> ph2 = new HashMap<>();
+            ph2.put("price", String.format("%.2f", price));
+            player.sendMessage(plugin.getMessageManager().getMessage("playershop-not-enough-money", ph2));
+            player.closeInventory();
+            return;
+        }
 
         Player seller = Bukkit.getPlayer(listing.getSellerId());
         if (seller != null && seller.isOnline()) {
@@ -285,7 +300,7 @@ public class PlayerShopListener implements Listener {
         }
 
         // Give buyer the item
-        player.getInventory().addItem(item);
+        player.getInventory().addItem(item.clone());
 
         // Remove listing
         manager.removeListing(listing.getListingId());

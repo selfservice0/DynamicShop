@@ -37,7 +37,8 @@ gui:
 webserver:
   enabled: true
   port: 7713
-  bind: "0.0.0.0"
+  # Use 0.0.0.0 only when protected by a firewall or reverse proxy.
+  bind: "127.0.0.1"
 
   # Hostname/IP used in generated admin panel links.
   # Set this to your server's public IP or domain name.
@@ -55,7 +56,7 @@ webserver:
 
   # CORS settings for web API
   cors:
-    enabled: true
+    enabled: false
 
   # Native SSL Support (Not recommended, use Nginx reverse proxy instead)
   # Allows you to serve the Web Dashboard over directly HTTPS by providing a Java KeyStore (.jks)

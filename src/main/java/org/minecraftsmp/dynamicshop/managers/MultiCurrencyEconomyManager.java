@@ -1,6 +1,7 @@
 package org.minecraftsmp.dynamicshop.managers;
 
 import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -44,7 +45,7 @@ public class MultiCurrencyEconomyManager {
     // INITIALIZATION
     // ---------------------------------------------------------------
 
-    public void init() {
+    public boolean init() {
         String system = plugin.getConfig().getString("economy.system", "vault");
 
         if (system.equalsIgnoreCase("coinengine")) {
@@ -60,6 +61,7 @@ public class MultiCurrencyEconomyManager {
             if (!setupVault()) {
                 plugin.getLogger().severe("[MultiCurrency] Vault economy not found! Disabling plugin.");
                 plugin.getServer().getPluginManager().disablePlugin(plugin);
+                return false;
             } else {
                 plugin.getLogger().info("[MultiCurrency] Using Vault (single currency mode)");
             }
@@ -67,6 +69,7 @@ public class MultiCurrencyEconomyManager {
 
         // Load currency caches
         loadCurrencyCaches();
+        return true;
     }
 
     private boolean setupVault() {
@@ -93,6 +96,7 @@ public class MultiCurrencyEconomyManager {
         if (defaultCurr == null) {
             plugin.getLogger().warning("[MultiCurrency] Default currency '" + defaultCurrency +
                     "' not found in CoinsEngine! Check your config.");
+            useCoinEngine = false;
             return false;
         }
 
@@ -152,6 +156,7 @@ public class MultiCurrencyEconomyManager {
     // ---------------------------------------------------------------
 
     public void reload() {
+        defaultCurrency = plugin.getConfig().getString("economy.default_currency", "coins");
         loadCurrencyCaches();
     }
 
@@ -236,6 +241,7 @@ public class MultiCurrencyEconomyManager {
      */
     public boolean charge(Player p, double amount, String currency) {
         if (amount < 0) return false;
+        if (amount == 0) return true;
 
         if (useCoinEngine) {
             Currency curr = getCoinEngineCurrency(currency);
@@ -244,13 +250,24 @@ public class MultiCurrencyEconomyManager {
                 return false;
             }
             if (!hasEnough(p, amount, currency)) return false;
-            CoinsEngineAPI.removeBalance(p, curr, amount);
-            return true;
+            boolean success = CoinsEngineAPI.removeBalance(p.getUniqueId(), curr, amount);
+            if (!success) {
+                plugin.getLogger().warning("[MultiCurrency] CoinsEngine withdrawal failed for "
+                        + p.getName() + ": " + amount + " " + currency);
+            }
+            return success;
         } else {
             // Vault (ignore currency parameter)
+            if (vaultEconomy == null) return false;
             if (!hasEnough(p, amount, null)) return false;
-            vaultEconomy.withdrawPlayer(p, amount);
-            return true;
+            EconomyResponse response = vaultEconomy.withdrawPlayer(p, amount);
+            boolean success = response != null && response.transactionSuccess();
+            if (!success) {
+                plugin.getLogger().warning("[MultiCurrency] Vault withdrawal failed for "
+                        + p.getName() + ": " + amount
+                        + (response != null && response.errorMessage != null ? " (" + response.errorMessage + ")" : ""));
+            }
+            return success;
         }
     }
 
@@ -261,10 +278,7 @@ public class MultiCurrencyEconomyManager {
         if (useCoinEngine) {
             return charge(p, amount, defaultCurrency);
         } else {
-            if (amount < 0) return false;
-            if (!hasEnough(p, amount)) return false;
-            vaultEconomy.withdrawPlayer(p, amount);
-            return true;
+            return charge(p, amount, null);
         }
     }
 

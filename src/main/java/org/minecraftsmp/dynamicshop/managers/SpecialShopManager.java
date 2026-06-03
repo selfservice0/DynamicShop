@@ -9,13 +9,9 @@ import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
 import org.minecraftsmp.dynamicshop.transactions.Transaction;
 
-import org.minecraftsmp.dynamicshop.managers.ItemsAdderWrapper;
-import org.minecraftsmp.dynamicshop.managers.NexoWrapper;
-import org.minecraftsmp.dynamicshop.transactions.Transaction;
-
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles Special Shop items (Permission items & Server-Shop items)
@@ -24,7 +20,7 @@ import java.util.Map;
 public class SpecialShopManager {
 
     private final DynamicShop plugin;
-    private final Map<String, SpecialShopItem> registry = new HashMap<>();
+    private final Map<String, SpecialShopItem> registry = new ConcurrentHashMap<>();
 
     public SpecialShopManager(DynamicShop plugin) {
         this.plugin = plugin;
@@ -583,8 +579,7 @@ public class SpecialShopManager {
 
                 int amount = Math.max(1, item.getAmount());
                 ItemStack stack = new ItemStack(m, amount);
-                player.getInventory().addItem(stack);
-                return true;
+                return giveInventoryItem(player, stack);
             }
 
             // 2. PERMISSION DELIVERY
@@ -687,20 +682,14 @@ public class SpecialShopManager {
                     boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
                     if (!success) {
                         plugin.getLogger().warning("[DynamicShop] Give command returned false");
-                        // Fallback: give regular item
-                        ItemStack stack = new ItemStack(m, 1);
-                        player.getInventory().addItem(stack);
                         player.sendMessage("§cWarning: Special item data could not be applied");
                     }
-                    return true;
+                    return success;
                 } catch (Exception e) {
                     plugin.getLogger().severe("[DynamicShop] Error executing give command: " + e.getMessage());
                     e.printStackTrace();
-                    // Fallback: give regular item
-                    ItemStack stack = new ItemStack(m, 1);
-                    player.getInventory().addItem(stack);
                     player.sendMessage("§cWarning: Special item data could not be applied");
-                    return true;
+                    return false;
                 }
             }
 
@@ -726,8 +715,7 @@ public class SpecialShopManager {
                 }
 
                 customStack.setAmount(Math.max(1, item.getAmount()));
-                player.getInventory().addItem(customStack);
-                return true;
+                return giveInventoryItem(player, customStack);
             }
 
             // 6. NEXO DELIVERY
@@ -752,8 +740,7 @@ public class SpecialShopManager {
                 }
 
                 customStack.setAmount(Math.max(1, item.getAmount()));
-                player.getInventory().addItem(customStack);
-                return true;
+                return giveInventoryItem(player, customStack);
             }
 
             // 7. VALHALLAMMO DELIVERY
@@ -772,8 +759,7 @@ public class SpecialShopManager {
                 }
 
                 valhallaItem.setAmount(Math.max(1, item.getAmount()));
-                player.getInventory().addItem(valhallaItem);
-                return true;
+                return giveInventoryItem(player, valhallaItem);
             }
 
             // 8. STORED ITEM DELIVERY (full ItemStack with all components)
@@ -788,8 +774,7 @@ public class SpecialShopManager {
 
                 ItemStack toGive = storedItem.clone();
                 toGive.setAmount(Math.max(1, item.getAmount()));
-                player.getInventory().addItem(toGive);
-                return true;
+                return giveInventoryItem(player, toGive);
             }
 
             plugin.getLogger().warning("Unknown delivery method '" + deliveryMethod +
@@ -802,5 +787,33 @@ public class SpecialShopManager {
             e.printStackTrace();
             return false;
         }
+    }
+
+    private boolean giveInventoryItem(Player player, ItemStack item) {
+        if (!hasInventorySpace(player, item)) {
+            return false;
+        }
+
+        player.getInventory().addItem(item.clone());
+        return true;
+    }
+
+    private boolean hasInventorySpace(Player player, ItemStack item) {
+        int needed = item.getAmount();
+        int maxStack = item.getMaxStackSize();
+
+        for (ItemStack stack : player.getInventory().getStorageContents()) {
+            if (stack == null || stack.getType() == Material.AIR) {
+                needed -= maxStack;
+            } else if (stack.isSimilar(item)) {
+                needed -= maxStack - stack.getAmount();
+            }
+
+            if (needed <= 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

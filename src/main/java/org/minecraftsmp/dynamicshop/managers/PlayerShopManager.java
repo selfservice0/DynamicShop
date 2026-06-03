@@ -30,7 +30,7 @@ public class PlayerShopManager {
     /**
      * Add a listing to a player's shop
      */
-    public boolean addListing(Player seller, ItemStack item, double price) {
+    public synchronized boolean addListing(Player seller, ItemStack item, double price) {
         if (item == null || item.getType() == Material.AIR) {
             return false;
         }
@@ -58,7 +58,7 @@ public class PlayerShopManager {
     /**
      * Remove a listing (when bought or reclaimed)
      */
-    public boolean removeListing(String listingId) {
+    public synchronized boolean removeListing(String listingId) {
         for (List<PlayerShopListing> listings : playerListings.values()) {
             PlayerShopListing toRemove = null;
             for (PlayerShopListing listing : listings) {
@@ -82,14 +82,14 @@ public class PlayerShopManager {
     /**
      * Get all listings for a specific seller
      */
-    public List<PlayerShopListing> getListings(UUID sellerId) {
+    public synchronized List<PlayerShopListing> getListings(UUID sellerId) {
         return new ArrayList<>(playerListings.getOrDefault(sellerId, new ArrayList<>()));
     }
 
     /**
      * Get a specific listing by ID
      */
-    public PlayerShopListing getListing(String listingId) {
+    public synchronized PlayerShopListing getListing(String listingId) {
         for (List<PlayerShopListing> listings : playerListings.values()) {
             for (PlayerShopListing listing : listings) {
                 if (listing.getListingId().equals(listingId)) {
@@ -103,14 +103,14 @@ public class PlayerShopManager {
     /**
      * Get all players who have active shops
      */
-    public List<UUID> getActiveShopOwners() {
+    public synchronized List<UUID> getActiveShopOwners() {
         return new ArrayList<>(playerListings.keySet());
     }
 
     /**
      * Get total number of listings for a player
      */
-    public int getListingCount(UUID sellerId) {
+    public synchronized int getListingCount(UUID sellerId) {
         List<PlayerShopListing> listings = playerListings.get(sellerId);
         return listings == null ? 0 : listings.size();
     }
@@ -118,7 +118,7 @@ public class PlayerShopManager {
     /**
      * Get player name from UUID (checks online players first, then saved data)
      */
-    public String getPlayerName(UUID playerId) {
+    public synchronized String getPlayerName(UUID playerId) {
         Player player = Bukkit.getPlayer(playerId);
         if (player != null) {
             return player.getName();
@@ -136,7 +136,7 @@ public class PlayerShopManager {
     /**
      * Remove shops with no items
      */
-    private void cleanupEmptyShops() {
+    private synchronized void cleanupEmptyShops() {
         playerListings.entrySet().removeIf(entry -> entry.getValue().isEmpty());
     }
 
@@ -150,7 +150,7 @@ public class PlayerShopManager {
      * - Attributes
      * - Everything!
      */
-    private void saveListings() {
+    private synchronized void saveListings() {
         YamlConfiguration config = new YamlConfiguration();
 
         int index = 0;
@@ -267,7 +267,7 @@ public class PlayerShopManager {
     /**
      * Get all listings (for admin purposes)
      */
-    public List<PlayerShopListing> getAllListings() {
+    public synchronized List<PlayerShopListing> getAllListings() {
         List<PlayerShopListing> all = new ArrayList<>();
         for (List<PlayerShopListing> listings : playerListings.values()) {
             all.addAll(listings);

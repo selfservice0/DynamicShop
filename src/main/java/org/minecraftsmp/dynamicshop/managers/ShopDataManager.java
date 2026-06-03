@@ -313,10 +313,35 @@ public class ShopDataManager {
         return variantStockMap.getOrDefault(variantId, 0.0);
     }
 
+    public static double getVariantPurchases(String variantId) {
+        return variantPurchasesMap.getOrDefault(variantId, 0.0);
+    }
+
+    public static Set<String> getAllVariantIds() {
+        return Collections.unmodifiableSet(variantStockMap.keySet());
+    }
+
     public static void setVariantStock(String variantId, double stock) {
         accumulateVariantShortage(variantId);
         variantStockMap.put(variantId, stock);
         variantLastUpdateMap.put(variantId, System.currentTimeMillis());
+        markVariantDirty(variantId);
+    }
+
+    public static void setVariantStockDirect(String variantId, double stock) {
+        if (variantId == null) {
+            return;
+        }
+        variantStockMap.put(variantId, stock);
+        variantLastUpdateMap.put(variantId, System.currentTimeMillis());
+        markVariantDirty(variantId);
+    }
+
+    public static void setVariantPurchasesDirect(String variantId, double purchases) {
+        if (variantId == null) {
+            return;
+        }
+        variantPurchasesMap.put(variantId, purchases);
         markVariantDirty(variantId);
     }
 
@@ -402,6 +427,15 @@ public class ShopDataManager {
         }
 
         markVariantDirty(variantId);
+
+        if (plugin != null &&
+                plugin.getP2PCrossServerManager() != null &&
+                plugin.getP2PCrossServerManager().isRunning()) {
+            plugin.getP2PCrossServerManager().publishVariantStockUpdate(
+                    variantId,
+                    newStock,
+                    getVariantPurchases(variantId));
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -1236,6 +1270,17 @@ public class ShopDataManager {
         markDirty(mat);
     }
 
+    public static void receiveRemoteVariantStockUpdate(String variantId, double stock, double purchases) {
+        if (variantId == null || variantId.isEmpty())
+            return;
+
+        setVariantStockDirect(variantId, stock);
+        setVariantPurchasesDirect(variantId, purchases);
+        variantLastUpdateMap.put(variantId, System.currentTimeMillis());
+
+        markVariantDirty(variantId);
+    }
+
     // ------------------------------------------------------------------------
     // DYNAMIC DATA SAVE / LOAD (YAML)
     // ------------------------------------------------------------------------
@@ -1270,6 +1315,7 @@ public class ShopDataManager {
             sec.set("last_update", variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis()));
             sec.set("shortage_hours", variantShortageHoursMap.getOrDefault(variantId, 0.0));
         }
+        saveQueue.clear();
         variantSaveQueue.clear();
 
         try {

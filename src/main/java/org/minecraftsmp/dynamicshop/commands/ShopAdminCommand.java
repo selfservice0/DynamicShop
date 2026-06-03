@@ -154,6 +154,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                         plugin.getConfig().set("special_items." + specialId + ".name", specialId);
                         plugin.saveConfig();
                         plugin.getSpecialShopManager().reload();
+
                         sender.sendMessage("§a[DynamicShop] §fDisplay name for §e" + specialId + " §fhas been reset.");
                     } else {
                         plugin.getConfig().set("special_items." + specialId + ".name", newName);

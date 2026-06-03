@@ -210,11 +210,7 @@ public class SearchResultsGUI {
         if (rightClick) {
             // SELL
             if (shiftClick) {
-                int has = 0;
-                for (ItemStack it : player.getInventory().getContents()) {
-                    if (it != null && it.getType() == mat)
-                        has += it.getAmount();
-                }
+                int has = plugin.getShopListener().countSellableItems(player, mat, null);
                 amount = Math.min(has, 64);
             }
 

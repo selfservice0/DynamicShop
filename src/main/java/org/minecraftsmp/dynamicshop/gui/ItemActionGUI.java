@@ -7,7 +7,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
-import org.minecraftsmp.dynamicshop.managers.MessageManager;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.managers.MessageManager;
 
@@ -24,6 +23,9 @@ public class ItemActionGUI {
     private final Player player;
     private final Material targetItem;
     private final ShopGUI parentShop;
+    private final ItemStack deliveryOverride;
+    private final double variantBasePrice;
+    private final String variantId;
     private final Inventory inventory;
 
     // Slot layout (27-slot / 3 rows):
@@ -40,10 +42,18 @@ public class ItemActionGUI {
     private static final int SIZE = 27;
 
     public ItemActionGUI(DynamicShop plugin, Player player, Material targetItem, ShopGUI parentShop) {
+        this(plugin, player, targetItem, parentShop, null, -1, null);
+    }
+
+    public ItemActionGUI(DynamicShop plugin, Player player, Material targetItem, ShopGUI parentShop,
+                         ItemStack deliveryOverride, double variantBasePrice, String variantId) {
         this.plugin = plugin;
         this.player = player;
         this.targetItem = targetItem;
         this.parentShop = parentShop;
+        this.deliveryOverride = deliveryOverride != null ? deliveryOverride.clone() : null;
+        this.variantBasePrice = variantBasePrice;
+        this.variantId = variantId;
 
         String title = plugin.getMessageManager().getMessage("item-action-title");
         if (title == null) title = "§8Buy / Sell";
@@ -72,18 +82,18 @@ public class ItemActionGUI {
         // Buy buttons
         inventory.setItem(SLOT_BUY_1, buildActionButton(
                 "item-action-buy-1", "§a§lBuy ×1", Material.LIME_CONCRETE,
-                plugin.getEconomyManager().format(ShopDataManager.getTotalBuyCost(targetItem, 1))));
+                plugin.getEconomyManager().format(getBuyCost(1))));
         inventory.setItem(SLOT_BUY_64, buildActionButton(
                 "item-action-buy-64", "§a§lBuy ×64", Material.LIME_CONCRETE,
-                plugin.getEconomyManager().format(ShopDataManager.getTotalBuyCost(targetItem, 64))));
+                plugin.getEconomyManager().format(getBuyCost(64))));
 
         // Sell buttons
         inventory.setItem(SLOT_SELL_1, buildActionButton(
                 "item-action-sell-1", "§c§lSell ×1", Material.RED_CONCRETE,
-                plugin.getEconomyManager().format(ShopDataManager.getTotalSellValue(targetItem, 1))));
+                plugin.getEconomyManager().format(getSellValue(1))));
         inventory.setItem(SLOT_SELL_64, buildActionButton(
                 "item-action-sell-64", "§c§lSell ×64", Material.RED_CONCRETE,
-                plugin.getEconomyManager().format(ShopDataManager.getTotalSellValue(targetItem, 64))));
+                plugin.getEconomyManager().format(getSellValue(64))));
 
         // Back button
         String backName = plugin.getMessageManager().getMessage("item-action-back");
@@ -98,9 +108,14 @@ public class ItemActionGUI {
     }
 
     private ItemStack buildDisplayItem() {
-        ItemStack item = new ItemStack(targetItem, 1);
+        ItemStack item = deliveryOverride != null ? deliveryOverride.clone() : ShopDataManager.getTemplate(targetItem);
+        if (item == null) {
+            item = new ItemStack(targetItem, 1);
+        } else {
+            item.setAmount(1);
+        }
         ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
+        if (meta != null && !meta.hasDisplayName()) {
             meta.displayName(MessageManager.parseComponent("§e§l" + targetItem.name().replace("_", " ")));
             item.setItemMeta(meta);
         }
@@ -108,9 +123,9 @@ public class ItemActionGUI {
     }
 
     private ItemStack buildInfoItem() {
-        double buyPrice = ShopDataManager.getTotalBuyCost(targetItem, 1);
-        double sellPrice = ShopDataManager.getTotalSellValue(targetItem, 1);
-        double stock = ShopDataManager.getStock(targetItem);
+        double buyPrice = getBuyCost(1);
+        double sellPrice = getSellValue(1);
+        double stock = getStock();
 
         ItemStack info = new ItemStack(Material.PAPER);
         ItemMeta meta = info.getItemMeta();
@@ -124,7 +139,9 @@ public class ItemActionGUI {
                 lore.add("§7Stock: §c" + String.format("%.0f", stock));
                 
                 // Show price increase if out of stock
-                double hours = ShopDataManager.getHoursInShortage(targetItem);
+                double hours = variantId != null
+                        ? ShopDataManager.getVariantShortageHours(variantId)
+                        : ShopDataManager.getHoursInShortage(targetItem);
                 double hourlyRate = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.hourlyIncreasePercent / 100.0;
                 double multiplier = Math.pow(1.0 + hourlyRate, hours);
                 double percentIncrease = (multiplier - 1.0) * 100.0;
@@ -172,6 +189,26 @@ public class ItemActionGUI {
         return button;
     }
 
+    private double getBuyCost(int amount) {
+        if (variantId != null && variantBasePrice > 0) {
+            return ShopDataManager.getTotalVariantBuyCost(variantId, targetItem, variantBasePrice, amount);
+        }
+        return ShopDataManager.getTotalBuyCost(targetItem, amount);
+    }
+
+    private double getSellValue(int amount) {
+        if (variantId != null && variantBasePrice > 0) {
+            return ShopDataManager.getTotalVariantSellValue(variantId, targetItem, variantBasePrice, amount);
+        }
+        return ShopDataManager.getTotalSellValue(targetItem, amount);
+    }
+
+    private double getStock() {
+        return variantId != null
+                ? ShopDataManager.getVariantStock(variantId)
+                : ShopDataManager.getStock(targetItem);
+    }
+
     private ItemStack createFiller() {
         return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
     }
@@ -182,20 +219,24 @@ public class ItemActionGUI {
     public void handleClick(Player p, int slot) {
         switch (slot) {
             case SLOT_BUY_1 -> {
-                plugin.getShopListener().buyItem(p, targetItem, 1, parentShop);
+                plugin.getShopListener().buyItem(p, targetItem, 1, parentShop,
+                        deliveryOverride, variantBasePrice, variantId);
                 // Re-render to update prices after transaction
                 render();
             }
             case SLOT_BUY_64 -> {
-                plugin.getShopListener().buyItem(p, targetItem, 64, parentShop);
+                plugin.getShopListener().buyItem(p, targetItem, 64, parentShop,
+                        deliveryOverride, variantBasePrice, variantId);
                 render();
             }
             case SLOT_SELL_1 -> {
-                plugin.getShopListener().sellItem(p, targetItem, 1, parentShop);
+                plugin.getShopListener().sellItem(p, targetItem, 1, parentShop,
+                        deliveryOverride, variantBasePrice, variantId);
                 render();
             }
             case SLOT_SELL_64 -> {
-                plugin.getShopListener().sellItem(p, targetItem, 64, parentShop);
+                plugin.getShopListener().sellItem(p, targetItem, 64, parentShop,
+                        deliveryOverride, variantBasePrice, variantId);
                 render();
             }
             case SLOT_BACK -> {

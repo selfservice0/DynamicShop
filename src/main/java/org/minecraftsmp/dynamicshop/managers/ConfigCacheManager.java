@@ -142,9 +142,9 @@ public class ConfigCacheManager {
     private static void loadWebServerSettings() {
         webServerEnabled = plugin.getConfig().getBoolean("webserver.enabled", true);
         webServerPort = plugin.getConfig().getInt("webserver.port", 7713);
-        webServerBind = plugin.getConfig().getString("webserver.bind", "0.0.0.0");
+        webServerBind = plugin.getConfig().getString("webserver.bind", "127.0.0.1");
         webServerForceUpdate = plugin.getConfig().getBoolean("webserver.force-update-files", false);
-        webServerCorsEnabled = plugin.getConfig().getBoolean("webserver.cors.enabled", true);
+        webServerCorsEnabled = plugin.getConfig().getBoolean("webserver.cors.enabled", false);
     }
 
     private static void loadLoggingSettings() {

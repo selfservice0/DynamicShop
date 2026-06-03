@@ -13,7 +13,9 @@ import org.minecraftsmp.dynamicshop.managers.MessageManager;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class PlayerShopViewGUI {
@@ -22,6 +24,7 @@ public class PlayerShopViewGUI {
     private final UUID shopOwnerId;
     private final String shopOwnerName;
     private final Inventory inventory;
+    private final Map<Integer, String> slotListingIds = new HashMap<>();
     private int currentPage = 0;
 
     // Item slots: rows 1-4, columns 1-7 (7 items per row, 4 rows = 28 items)
@@ -78,6 +81,7 @@ public class PlayerShopViewGUI {
 
     private void refreshPage() {
         inventory.clear();
+        slotListingIds.clear();
 
         // Fill borders: top row + side columns
         ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
@@ -103,7 +107,9 @@ public class PlayerShopViewGUI {
         for (int i = startIndex; i < endIndex; i++) {
             PlayerShopListing listing = listings.get(i);
             ItemStack displayItem = createDisplayItem(listing, isOwnShop);
-            inventory.setItem(ITEM_SLOTS[i - startIndex], displayItem);
+            int slot = ITEM_SLOTS[i - startIndex];
+            inventory.setItem(slot, displayItem);
+            slotListingIds.put(slot, listing.getListingId());
         }
 
         // Navigation items at bottom row
@@ -263,24 +269,8 @@ public class PlayerShopViewGUI {
      * Get the listing at the clicked slot
      */
     public PlayerShopListing getListingAtSlot(int slot) {
-        // Convert raw slot to item index
-        int itemIndex = -1;
-        for (int i = 0; i < ITEM_SLOTS.length; i++) {
-            if (ITEM_SLOTS[i] == slot) {
-                itemIndex = i;
-                break;
-            }
-        }
-        if (itemIndex < 0) return null;
-
-        List<PlayerShopListing> listings = plugin.getPlayerShopManager().getListings(shopOwnerId);
-        int actualIndex = currentPage * ITEMS_PER_PAGE + itemIndex;
-
-        if (actualIndex >= 0 && actualIndex < listings.size()) {
-            return listings.get(actualIndex);
-        }
-
-        return null;
+        String listingId = slotListingIds.get(slot);
+        return listingId != null ? plugin.getPlayerShopManager().getListing(listingId) : null;
     }
 
     public UUID getShopOwnerId() {

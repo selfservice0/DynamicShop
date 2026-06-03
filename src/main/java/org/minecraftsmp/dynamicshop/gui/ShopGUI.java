@@ -259,7 +259,9 @@ public class ShopGUI {
             }
 
             Material baseMat = specialItem.getDisplayMaterial();
-            boolean hasDynamicPrice = baseMat != null && ShopDataManager.itemConfigs.containsKey(baseMat);
+            boolean hasDynamicPrice = baseMat != null
+                    && ShopDataManager.itemConfigs.containsKey(baseMat)
+                    && specialItem.getPrice() > 0;
 
             // stored_item variants in regular categories: render like a normal shop item
             if ("stored_item".equalsIgnoreCase(specialItem.getDeliveryMethod()) && hasDynamicPrice

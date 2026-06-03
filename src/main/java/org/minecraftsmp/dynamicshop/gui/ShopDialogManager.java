@@ -240,13 +240,15 @@ public class ShopDialogManager {
         if (item == null || item.getType() != mat) {
             return false;
         }
-        if (variantTemplate == null) {
-            return true;
+
+        ItemStack template = variantTemplate != null ? variantTemplate : ShopDataManager.getTemplate(mat);
+        if (template == null) {
+            template = new ItemStack(mat, 1);
         }
 
         ItemStack oneItem = item.clone();
         oneItem.setAmount(1);
-        ItemStack oneTemplate = variantTemplate.clone();
+        ItemStack oneTemplate = template.clone();
         oneTemplate.setAmount(1);
         return oneItem.isSimilar(oneTemplate);
     }
