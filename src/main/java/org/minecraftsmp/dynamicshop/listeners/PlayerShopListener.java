@@ -13,6 +13,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
@@ -29,6 +30,10 @@ public class PlayerShopListener implements Listener {
 
     public PlayerShopListener(DynamicShop plugin) {
         this.plugin = plugin;
+    }
+
+    private boolean hasOpenPlayerShopGui(UUID playerId) {
+        return openBrowserGUIs.containsKey(playerId) || openShopViewGUIs.containsKey(playerId);
     }
 
     /**
@@ -82,18 +87,46 @@ public class PlayerShopListener implements Listener {
         Player player = (Player) event.getWhoClicked();
         UUID playerId = player.getUniqueId();
 
+        if (!hasOpenPlayerShopGui(playerId)) {
+            return;
+        }
+
+        event.setCancelled(true);
+        event.setResult(org.bukkit.event.Event.Result.DENY);
+        if (event.getClickedInventory() == null) {
+            player.updateInventory();
+            return;
+        }
+
         // Handle Player Shops Browser
         if (openBrowserGUIs.containsKey(playerId)) {
-            event.setCancelled(true);
             handleBrowserClick(player, event.getRawSlot());
             return;
         }
 
         // Handle Individual Player Shop View
         if (openShopViewGUIs.containsKey(playerId)) {
-            event.setCancelled(true);
             handleShopViewClick(player, event.getRawSlot());
         }
+    }
+
+    /**
+     * Prevent drag placement/removal from player shop GUIs.
+     */
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) event.getWhoClicked();
+        if (!hasOpenPlayerShopGui(player.getUniqueId())) {
+            return;
+        }
+
+        event.setCancelled(true);
+        event.setResult(org.bukkit.event.Event.Result.DENY);
+        player.updateInventory();
     }
 
     /**

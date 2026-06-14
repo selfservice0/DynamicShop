@@ -263,8 +263,9 @@ public class ShopGUI {
                     && ShopDataManager.itemConfigs.containsKey(baseMat)
                     && specialItem.getPrice() > 0;
 
-            // stored_item variants in regular categories: render like a normal shop item
-            if ("stored_item".equalsIgnoreCase(specialItem.getDeliveryMethod()) && hasDynamicPrice
+            // Non-server stored_item variants in regular categories: render like a normal shop item
+            if (!specialItem.isServerShopItem()
+                    && "stored_item".equalsIgnoreCase(specialItem.getDeliveryMethod()) && hasDynamicPrice
                     && category != ItemCategory.PERMISSIONS && category != ItemCategory.SERVER_SHOP) {
                 List<String> lore = new ArrayList<>();
 
@@ -372,7 +373,7 @@ public class ShopGUI {
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
 
-            if (hasDynamicPrice) {
+            if (hasDynamicPrice && !specialItem.isServerShopItem()) {
                 // Use the base material's dynamic pricing
                 double buyPrice = ShopDataManager.getTotalBuyCost(baseMat, 1);
                 double sellPrice = ShopDataManager.getTotalSellValue(baseMat, 1);
@@ -407,24 +408,7 @@ public class ShopGUI {
                     lore.add("§a✔ You already own this!");
                 }
             } else if (specialItem.isServerShopItem()) {
-                // Show stock info using the base material's stock pool
-                if (baseMat != null) {
-                    double stock = ShopDataManager.getStock(baseMat);
-                    if (stock < 0) {
-                        java.util.Map<String, String> stPh = new java.util.HashMap<>();
-                        stPh.put("stock", String.format("%.0f", stock));
-                        lore.add(plugin.getMessageManager().getMessage("lore-stock-negative", stPh));
-                    } else if (stock == 0) {
-                        lore.add(plugin.getMessageManager().getMessage("lore-out-of-stock"));
-                    } else {
-                        java.util.Map<String, String> stPh = new java.util.HashMap<>();
-                        stPh.put("stock", String.format("%.0f", stock));
-                        lore.add(plugin.getMessageManager().getMessage("lore-stock", stPh));
-                        if (stock < 10) {
-                            lore.add(plugin.getMessageManager().getMessage("shop-lore-low-stock"));
-                        }
-                    }
-                }
+                lore.add("\u00A77Stock: \u00A7aUnlimited");
             }
 
             lore.add("§7───────────────────");

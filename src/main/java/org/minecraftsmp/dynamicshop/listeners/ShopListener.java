@@ -153,6 +153,19 @@ public class ShopListener implements Listener {
         openItemAction.remove(p);
     }
 
+    private boolean hasOpenManagedGui(Player p) {
+        return openShop.containsKey(p)
+                || openCategory.containsKey(p)
+                || openSearch.containsKey(p)
+                || openAdminBrowse.containsKey(p)
+                || openAdminEdit.containsKey(p)
+                || openAdminConfig.containsKey(p)
+                || openAdminSpecialEdit.containsKey(p)
+                || openAdminCategory.containsKey(p)
+                || openAdminCategoryEdit.containsKey(p)
+                || openItemAction.containsKey(p);
+    }
+
     // ------------------------------------------------------------------
     // CLICK LISTENER
     // ------------------------------------------------------------------
@@ -160,8 +173,17 @@ public class ShopListener implements Listener {
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player p))
             return;
-        if (e.getClickedInventory() == null)
+
+        if (hasOpenManagedGui(p)) {
+            e.setCancelled(true);
+            e.setResult(org.bukkit.event.Event.Result.DENY);
+            if (e.getClickedInventory() == null) {
+                p.updateInventory();
+                return;
+            }
+        } else if (e.getClickedInventory() == null) {
             return;
+        }
 
         // -------------------------
         // ITEM ACTION GUI (Bedrock)
@@ -382,11 +404,21 @@ public class ShopListener implements Listener {
         double variantBasePrice = -1; // -1 means use normal pricing
         String variantId = null;
 
-        // If no regular item found, check for stored_item variants in this category.
-        // stored_item variants (e.g., custom disc variants of the same base material)
-        // should behave like regular items with dynamic pricing and stock.
+        SpecialShopItem mixedSpecialItem = gui.getSpecialItemFromSlot(slot);
+        if (mixedSpecialItem != null && mixedSpecialItem.isServerShopItem()) {
+            if (right) {
+                p.sendMessage(plugin.getMessageManager().getMessage("cannot-sell-special-item"));
+                return;
+            }
+
+            plugin.getSpecialShopManager().purchase(p, mixedSpecialItem);
+            gui.render();
+            return;
+        }
+
+        // If no regular item found, check for non-server stored_item variants in this category.
         if (mat == null) {
-            SpecialShopItem sItem = gui.getSpecialItemFromSlot(slot);
+            SpecialShopItem sItem = mixedSpecialItem;
             if (sItem != null && sItem.getDisplayMaterial() != null
                     && "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
                 mat = sItem.getDisplayMaterial();
@@ -991,13 +1023,13 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     @EventHandler
     public void onDrag(InventoryDragEvent e) {
-        Player p = (Player) e.getWhoClicked();
-        if (!openShop.containsKey(p) && !openCategory.containsKey(p) && !openSearch.containsKey(p)
-                && !openAdminBrowse.containsKey(p) && !openAdminEdit.containsKey(p) && !openAdminConfig.containsKey(p)
-                && !openAdminSpecialEdit.containsKey(p) && !openAdminCategory.containsKey(p)
-                && !openAdminCategoryEdit.containsKey(p) && !openItemAction.containsKey(p))
+        if (!(e.getWhoClicked() instanceof Player p))
+            return;
+        if (!hasOpenManagedGui(p))
             return;
         e.setCancelled(true);
+        e.setResult(org.bukkit.event.Event.Result.DENY);
+        p.updateInventory();
     }
 
     // ------------------------------------------------------------------

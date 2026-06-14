@@ -429,7 +429,7 @@ public class SpecialShopManager {
             }
         }
 
-        ItemCategory category = item.getCategory();
+        ItemCategory category = item.isServerShopItem() ? ItemCategory.SERVER_SHOP : item.getCategory();
 
         switch (category) {
             case PERMISSIONS -> {
