@@ -5,11 +5,12 @@ import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
-import su.nightexpress.coinsengine.api.CoinsEngineAPI;
-import su.nightexpress.coinsengine.api.currency.Currency;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,7 +36,15 @@ public class MultiCurrencyEconomyManager {
     // CACHED CURRENCY MAPPINGS (cleared on reload)
     private final Map<Material, String> itemCurrencyCache = new ConcurrentHashMap<>();
     private final Map<ItemCategory, String> categoryCurrencyCache = new ConcurrentHashMap<>();
-    private final Map<String, Currency> coinEngineCurrencyCache = new ConcurrentHashMap<>();
+    private final Map<String, Object> coinEngineCurrencyCache = new ConcurrentHashMap<>();
+    private Class<?> coinEngineApiClass;
+    private Class<?> coinEngineCurrencyClass;
+    private Method coinEngineGetCurrencyMethod;
+    private Method coinEngineRemoveBalanceMethod;
+    private Method coinEngineAddPlayerBalanceMethod;
+    private Method coinEngineAddUuidBalanceMethod;
+    private Method coinEngineGetPlayerBalanceMethod;
+    private Method coinEngineFormatMethod;
 
     public MultiCurrencyEconomyManager(DynamicShop plugin) {
         this.plugin = plugin;
@@ -85,14 +94,20 @@ public class MultiCurrencyEconomyManager {
     }
 
     private boolean setupCoinEngine() {
-        if (plugin.getServer().getPluginManager().getPlugin("CoinsEngine") == null) {
+        Plugin coinsEnginePlugin = plugin.getServer().getPluginManager().getPlugin("CoinsEngine");
+        if (coinsEnginePlugin == null) {
             return false;
         }
+
+        if (!loadCoinEngineApi(coinsEnginePlugin)) {
+            return false;
+        }
+
         defaultCurrency = plugin.getConfig().getString("economy.default_currency", "coins");
         useCoinEngine = true;
 
         // Verify default currency exists
-        Currency defaultCurr = CoinsEngineAPI.getCurrency(defaultCurrency);
+        Object defaultCurr = getCoinEngineCurrency(defaultCurrency);
         if (defaultCurr == null) {
             plugin.getLogger().warning("[MultiCurrency] Default currency '" + defaultCurrency +
                     "' not found in CoinsEngine! Check your config.");
@@ -102,6 +117,49 @@ public class MultiCurrencyEconomyManager {
 
         plugin.getLogger().info("[MultiCurrency] Default currency: " + defaultCurrency);
         return true;
+    }
+
+    private boolean loadCoinEngineApi(Plugin coinsEnginePlugin) {
+        try {
+            ClassLoader classLoader = coinsEnginePlugin.getClass().getClassLoader();
+            coinEngineApiClass = Class.forName("su.nightexpress.coinsengine.api.CoinsEngineAPI", true, classLoader);
+            coinEngineCurrencyClass = Class.forName("su.nightexpress.coinsengine.api.currency.Currency", true, classLoader);
+            coinEngineGetCurrencyMethod = coinEngineApiClass.getMethod("getCurrency", String.class);
+            coinEngineRemoveBalanceMethod = coinEngineApiClass.getMethod("removeBalance", UUID.class, coinEngineCurrencyClass, double.class);
+            coinEngineAddPlayerBalanceMethod = coinEngineApiClass.getMethod("addBalance", Player.class, coinEngineCurrencyClass, double.class);
+            coinEngineAddUuidBalanceMethod = coinEngineApiClass.getMethod("addBalance", UUID.class, coinEngineCurrencyClass, double.class);
+            coinEngineGetPlayerBalanceMethod = coinEngineApiClass.getMethod("getBalance", Player.class, coinEngineCurrencyClass);
+            coinEngineFormatMethod = coinEngineCurrencyClass.getMethod("format", double.class);
+            return true;
+        } catch (ReflectiveOperationException e) {
+            plugin.getLogger().warning("[MultiCurrency] CoinsEngine API is not compatible: " + e.getMessage());
+            clearCoinEngineApi();
+            return false;
+        }
+    }
+
+    private void clearCoinEngineApi() {
+        coinEngineApiClass = null;
+        coinEngineCurrencyClass = null;
+        coinEngineGetCurrencyMethod = null;
+        coinEngineRemoveBalanceMethod = null;
+        coinEngineAddPlayerBalanceMethod = null;
+        coinEngineAddUuidBalanceMethod = null;
+        coinEngineGetPlayerBalanceMethod = null;
+        coinEngineFormatMethod = null;
+        coinEngineCurrencyCache.clear();
+    }
+
+    private Object invokeCoinEngine(Method method, Object target, Object... args) {
+        try {
+            return method.invoke(target, args);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            Throwable cause = e instanceof InvocationTargetException invocation && invocation.getCause() != null
+                    ? invocation.getCause()
+                    : e;
+            plugin.getLogger().warning("[MultiCurrency] CoinsEngine API call failed: " + cause.getMessage());
+            return null;
+        }
     }
 
     // ---------------------------------------------------------------
@@ -201,15 +259,16 @@ public class MultiCurrencyEconomyManager {
     /**
      * Get CoinEngine Currency object (cached)
      */
-    private Currency getCoinEngineCurrency(String currencyId) {
+    private Object getCoinEngineCurrency(String currencyId) {
         if (currencyId == null) return null;
+        if (coinEngineGetCurrencyMethod == null) return null;
 
         // Check cache first
-        Currency cached = coinEngineCurrencyCache.get(currencyId);
+        Object cached = coinEngineCurrencyCache.get(currencyId);
         if (cached != null) return cached;
 
         // Fetch from API and cache
-        Currency currency = CoinsEngineAPI.getCurrency(currencyId);
+        Object currency = invokeCoinEngine(coinEngineGetCurrencyMethod, null, currencyId);
         if (currency != null) {
             coinEngineCurrencyCache.put(currencyId, currency);
         }
@@ -244,13 +303,14 @@ public class MultiCurrencyEconomyManager {
         if (amount == 0) return true;
 
         if (useCoinEngine) {
-            Currency curr = getCoinEngineCurrency(currency);
+            Object curr = getCoinEngineCurrency(currency);
             if (curr == null) {
                 plugin.getLogger().warning("[MultiCurrency] Currency not found: " + currency);
                 return false;
             }
             if (!hasEnough(p, amount, currency)) return false;
-            boolean success = CoinsEngineAPI.removeBalance(p.getUniqueId(), curr, amount);
+            Object result = invokeCoinEngine(coinEngineRemoveBalanceMethod, null, p.getUniqueId(), curr, amount);
+            boolean success = result instanceof Boolean bool && bool;
             if (!success) {
                 plugin.getLogger().warning("[MultiCurrency] CoinsEngine withdrawal failed for "
                         + p.getName() + ": " + amount + " " + currency);
@@ -289,12 +349,12 @@ public class MultiCurrencyEconomyManager {
         if (amount < 0) return;
 
         if (useCoinEngine) {
-            Currency curr = getCoinEngineCurrency(currency);
+            Object curr = getCoinEngineCurrency(currency);
             if (curr == null) {
                 plugin.getLogger().warning("[MultiCurrency] Currency not found: " + currency);
                 return;
             }
-            CoinsEngineAPI.addBalance(p, curr, amount);
+            invokeCoinEngine(coinEngineAddPlayerBalanceMethod, null, p, curr, amount);
         } else {
             vaultEconomy.depositPlayer(p, amount);
         }
@@ -304,12 +364,12 @@ public class MultiCurrencyEconomyManager {
         if (amount < 0) return;
 
         if (useCoinEngine) {
-            Currency curr = getCoinEngineCurrency(currency);
+            Object curr = getCoinEngineCurrency(currency);
             if (curr == null) {
                 plugin.getLogger().warning("[MultiCurrency] Currency not found: " + currency);
                 return;
             }
-            CoinsEngineAPI.addBalance(uuid, curr, amount);
+            invokeCoinEngine(coinEngineAddUuidBalanceMethod, null, uuid, curr, amount);
         } else {
             vaultEconomy.depositPlayer(offline, amount);
         }
@@ -350,9 +410,10 @@ public class MultiCurrencyEconomyManager {
         if (amount <= 0) return true;
 
         if (useCoinEngine) {
-            Currency curr = getCoinEngineCurrency(currency);
+            Object curr = getCoinEngineCurrency(currency);
             if (curr == null) return false;
-            double balance = CoinsEngineAPI.getBalance(p, curr);
+            Object result = invokeCoinEngine(coinEngineGetPlayerBalanceMethod, null, p, curr);
+            double balance = result instanceof Number number ? number.doubleValue() : 0.0;
             return balance >= amount;
         } else {
             if (vaultEconomy == null) return false;
@@ -378,9 +439,10 @@ public class MultiCurrencyEconomyManager {
      */
     public double getBalance(Player p, String currency) {
         if (useCoinEngine) {
-            Currency curr = getCoinEngineCurrency(currency);
+            Object curr = getCoinEngineCurrency(currency);
             if (curr == null) return 0.0;
-            return CoinsEngineAPI.getBalance(p, curr);
+            Object result = invokeCoinEngine(coinEngineGetPlayerBalanceMethod, null, p, curr);
+            return result instanceof Number number ? number.doubleValue() : 0.0;
         } else {
             if (vaultEconomy == null) return 0.0;
             return vaultEconomy.getBalance(p);
@@ -408,11 +470,12 @@ public class MultiCurrencyEconomyManager {
             return "N/A";
         }
         if (useCoinEngine) {
-            Currency curr = getCoinEngineCurrency(currency);
+            Object curr = getCoinEngineCurrency(currency);
             if (curr == null) {
                 return String.format("%.2f %s", value, currency != null ? currency : "");
             }
-            return curr.format(value);
+            Object result = invokeCoinEngine(coinEngineFormatMethod, curr, value);
+            return result instanceof String formatted ? formatted : String.format("%.2f %s", value, currency != null ? currency : "");
         } else {
             if (vaultEconomy != null) {
                 return vaultEconomy.format(value);
