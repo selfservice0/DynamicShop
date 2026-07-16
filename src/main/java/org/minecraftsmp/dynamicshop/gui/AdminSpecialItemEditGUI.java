@@ -42,7 +42,7 @@ public class AdminSpecialItemEditGUI {
         this.player = player;
         this.item = item;
         this.parentGUI = parentGUI;
-        this.inventory = Bukkit.createInventory(null, SIZE,
+        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 MessageManager.parseComponent("§4§lEdit: " + item.getName()));
     }
 
@@ -79,7 +79,7 @@ public class AdminSpecialItemEditGUI {
         ItemStack display = new ItemStack(item.getDisplayMaterial());
         ItemMeta meta = display.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§e§l" + item.getName()));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + item.getName()));
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
             lore.add("§7ID: §f" + item.getId());
@@ -99,7 +99,7 @@ public class AdminSpecialItemEditGUI {
             }
 
             lore.add("§7───────────────────");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             display.setItemMeta(meta);
         }
         return display;
@@ -109,12 +109,12 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(Material.GOLD_INGOT);
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§e§lEdit Price"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§lEdit Price"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Current: §e$" + String.format("%.2f", item.getPrice()));
             lore.add("");
             lore.add("§eClick to change");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -124,12 +124,12 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(item.getDisplayMaterial());
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§b§lEdit Display Material"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§b§lEdit Display Material"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Current: §f" + item.getDisplayMaterial().name());
             lore.add("");
             lore.add("§eHold item and click to use");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -139,7 +139,7 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(Material.BARRIER);
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§c§lEdit Required Permission"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§c§lEdit Required Permission"));
             List<String> lore = new ArrayList<>();
             if (item.hasRequiredPermission()) {
                 lore.add("§7Current: §e" + item.getRequiredPermission());
@@ -149,7 +149,7 @@ public class AdminSpecialItemEditGUI {
             lore.add("");
             lore.add("§eClick to change");
             lore.add("§7Type 'none' to remove requirement");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -159,13 +159,13 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(Material.TNT);
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§c§l⚠ DELETE ITEM"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§c§l⚠ DELETE ITEM"));
             List<String> lore = new ArrayList<>();
             lore.add("§7This will permanently remove");
             lore.add("§7this item from the shop.");
             lore.add("");
             lore.add("§c§lSHIFT+CLICK to confirm");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;
@@ -175,10 +175,10 @@ public class AdminSpecialItemEditGUI {
         ItemStack btn = new ItemStack(Material.ARROW);
         ItemMeta meta = btn.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§c§l◀ Back"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§c§l◀ Back"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Return to shop browser");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             btn.setItemMeta(meta);
         }
         return btn;

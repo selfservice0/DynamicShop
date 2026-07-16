@@ -15,8 +15,6 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.enchantments.Enchantment;
-import io.papermc.paper.registry.RegistryAccess;
-import io.papermc.paper.registry.RegistryKey;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
@@ -679,7 +677,7 @@ public class ShopListener implements Listener {
         if (gui instanceof SearchResultsGUI)
             ((SearchResultsGUI) gui).render();
 
-        p.getScheduler().runDelayed(plugin, task -> updateSingleItemLore(p, mat), null, 3L);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
     }
 
     // ------------------------------------------------------------------
@@ -799,7 +797,7 @@ public class ShopListener implements Listener {
         if (gui instanceof SearchResultsGUI)
             ((SearchResultsGUI) gui).render();
 
-        p.getScheduler().runDelayed(plugin, task -> updateSingleItemLore(p, mat), null, 3L);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
     }
 
     public int countSellableItems(Player p, Material mat, ItemStack variantTemplate) {
@@ -852,7 +850,7 @@ public class ShopListener implements Listener {
         if (!openShop.containsKey(player) && !openSearch.containsKey(player))
             return;
 
-        player.getScheduler().runDelayed(plugin, task -> {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
             try {
                 com.comphenix.protocol.ProtocolManager pm = com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
 
@@ -877,7 +875,7 @@ public class ShopListener implements Listener {
                 plugin.getLogger().warning("Failed to send fake inventory lore: " + ex.getMessage());
                 ex.printStackTrace();
             }
-        }, null, delay);
+        }, delay);
     }
 
     // ------------------------------------------------------------------
@@ -963,7 +961,7 @@ public class ShopListener implements Listener {
         ItemMeta meta = fake.getItemMeta();
         if (meta == null)
             return;
-        meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+        org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
         fake.setItemMeta(meta);
 
         com.comphenix.protocol.events.PacketContainer packet = pm
@@ -1013,9 +1011,9 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     private void clearFakeInventoryLore(Player player) {
         // Force update all inventory slots to remove fake packet-based lore
-        player.getScheduler().runDelayed(plugin, task -> {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
             player.updateInventory();
-        }, null, 1L);
+        }, 1L);
     }
 
     // ------------------------------------------------------------------
@@ -1123,9 +1121,7 @@ public class ShopListener implements Listener {
         EnchantmentStorageMeta meta = (EnchantmentStorageMeta) book.getItemMeta();
         if (meta != null) {
             // Get all registered enchantments
-            var registry = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT);
-            List<Enchantment> enchantments = new ArrayList<>();
-            registry.forEach(enchantments::add);
+            List<Enchantment> enchantments = new ArrayList<>(Arrays.asList(Enchantment.values()));
 
             if (!enchantments.isEmpty()) {
                 Random rand = new Random();

@@ -48,7 +48,7 @@ public class AdminCategoryEditGUI {
         this.player = player;
         this.category = category;
         this.parentGUI = parentGUI;
-        this.inventory = Bukkit.createInventory(null, SIZE,
+        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 LegacyComponentSerializer.legacySection()
                         .deserialize("§4§lEdit: " + CategoryConfigManager.getDisplayName(category)));
     }
@@ -71,8 +71,8 @@ public class AdminCategoryEditGUI {
         ItemStack iconItem = new ItemStack(category.getIcon());
         ItemMeta meta = iconItem.getItemMeta();
         if (meta != null) {
-            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§b§lChange Category Icon"));
-            meta.lore(List.of(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§b§lChange Category Icon"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(
                     text("§7Current: §f" + category.getIcon().name()),
                     text(""),
                     text("§eHold new icon item and click"),
@@ -85,8 +85,8 @@ public class AdminCategoryEditGUI {
         ItemStack nameItem = new ItemStack(Material.NAME_TAG);
         meta = nameItem.getItemMeta();
         if (meta != null) {
-            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e§lChange Display Name"));
-            meta.lore(List.of(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§e§lChange Display Name"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(
                     text("§7Current: " + CategoryConfigManager.getDisplayName(category)),
                     text(""),
                     text("§eClick to rename")));
@@ -98,8 +98,8 @@ public class AdminCategoryEditGUI {
         ItemStack resetItem = new ItemStack(Material.TNT);
         meta = resetItem.getItemMeta();
         if (meta != null) {
-            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§lReset to Default Icon"));
-            meta.lore(List.of(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§c§lReset to Default Icon"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(
                     text("§7Reset icon to default:"),
                     text("§f" + category.getIcon().name())));
             resetItem.setItemMeta(meta);
@@ -115,9 +115,9 @@ public class AdminCategoryEditGUI {
         ItemStack toggleItem = new ItemStack(hasRule ? Material.LIME_DYE : Material.GRAY_DYE);
         meta = toggleItem.getItemMeta();
         if (meta != null) {
-            meta.displayName(LegacyComponentSerializer.legacySection()
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection()
                     .deserialize(hasRule ? "§a§lRestock: ON" : "§7§lRestock: OFF"));
-            meta.lore(List.of(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(
                     text(hasRule ? "§aThis category auto-restocks." : "§7No restock rule for this category."),
                     text(""),
                     text(hasRule ? "§eClick to §cdisable§e restock" : "§eClick to §aenable§e restock")));
@@ -129,8 +129,8 @@ public class AdminCategoryEditGUI {
         ItemStack stockItem = new ItemStack(Material.CHEST);
         meta = stockItem.getItemMeta();
         if (meta != null) {
-            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§6§lTarget Stock"));
-            meta.lore(List.of(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§6§lTarget Stock"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(
                     text("§7Current: §f" + (hasRule ? rule[0] : "N/A")),
                     text(""),
                     text("§eClick to set target stock level")));
@@ -142,8 +142,8 @@ public class AdminCategoryEditGUI {
         ItemStack intervalItem = new ItemStack(Material.CLOCK);
         meta = intervalItem.getItemMeta();
         if (meta != null) {
-            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§d§lRestock Interval"));
-            meta.lore(List.of(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§d§lRestock Interval"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(
                     text("§7Current: §f" + (hasRule ? rule[1] + " min" : "N/A")),
                     text(""),
                     text("§eClick to set interval (minutes)")));
@@ -155,7 +155,7 @@ public class AdminCategoryEditGUI {
         ItemStack backItem = new ItemStack(Material.ARROW);
         meta = backItem.getItemMeta();
         if (meta != null) {
-            meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§l◀ Back"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§c§l◀ Back"));
             backItem.setItemMeta(meta);
         }
         inventory.setItem(BACK_SLOT, backItem);

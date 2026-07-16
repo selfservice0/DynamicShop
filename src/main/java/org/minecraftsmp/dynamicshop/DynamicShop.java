@@ -1,6 +1,8 @@
 package org.minecraftsmp.dynamicshop;
 
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import org.minecraftsmp.dynamicshop.commands.ShopAdminCommand;
@@ -14,6 +16,9 @@ import org.minecraftsmp.dynamicshop.transactions.TransactionLogger;
 import org.minecraftsmp.dynamicshop.web.WebServer;
 import org.minecraftsmp.dynamicshop.listeners.PlayerShopListener;
 import org.bstats.bukkit.Metrics;
+
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 public class DynamicShop extends JavaPlugin {
 
@@ -45,6 +50,7 @@ public class DynamicShop extends JavaPlugin {
         instance = this;
 
         saveDefaultConfig();
+        populateMissingConfigDefaults();
 
         getLogger().info("§aDynamicShop is enabling...");
 
@@ -217,7 +223,7 @@ public class DynamicShop extends JavaPlugin {
         // Warm up Nexo resolver AFTER all plugins have finished enabling.
         // Nexo's GlyphTag/ShiftTag singletons may not be ready during onEnable.
         if (Bukkit.getPluginManager().getPlugin("Nexo") != null) {
-            getServer().getGlobalRegionScheduler().runDelayed(this, task -> {
+            getServer().getScheduler().runTaskLater(this, () -> {
                 NexoWrapper.invalidateCache();  // Force re-init
                 getLogger().info("§aNexo glyph resolver cache warmed up.");
             }, 1L);  // 1 tick after all plugins are done
@@ -246,8 +252,8 @@ public class DynamicShop extends JavaPlugin {
         // Initialize input manager (auto-detects Dialog API availability)
         this.inputManager = new org.minecraftsmp.dynamicshop.managers.InputManager(this);
 
-        // Initialize dialog-based shop GUI (optional, config-driven)
-        this.shopDialogManager = new org.minecraftsmp.dynamicshop.gui.ShopDialogManager(this);
+        // Initialize dialog-based shop GUI only when the runtime supports it.
+        initializeShopDialogManager();
 
         // Update checker — async GitHub release check + OP join notifications
         UpdateChecker updateChecker = new UpdateChecker(this);
@@ -320,6 +326,7 @@ public class DynamicShop extends JavaPlugin {
         getLogger().info("[DEBUG] DynamicShop.reload() method called!");
         ShopDataManager.flushQueue();
         reloadConfig();
+        populateMissingConfigDefaults();
         ConfigCacheManager.reload();
         ShopDataManager.reload();
         messageManager.reload();
@@ -329,6 +336,7 @@ public class DynamicShop extends JavaPlugin {
         if (restockManager != null) {
             restockManager.reload();
         }
+        initializeShopDialogManager();
     }
 
     // ------------------------------------------------------------------------
@@ -400,6 +408,94 @@ public class DynamicShop extends JavaPlugin {
 
     public org.minecraftsmp.dynamicshop.gui.ShopDialogManager getShopDialogManager() {
         return shopDialogManager;
+    }
+
+    private void initializeShopDialogManager() {
+        if (!ConfigCacheManager.useDialogGui) {
+            this.shopDialogManager = null;
+            return;
+        }
+
+        if (!isShopDialogApiAvailable()) {
+            ConfigCacheManager.useDialogGui = false;
+            this.shopDialogManager = null;
+            getLogger().warning(
+                    "gui.use_dialog_gui is enabled, but this server does not provide Paper's Dialog API. "
+                            + "Disabling dialog shop GUI for this runtime. Use Paper 1.21.7+ to enable it.");
+            return;
+        }
+
+        if (this.shopDialogManager == null) {
+            this.shopDialogManager = new org.minecraftsmp.dynamicshop.gui.ShopDialogManager(this);
+        }
+    }
+
+    private boolean isShopDialogApiAvailable() {
+        ClassLoader classLoader = DynamicShop.class.getClassLoader();
+        try {
+            Class.forName("io.papermc.paper.dialog.Dialog", false, classLoader);
+            Class.forName("net.kyori.adventure.dialog.DialogLike", false, classLoader);
+            return true;
+        } catch (ClassNotFoundException | LinkageError e) {
+            return false;
+        }
+    }
+
+    private void populateMissingConfigDefaults() {
+        try (var stream = getResource("config.yml")) {
+            if (stream == null) {
+                getLogger().warning("[Config] Could not load bundled config.yml defaults.");
+                return;
+            }
+
+            YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
+                    new InputStreamReader(stream, StandardCharsets.UTF_8));
+            java.io.File configFile = new java.io.File(getDataFolder(), "config.yml");
+            YamlConfiguration existing = YamlConfiguration.loadConfiguration(configFile);
+            int added = copyMissingDefaults(defaults, existing, "");
+            if (added > 0) {
+                existing.save(configFile);
+                reloadConfig();
+                getLogger().info("[Config] Added " + added + " missing config default(s).");
+            }
+        } catch (Exception e) {
+            getLogger().warning("[Config] Failed to add missing defaults: " + e.getMessage());
+        }
+    }
+
+    private int copyMissingDefaults(ConfigurationSection defaults, ConfigurationSection target, String path) {
+        int added = 0;
+
+        for (String key : defaults.getKeys(false)) {
+            String childPath = path.isEmpty() ? key : path + "." + key;
+            if (shouldSkipDefaultMerge(childPath)) {
+                continue;
+            }
+
+            if (defaults.isConfigurationSection(key)) {
+                if (!target.isSet(key)) {
+                    target.createSection(key);
+                }
+
+                ConfigurationSection defaultSection = defaults.getConfigurationSection(key);
+                ConfigurationSection targetSection = target.getConfigurationSection(key);
+                if (defaultSection != null && targetSection != null) {
+                    added += copyMissingDefaults(defaultSection, targetSection, childPath);
+                }
+            } else if (!target.isSet(key)) {
+                target.set(key, defaults.get(key));
+                added++;
+            }
+        }
+
+        return added;
+    }
+
+    private boolean shouldSkipDefaultMerge(String path) {
+        return path.equals("items")
+                || path.startsWith("items.")
+                || path.equals("special_items")
+                || path.startsWith("special_items.");
     }
 
     private void setupPlaceholderAPI() {

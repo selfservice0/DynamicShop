@@ -48,7 +48,7 @@ public class AdminShopBrowseGUI {
         this.currentCategory = startCategory;
         String title = plugin.getMessageManager().getMessage("admin-shop-gui-title");
         if (title == null) title = "§4§lAdmin Shop";
-        this.inventory = Bukkit.createInventory(null, SIZE,
+        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 MessageManager.parseComponent(title));
 
         loadItemsForCategory();
@@ -149,7 +149,7 @@ public class AdminShopBrowseGUI {
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§e§l" + sItem.getName()));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + sItem.getName()));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
@@ -172,7 +172,7 @@ public class AdminShopBrowseGUI {
             lore.add("");
             lore.add("§e§lRight-click to EDIT");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -198,7 +198,7 @@ public class AdminShopBrowseGUI {
             item = new ItemStack(Material.BARRIER);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                meta.displayName(MessageManager.parseComponent("§c§lINVALID: " + mat.name()));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§c§lINVALID: " + mat.name()));
                 item.setItemMeta(meta);
             }
             return item;
@@ -209,10 +209,10 @@ public class AdminShopBrowseGUI {
             // Show disabled status in name
             String displayName = mat.name().replace("_", " ");
             if (disabled) {
-                meta.displayName(
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
                         MessageManager.parseComponent("§c§m" + displayName + " §7(DISABLED)"));
             } else {
-                meta.displayName(MessageManager.parseComponent("§a§l" + displayName));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§a§l" + displayName));
             }
 
             List<String> lore = new ArrayList<>();
@@ -228,7 +228,7 @@ public class AdminShopBrowseGUI {
             lore.add("");
             lore.add("§e§lRight-click to EDIT");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
 
@@ -267,13 +267,13 @@ public class AdminShopBrowseGUI {
         ItemStack pageItem = new ItemStack(Material.PAPER);
         ItemMeta pageMeta = pageItem.getItemMeta();
         if (pageMeta != null) {
-            pageMeta.displayName(MessageManager.parseComponent(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(pageMeta, MessageManager.parseComponent(
                     "§7Page §f" + (page + 1) + " §7/ §f" + (maxPage + 1)));
             List<String> pageLore = new ArrayList<>();
             pageLore.add("§7Items: §e" + items.size());
             pageLore.add("");
             pageLore.add("§e§lClick to edit Config");
-            pageMeta.lore(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(pageMeta,
                     pageLore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             pageItem.setItemMeta(pageMeta);
         }
@@ -290,7 +290,7 @@ public class AdminShopBrowseGUI {
         ItemStack item = new ItemStack(currentCategory.getIcon());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(
                     "§b§lCategory: " + currentCategory.getDisplayName()));
 
             List<String> lore = new ArrayList<>();
@@ -312,7 +312,7 @@ public class AdminShopBrowseGUI {
             lore.add("§7───────────────────");
             lore.add("§eClick to cycle category");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;

@@ -47,7 +47,7 @@ public class AdminCategoryGUI {
     public AdminCategoryGUI(DynamicShop plugin, Player player) {
         this.plugin = plugin;
         this.player = player;
-        this.inventory = Bukkit.createInventory(null, SIZE,
+        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 LegacyComponentSerializer.legacySection().deserialize("§4§lCategory Editor"));
     }
 
@@ -78,7 +78,7 @@ public class AdminCategoryGUI {
 
         // Show held item indicator
         if (heldCategory != null) {
-            player.sendActionBar(text("§e§lHolding: §f" + CategoryConfigManager.getDisplayName(heldCategory) +
+            org.minecraftsmp.dynamicshop.util.PaperCompat.sendActionBar(player, text("§e§lHolding: §f" + CategoryConfigManager.getDisplayName(heldCategory) +
                     " §7(Right-click a slot to place)"));
         }
     }
@@ -100,10 +100,10 @@ public class AdminCategoryGUI {
             if (category == heldCategory) {
                 String stripped = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                         .serialize(LegacyComponentSerializer.legacySection().deserialize(formattedName));
-                meta.displayName(LegacyComponentSerializer.legacySection()
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection()
                         .deserialize("§b§l▶ " + stripped + " §7(HELD)"));
             } else {
-                meta.displayName(LegacyComponentSerializer.legacySection().deserialize(formattedName));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize(formattedName));
             }
 
             List<Component> lore = new ArrayList<>();
@@ -121,7 +121,7 @@ public class AdminCategoryGUI {
             lore.add(text("§e§l◀ Right-click §7to pick up/move"));
             lore.add(text("§b§l◀ Shift+Right-click §7to edit"));
 
-            meta.lore(lore);
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore);
             item.setItemMeta(meta);
         }
 
@@ -155,8 +155,8 @@ public class AdminCategoryGUI {
         ItemStack saveItem = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta saveMeta = saveItem.getItemMeta();
         if (saveMeta != null) {
-            saveMeta.displayName(LegacyComponentSerializer.legacySection().deserialize("§a§lSave Changes"));
-            saveMeta.lore(List.of(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(saveMeta, LegacyComponentSerializer.legacySection().deserialize("§a§lSave Changes"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(saveMeta, List.of(
                     text("§7Save category positions and"),
                     text("§7customizations to config"),
                     text(""),
@@ -169,8 +169,8 @@ public class AdminCategoryGUI {
         ItemStack configItem = new ItemStack(Material.PAPER);
         ItemMeta configMeta = configItem.getItemMeta();
         if (configMeta != null) {
-            configMeta.displayName(LegacyComponentSerializer.legacySection().deserialize("§e§lConfig Editor"));
-            configMeta.lore(List.of(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(configMeta, LegacyComponentSerializer.legacySection().deserialize("§e§lConfig Editor"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(configMeta, List.of(
                     text("§7Edit plugin settings"),
                     text(""),
                     text("§eClick to open")));
@@ -182,8 +182,8 @@ public class AdminCategoryGUI {
         ItemStack closeItem = new ItemStack(Material.BARRIER);
         ItemMeta closeMeta = closeItem.getItemMeta();
         if (closeMeta != null) {
-            closeMeta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§lClose"));
-            closeMeta.lore(List.of(text("§7Close without saving")));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(closeMeta, LegacyComponentSerializer.legacySection().deserialize("§c§lClose"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(closeMeta, List.of(text("§7Close without saving")));
             closeItem.setItemMeta(closeMeta);
         }
         inventory.setItem(CLOSE_SLOT, closeItem);
@@ -193,8 +193,8 @@ public class AdminCategoryGUI {
             ItemStack cancelItem = new ItemStack(Material.RED_WOOL);
             ItemMeta cancelMeta = cancelItem.getItemMeta();
             if (cancelMeta != null) {
-                cancelMeta.displayName(LegacyComponentSerializer.legacySection().deserialize("§c§lCancel Move"));
-                cancelMeta.lore(List.of(
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(cancelMeta, LegacyComponentSerializer.legacySection().deserialize("§c§lCancel Move"));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(cancelMeta, List.of(
                         text("§7Cancel the current drag operation"),
                         text("§7and return " + CategoryConfigManager.getDisplayName(heldCategory)),
                         text("§7to its original position")));
@@ -206,8 +206,8 @@ public class AdminCategoryGUI {
             ItemStack hideItem = new ItemStack(Material.BARRIER);
             ItemMeta hideMeta = hideItem.getItemMeta();
             if (hideMeta != null) {
-                hideMeta.displayName(LegacyComponentSerializer.legacySection().deserialize("§4§lHide Category"));
-                hideMeta.lore(List.of(
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(hideMeta, LegacyComponentSerializer.legacySection().deserialize("§4§lHide Category"));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(hideMeta, List.of(
                         text("§7Remove " + CategoryConfigManager.getDisplayName(heldCategory)),
                         text("§7from the shop so players"),
                         text("§7cannot see it in /shop"),
@@ -224,10 +224,10 @@ public class AdminCategoryGUI {
         ItemMeta meta = filler.getItemMeta();
         if (meta != null) {
             if (heldCategory != null) {
-                meta.displayName(LegacyComponentSerializer.legacySection().deserialize("§7§oEmpty Slot"));
-                meta.lore(List.of(text("§eRight-click to place category here")));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§7§oEmpty Slot"));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(text("§eRight-click to place category here")));
             } else {
-                meta.lore(List.of(text("§eLeft-click to create")));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(text("§eLeft-click to create")));
             }
             filler.setItemMeta(meta);
         }
@@ -284,7 +284,7 @@ public class AdminCategoryGUI {
                 heldCategory = null;
                 heldFromSlot = -1;
                 render();
-                player.sendActionBar(text("§a§lCategory placed!"));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.sendActionBar(player, text("§a§lCategory placed!"));
             }
         } else {
             // Normal mode
@@ -296,10 +296,10 @@ public class AdminCategoryGUI {
                     if (nextCustom != null) {
                         CategoryConfigManager.setSlot(nextCustom, slot);
                         render();
-                        player.sendActionBar(text("§a§lAdded: §f" + CategoryConfigManager.getDisplayName(nextCustom) +
+                        org.minecraftsmp.dynamicshop.util.PaperCompat.sendActionBar(player, text("§a§lAdded: §f" + CategoryConfigManager.getDisplayName(nextCustom) +
                                 " §7(Shift+Right-click to edit)"));
                     } else {
-                        player.sendActionBar(text("§c§lAll 10 custom categories are already in use!"));
+                        org.minecraftsmp.dynamicshop.util.PaperCompat.sendActionBar(player, text("§c§lAll 10 custom categories are already in use!"));
                     }
                 }
                 return;
@@ -313,7 +313,7 @@ public class AdminCategoryGUI {
                 heldCategory = categoryAtSlot;
                 heldFromSlot = slot;
                 render();
-                player.sendActionBar(text("§e§lPicked up: §f" + CategoryConfigManager.getDisplayName(categoryAtSlot)));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.sendActionBar(player, text("§e§lPicked up: §f" + CategoryConfigManager.getDisplayName(categoryAtSlot)));
             } else {
                 // Left-click: Enter category
                 enterCategory(categoryAtSlot);
@@ -370,7 +370,7 @@ public class AdminCategoryGUI {
         heldCategory = null;
         heldFromSlot = -1;
         render();
-        player.sendActionBar(text("§c§lDrag cancelled"));
+        org.minecraftsmp.dynamicshop.util.PaperCompat.sendActionBar(player, text("§c§lDrag cancelled"));
     }
 
     private void hideCategory() {
@@ -381,7 +381,7 @@ public class AdminCategoryGUI {
             heldCategory = null;
             heldFromSlot = -1;
             render();
-            player.sendActionBar(text("§4§lHidden: §f" + name + " §7(Save to persist)"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.sendActionBar(player, text("§4§lHidden: §f" + name + " §7(Save to persist)"));
         }
     }
 

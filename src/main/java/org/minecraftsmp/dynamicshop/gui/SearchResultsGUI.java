@@ -125,10 +125,10 @@ public class SearchResultsGUI {
         String customName = ShopDataManager.getCustomName(mat);
         if (customName != null) {
             net.kyori.adventure.text.Component nameComponent = MessageManager.parseComponent("§e§l" + customName);
-            meta.displayName(nameComponent);
-            meta.itemName(nameComponent);
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, nameComponent);
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setItemName(meta, nameComponent);
         } else if (!meta.hasDisplayName()) {
-            meta.displayName(MessageManager.parseComponent("§e§l" + mat.name().replace("_", " ")));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + mat.name().replace("_", " ")));
         }
 
         double buy = ShopDataManager.getTotalBuyCost(mat, 1);
@@ -171,7 +171,7 @@ public class SearchResultsGUI {
             lore.add(plugin.getMessageManager().getMessage("search-lore-sell-64"));
         }
 
-        meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+        org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
         item.setItemMeta(meta);
         return item;
     }

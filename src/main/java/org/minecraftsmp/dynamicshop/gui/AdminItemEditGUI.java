@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * Admin GUI for editing individual shop items.
  * Allows adjusting stock, base price, category, and enabled/disabled status.
- * 
+ *
  * Uses InputManager for text input (Paper Dialog API or chat fallback).
  */
 public class AdminItemEditGUI {
@@ -58,7 +58,7 @@ public class AdminItemEditGUI {
         this.parentGUI = parentGUI;
 
         String itemName = material.name().replace("_", " ");
-        this.inventory = Bukkit.createInventory(null, SIZE,
+        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 MessageManager.parseComponent("§4§lEdit: " + itemName));
     }
 
@@ -111,7 +111,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
                     MessageManager.parseComponent("§e§l" + material.name().replace("_", " ")));
 
             List<String> lore = new ArrayList<>();
@@ -122,7 +122,7 @@ public class AdminItemEditGUI {
             lore.add("§7Status: " + (disabled ? "§c✗ DISABLED" : "§a✓ ENABLED"));
             lore.add("§7═══════════════════════");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -135,7 +135,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent(prefix + delta + " Stock"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(prefix + delta + " Stock"));
 
             List<String> lore = new ArrayList<>();
             double currentStock = ShopDataManager.getStock(material);
@@ -144,7 +144,7 @@ public class AdminItemEditGUI {
             lore.add("");
             lore.add("§eClick to adjust");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -154,7 +154,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(Material.GOLD_INGOT);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§e§lChange Base Price"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§lChange Base Price"));
 
             List<String> lore = new ArrayList<>();
             double currentPrice = ShopDataManager.getBasePrice(material);
@@ -162,7 +162,7 @@ public class AdminItemEditGUI {
             lore.add("");
             lore.add("§eClick to change");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -170,18 +170,16 @@ public class AdminItemEditGUI {
 
     private ItemStack createPriceIncreaseButton() {
         double hours = ShopDataManager.getHoursInShortage(material);
-        double hourlyRate = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.hourlyIncreasePercent / 100.0;
-        double multiplier = Math.pow(1.0 + hourlyRate, hours);
-        double percentIncrease = (multiplier - 1.0) * 100.0;
+        double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
         double maxPercent = (org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
-        
+
         boolean capped = percentIncrease >= maxPercent;
         if (capped) percentIncrease = maxPercent;
 
         ItemStack item = new ItemStack(Material.CLOCK);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§6§lPrice Increase %"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§6§lPrice Increase %"));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7Hours since update: §f" + String.format("%.1f", hours));
@@ -192,7 +190,7 @@ public class AdminItemEditGUI {
             lore.add("");
             lore.add("§eClick to set % (resets timer)");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -204,7 +202,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getIcon(current));
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§b§lChange Category"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§b§lChange Category"));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7Current: §b"
@@ -212,7 +210,7 @@ public class AdminItemEditGUI {
             lore.add("");
             lore.add("§eClick to cycle");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -225,7 +223,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(Material.CHEST);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§6§lPricing Max Stock"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§6§lPricing Max Stock"));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7Limits price drop due to overstock");
@@ -234,7 +232,7 @@ public class AdminItemEditGUI {
             lore.add("§eClick to edit");
             lore.add("§cRight-click to use global default");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -247,7 +245,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(Material.TRAPPED_CHEST);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§6§lStorage Hard Limit"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§6§lStorage Hard Limit"));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7Prevents selling past this stock");
@@ -256,7 +254,7 @@ public class AdminItemEditGUI {
             lore.add("§eClick to edit");
             lore.add("§cRight-click to set unlimited");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -269,7 +267,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
                     MessageManager.parseComponent(disabled ? "§c§lDISABLED" : "§a§lENABLED"));
 
             List<String> lore = new ArrayList<>();
@@ -283,7 +281,7 @@ public class AdminItemEditGUI {
                 lore.add("§cClick to DISABLE");
             }
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -296,7 +294,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
                     MessageManager.parseComponent(
                             buyDisabled ? "§c§lBUY DISABLED" : "§a§lBUY ENABLED"));
 
@@ -311,7 +309,7 @@ public class AdminItemEditGUI {
                 lore.add("§cClick to DISABLE buying");
             }
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -324,7 +322,7 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
                     MessageManager.parseComponent(
                             sellDisabled ? "§c§lSELL DISABLED" : "§a§lSELL ENABLED"));
 
@@ -339,7 +337,7 @@ public class AdminItemEditGUI {
                 lore.add("§cClick to DISABLE selling");
             }
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -349,10 +347,10 @@ public class AdminItemEditGUI {
         ItemStack item = new ItemStack(Material.ARROW);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§c§l◀ Back"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§c§l◀ Back"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Return to item browser");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -421,8 +419,7 @@ public class AdminItemEditGUI {
     private void openPriceIncreaseEditor() {
         double hours = ShopDataManager.getHoursInShortage(material);
         double hourlyRate = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.hourlyIncreasePercent / 100.0;
-        double multiplier = Math.pow(1.0 + hourlyRate, hours);
-        double currentPercent = (multiplier - 1.0) * 100.0;
+        double currentPercent = ShopDataManager.getInflationIncreasePercent(hours);
         double maxPercent = (org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
         if (currentPercent > maxPercent) currentPercent = maxPercent;
 

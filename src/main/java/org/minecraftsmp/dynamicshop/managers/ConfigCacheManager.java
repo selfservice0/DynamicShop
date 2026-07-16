@@ -22,11 +22,14 @@ public class ConfigCacheManager {
     public static double curveStrength = 0.7;
     public static double maxStock = 500.0;
     public static double minPriceMultiplier = 0.5;
-    public static double maxPriceMultiplier = 20.0;
+    public static double maxPriceMultiplier = 2.0;
     public static double negativeStockPercentPerItem = 5.0;
     public static boolean useTimeInflation = true;
     public static double hourlyIncreasePercent = 2.0;
     public static double shortageDecayPercentPerHour = 2.0;
+    public static boolean highInflationCorrectionEnabled = true;
+    public static double highInflationCorrectionThresholdPercent = 100.0;
+    public static double highInflationCorrectionReductionPercent = 50.0;
     public static boolean restrictBuyingAtZeroStock = false;
     public static boolean logDynamicPricing = false;
 
@@ -88,12 +91,15 @@ public class ConfigCacheManager {
         curveStrength = plugin.getConfig().getDouble("dynamic-pricing.curve-strength", 0.7);
         maxStock = plugin.getConfig().getDouble("dynamic-pricing.max-stock", 500.0);
         minPriceMultiplier = plugin.getConfig().getDouble("dynamic-pricing.min-price-multiplier", 0.5);
-        maxPriceMultiplier = plugin.getConfig().getDouble("dynamic-pricing.max-price-multiplier", 20.0);
+        maxPriceMultiplier = plugin.getConfig().getDouble("dynamic-pricing.max-price-multiplier", 2.0);
         negativeStockPercentPerItem = plugin.getConfig().getDouble("dynamic-pricing.negative-stock-percent-per-item",
                 5.0);
         useTimeInflation = plugin.getConfig().getBoolean("dynamic-pricing.use-time-inflation", true);
         hourlyIncreasePercent = plugin.getConfig().getDouble("dynamic-pricing.hourly-increase-percent", 2.0);
         shortageDecayPercentPerHour = plugin.getConfig().getDouble("dynamic-pricing.shortage-decay-percent-per-hour", 2.0);
+        highInflationCorrectionEnabled = plugin.getConfig().getBoolean("dynamic-pricing.high-inflation-correction-enabled", true);
+        highInflationCorrectionThresholdPercent = plugin.getConfig().getDouble("dynamic-pricing.high-inflation-correction-threshold-percent", 100.0);
+        highInflationCorrectionReductionPercent = plugin.getConfig().getDouble("dynamic-pricing.high-inflation-correction-reduction-percent", 50.0);
 
         restrictBuyingAtZeroStock = plugin.getConfig().getBoolean("dynamic-pricing.restrict-buying-at-zero-stock",
                 false);
@@ -117,7 +123,7 @@ public class ConfigCacheManager {
                 if (nexoItem != null) {
                     org.bukkit.inventory.meta.ItemMeta meta = nexoItem.getItemMeta();
                     if (meta != null) {
-                        meta.displayName(MessageManager.parseComponent(" "));
+                        org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(" "));
                         nexoItem.setItemMeta(meta);
                     }
                     return nexoItem.clone();
@@ -130,7 +136,7 @@ public class ConfigCacheManager {
             org.bukkit.inventory.ItemStack filler = new org.bukkit.inventory.ItemStack(mat);
             org.bukkit.inventory.meta.ItemMeta meta = filler.getItemMeta();
             if (meta != null) {
-                meta.displayName(MessageManager.parseComponent(" "));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(" "));
                 filler.setItemMeta(meta);
             }
             return filler;

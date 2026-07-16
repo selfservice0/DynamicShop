@@ -177,7 +177,7 @@ function renderItems() {
             </div>
             <div class="item-info">
                 <h3 class="item-name">${item.displayName}</h3>
-                <span class="item-category">${item.category}</span>
+                <span class="item-category">${item.categoryDisplayName || item.category}</span>
             </div>
             <div class="item-prices">
                 <div class="price buy">
@@ -226,7 +226,7 @@ async function showItemDetails(itemName) {
                      onerror="this.style.display='none'">
                 <div class="modal-item-details">
                     <h3>${itemData.displayName}</h3>
-                    <span class="item-category">${itemData.category}</span>
+                    <span class="item-category">${itemData.categoryDisplayName || itemData.category}</span>
                     <div class="modal-prices">
                         <div class="modal-price buy">
                             <span class="label">Buy Price</span>

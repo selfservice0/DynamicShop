@@ -377,7 +377,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                             .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(url))
                             .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
                                     net.kyori.adventure.text.Component.text("Click to open the web admin panel")));
-                    p.sendMessage(clickable);
+                    org.minecraftsmp.dynamicshop.util.PaperCompat.sendMessage(p, clickable);
                 }
                 return true;
             }

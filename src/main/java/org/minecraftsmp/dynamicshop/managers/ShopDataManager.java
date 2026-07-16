@@ -4,7 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
-import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import org.bukkit.scheduler.BukkitTask;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.bukkit.inventory.ItemStack;
@@ -71,8 +71,8 @@ public class ShopDataManager {
     private static File shopDataFile;
     private static YamlConfiguration shopDataConfig;
 
-    public static ScheduledTask saveTimer;
-    private static ScheduledTask shortageTicker;
+    public static BukkitTask saveTimer;
+    private static BukkitTask shortageTicker;
 
     // ------------------------------------------------------------------------
     // INIT
@@ -98,8 +98,8 @@ public class ShopDataManager {
         if (ConfigCacheManager.crossServerEnabled) {
             if (saveTimer == null || saveTimer.isCancelled()) {
                 int seconds = ConfigCacheManager.crossServerSaveInterval;
-                saveTimer = plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(
-                        plugin, task -> saveQueuedItems(), seconds * 20L, seconds * 20L);
+                saveTimer = plugin.getServer().getScheduler().runTaskTimer(
+                        plugin, ShopDataManager::saveQueuedItems, seconds * 20L, seconds * 20L);
             }
         }
 
@@ -109,8 +109,8 @@ public class ShopDataManager {
         if (shortageTicker != null && !shortageTicker.isCancelled()) {
             shortageTicker.cancel();
         }
-        shortageTicker = plugin.getServer().getGlobalRegionScheduler().runAtFixedRate(
-                plugin, task -> tickAllShortage(), 72000L, 72000L); // 1 hour = 72000 ticks
+        shortageTicker = plugin.getServer().getScheduler().runTaskTimer(
+                plugin, ShopDataManager::tickAllShortage, 72000L, 72000L); // 1 hour = 72000 ticks
     }
 
     public static void reload() {
@@ -381,10 +381,25 @@ public class ShopDataManager {
      */
     public static double getVariantInflationMultiplier(String variantId) {
         double hours = getVariantShortageHours(variantId);
-        if (hours <= 0) return 1.0;
+        return getInflationMultiplier(hours);
+    }
+
+    public static double getInflationMultiplier(double hours) {
+        if (!ConfigCacheManager.useTimeInflation || hours <= 0) {
+            return 1.0;
+        }
+
         double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+        if (hourlyRate <= 0) {
+            return 1.0;
+        }
+
         double multiplier = Math.pow(1.0 + hourlyRate, hours);
         return Math.min(multiplier, ConfigCacheManager.maxPriceMultiplier);
+    }
+
+    public static double getInflationIncreasePercent(double hours) {
+        return Math.max(0.0, (getInflationMultiplier(hours) - 1.0) * 100.0);
     }
 
     public static boolean hasVariantData(String variantId) {
@@ -424,6 +439,8 @@ public class ShopDataManager {
 
         if (delta < 0) {
             variantPurchasesMap.put(variantId, variantPurchasesMap.getOrDefault(variantId, 0.0) + Math.abs(delta));
+        } else if (delta > 0) {
+            applyVariantHighInflationCorrection(variantId, oldStock, newStock);
         }
 
         markVariantDirty(variantId);
@@ -633,17 +650,18 @@ public class ShopDataManager {
         double s0 = getStock(mat);
         double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
         double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
-        double k = ConfigCacheManager.curveStrength;
+        double k = ConfigCacheManager.useStockCurve ? ConfigCacheManager.curveStrength : 0.0;
         double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
         double q = 1.0 + negPercent;
-        double hourlyIncrease = ConfigCacheManager.hourlyIncreasePercent / 100.0;
         double h = getHoursInShortage(mat);
-        double t = Math.pow(1.0 + hourlyIncrease, h);
+        double t = getInflationMultiplier(h);
 
         double a = s0 - amount;
         double b = s0;
 
-        return computeClampedIntegral(B, a, b, L, minStock, k, q, t);
+        double total = computeClampedIntegral(B, a, b, L, minStock, k, q, t);
+        logDynamicPricing("BUY", mat.name(), B, s0, amount, h, t, k, q, total);
+        return total;
     }
 
     // ============================================================================
@@ -665,19 +683,20 @@ public class ShopDataManager {
         double s0 = getStock(mat);
         double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
         double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
-        double k = ConfigCacheManager.curveStrength;
+        double k = ConfigCacheManager.useStockCurve ? ConfigCacheManager.curveStrength : 0.0;
         double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
         double q = 1.0 + negPercent;
-        double hourlyIncrease = ConfigCacheManager.hourlyIncreasePercent / 100.0;
         double h = getHoursInShortage(mat);
-        double t = Math.pow(1.0 + hourlyIncrease, h);
+        double t = getInflationMultiplier(h);
 
         double a = s0;
         double b = s0 + amount;
 
         double total = computeClampedIntegral(B, a, b, L, minStock, k, q, t);
 
-        return Math.max(0.0, total * (1.0 - tax));
+        double taxedTotal = Math.max(0.0, total * (1.0 - tax));
+        logDynamicPricing("SELL", mat.name(), B, s0, amount, h, t, k, q, taxedTotal);
+        return taxedTotal;
     }
 
     public static double getTotalVariantBuyCost(String variantId, Material baseMat, double basePrice, double amount) {
@@ -692,17 +711,18 @@ public class ShopDataManager {
         double s0 = getVariantStock(variantId);
         double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
         double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
-        double k = ConfigCacheManager.curveStrength;
+        double k = ConfigCacheManager.useStockCurve ? ConfigCacheManager.curveStrength : 0.0;
         double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
         double q = 1.0 + negPercent;
-        double hourlyIncrease = ConfigCacheManager.hourlyIncreasePercent / 100.0;
         double h = getVariantShortageHours(variantId);
-        double t = Math.pow(1.0 + hourlyIncrease, h);
+        double t = getInflationMultiplier(h);
 
         double a = s0 - amount;
         double b = s0;
 
-        return computeClampedIntegral(basePrice, a, b, L, minStock, k, q, t);
+        double total = computeClampedIntegral(basePrice, a, b, L, minStock, k, q, t);
+        logDynamicPricing("BUY", "variant:" + variantId, basePrice, s0, amount, h, t, k, q, total);
+        return total;
     }
 
     public static double getTotalVariantSellValue(String variantId, Material baseMat, double basePrice, int amount) {
@@ -719,19 +739,33 @@ public class ShopDataManager {
         double s0 = getVariantStock(variantId);
         double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
         double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
-        double k = ConfigCacheManager.curveStrength;
+        double k = ConfigCacheManager.useStockCurve ? ConfigCacheManager.curveStrength : 0.0;
         double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
         double q = 1.0 + negPercent;
-        double hourlyIncrease = ConfigCacheManager.hourlyIncreasePercent / 100.0;
         double h = getVariantShortageHours(variantId);
-        double t = Math.pow(1.0 + hourlyIncrease, h);
+        double t = getInflationMultiplier(h);
 
         double a = s0;
         double b = s0 + amount;
 
         double total = computeClampedIntegral(basePrice, a, b, L, minStock, k, q, t);
 
-        return Math.max(0.0, total * (1.0 - tax));
+        double taxedTotal = Math.max(0.0, total * (1.0 - tax));
+        logDynamicPricing("SELL", "variant:" + variantId, basePrice, s0, amount, h, t, k, q, taxedTotal);
+        return taxedTotal;
+    }
+
+    private static void logDynamicPricing(String action, String itemId, double basePrice, double stock, double amount,
+            double shortageHours, double timeMultiplier, double curveStrength, double negativeStockMultiplier,
+            double total) {
+        if (!ConfigCacheManager.logDynamicPricing || plugin == null) {
+            return;
+        }
+
+        plugin.getLogger().info(String.format(
+                "[DynamicPricing] %s %s amount=%.2f stock=%.2f base=%.4f curve=%.4f shortageHours=%.4f timeMultiplier=%.4f negativeStockMultiplier=%.4f total=%.4f",
+                action, itemId, amount, stock, basePrice, curveStrength, shortageHours, timeMultiplier,
+                negativeStockMultiplier, total));
     }
 
     // ============================================================================
@@ -1226,6 +1260,9 @@ public class ShopDataManager {
         // Note: shortage hours are NOT reset when stock goes positive.
         // They only accumulate while stock <= 0 (via accumulateShortage).
         // Admins can manually reset via /shopadmin commands if needed.
+        if (delta > 0) {
+            applyHighInflationCorrection(mat, oldStock, newStock);
+        }
 
         // Even if we stay negative, we reset lastUpdate because we "baked" the previous
         // time
@@ -1617,6 +1654,70 @@ public class ShopDataManager {
                 markVariantDirty(variantId);
             }
         }
+    }
+
+    private static void applyHighInflationCorrection(Material mat, double oldStock, double newStock) {
+        if (!shouldApplyHighInflationCorrection(oldStock, newStock)) {
+            return;
+        }
+
+        double stored = shortageHoursMap.getOrDefault(mat, 0.0);
+        double corrected = getCorrectedShortageHours(stored);
+        if (corrected < stored) {
+            shortageHoursMap.put(mat, corrected);
+            markDirty(mat);
+        }
+    }
+
+    private static void applyVariantHighInflationCorrection(String variantId, double oldStock, double newStock) {
+        if (!shouldApplyHighInflationCorrection(oldStock, newStock)) {
+            return;
+        }
+
+        double stored = variantShortageHoursMap.getOrDefault(variantId, 0.0);
+        double corrected = getCorrectedShortageHours(stored);
+        if (corrected < stored) {
+            variantShortageHoursMap.put(variantId, corrected);
+            markVariantDirty(variantId);
+        }
+    }
+
+    private static boolean shouldApplyHighInflationCorrection(double oldStock, double newStock) {
+        return ConfigCacheManager.highInflationCorrectionEnabled
+                && ConfigCacheManager.useTimeInflation
+                && oldStock <= 0
+                && newStock > 0;
+    }
+
+    private static double getCorrectedShortageHours(double hours) {
+        if (hours <= 0) {
+            return hours;
+        }
+
+        double currentIncreasePercent = getInflationIncreasePercent(hours);
+        double threshold = Math.max(0.0, ConfigCacheManager.highInflationCorrectionThresholdPercent);
+        if (currentIncreasePercent < threshold) {
+            return hours;
+        }
+
+        double reduction = Math.max(0.0, Math.min(100.0,
+                ConfigCacheManager.highInflationCorrectionReductionPercent)) / 100.0;
+        if (reduction <= 0) {
+            return hours;
+        }
+
+        double targetIncreasePercent = currentIncreasePercent * (1.0 - reduction);
+        if (targetIncreasePercent <= 0) {
+            return 0.0;
+        }
+
+        double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
+        if (hourlyRate <= 0) {
+            return hours;
+        }
+
+        double correctedHours = Math.log1p(targetIncreasePercent / 100.0) / Math.log1p(hourlyRate);
+        return Math.max(0.0, Math.min(hours, correctedHours));
     }
 
     public static void setHoursInShortage(Material mat, double hours) {

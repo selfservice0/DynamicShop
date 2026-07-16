@@ -48,7 +48,7 @@ public class PlayerShopViewGUI {
         String title = plugin.getMessageManager().getMessage("player-shop-view-title", titlePlaceholders);
         if (title == null) title = "§6§l" + shopOwnerName + "'s Shop";
 
-        this.inventory = Bukkit.createInventory(null, GUI_SIZE,
+        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, GUI_SIZE,
                 MessageManager.parseComponent(title, viewer));
 
         refreshPage();
@@ -133,13 +133,13 @@ public class PlayerShopViewGUI {
             if (!meta.hasDisplayName()) {
                 String materialName = displayItem.getType().toString().replace("_", " ");
                 materialName = capitalizeWords(materialName);
-                meta.displayName(MessageManager.parseComponent("§f" + materialName));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§f" + materialName));
             }
             // If it has a custom name, keep it exactly as-is!
 
             // Get existing lore or create new list (using modern lore() which returns
             // List<Component>)
-            List<net.kyori.adventure.text.Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore())
+            List<net.kyori.adventure.text.Component> lore = meta.hasLore() ? new ArrayList<>(org.minecraftsmp.dynamicshop.util.PaperCompat.getLore(meta))
                     : new ArrayList<>();
 
             // Add shop info AFTER existing lore (preserve original lore)
@@ -175,7 +175,7 @@ public class PlayerShopViewGUI {
                 lore.add(MessageManager.parseComponent("§eClick to purchase"));
             }
 
-            meta.lore(lore);
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore);
             displayItem.setItemMeta(meta);
         }
 
@@ -209,7 +209,7 @@ public class PlayerShopViewGUI {
             ItemStack prevPage = new ItemStack(Material.ARROW);
             ItemMeta prevMeta = prevPage.getItemMeta();
             if (prevMeta != null) {
-                prevMeta.displayName(MessageManager.parseComponent("§e◀ Previous Page"));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(prevMeta, MessageManager.parseComponent("§e◀ Previous Page"));
                 prevPage.setItemMeta(prevMeta);
             }
             inventory.setItem(48, prevPage);
@@ -219,11 +219,10 @@ public class PlayerShopViewGUI {
         ItemStack pageInfo = new ItemStack(Material.PAPER);
         ItemMeta pageInfoMeta = pageInfo.getItemMeta();
         if (pageInfoMeta != null) {
-            pageInfoMeta.displayName(MessageManager.parseComponent("§7Page " + (currentPage + 1) + " / " + (maxPage + 1)));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(pageInfoMeta, MessageManager.parseComponent("§7Page " + (currentPage + 1) + " / " + (maxPage + 1)));
             List<String> lore = new ArrayList<>();
             lore.add("§7Total listings: §f" + totalItems);
-            pageInfoMeta
-                    .lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(pageInfoMeta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             pageInfo.setItemMeta(pageInfoMeta);
         }
         inventory.setItem(49, pageInfo);
@@ -233,7 +232,7 @@ public class PlayerShopViewGUI {
             ItemStack nextPage = new ItemStack(Material.ARROW);
             ItemMeta nextMeta = nextPage.getItemMeta();
             if (nextMeta != null) {
-                nextMeta.displayName(MessageManager.parseComponent("§eNext Page ▶"));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(nextMeta, MessageManager.parseComponent("§eNext Page ▶"));
                 nextPage.setItemMeta(nextMeta);
             }
             inventory.setItem(50, nextPage);
@@ -243,7 +242,7 @@ public class PlayerShopViewGUI {
         ItemStack back = new ItemStack(Material.BARRIER);
         ItemMeta backMeta = back.getItemMeta();
         if (backMeta != null) {
-            backMeta.displayName(MessageManager.parseComponent("§c◀ Back to Shops"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(backMeta, MessageManager.parseComponent("§c◀ Back to Shops"));
             back.setItemMeta(backMeta);
         }
         inventory.setItem(45, back);
@@ -252,14 +251,14 @@ public class PlayerShopViewGUI {
         ItemStack stats = new ItemStack(isOwnShop ? Material.EMERALD : Material.GOLD_INGOT);
         ItemMeta statsMeta = stats.getItemMeta();
         if (statsMeta != null) {
-            statsMeta.displayName(MessageManager.parseComponent(isOwnShop ? "§a§lYour Shop" : "§e§l" + shopOwnerName));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(statsMeta, MessageManager.parseComponent(isOwnShop ? "§a§lYour Shop" : "§e§l" + shopOwnerName));
             List<String> lore = new ArrayList<>();
             lore.add("§7Total items: §f" + totalItems);
             if (isOwnShop) {
                 lore.add("");
                 lore.add("§7Click items to reclaim them");
             }
-            statsMeta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(statsMeta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             stats.setItemMeta(statsMeta);
         }
         inventory.setItem(53, stats);

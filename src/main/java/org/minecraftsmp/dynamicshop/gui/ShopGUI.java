@@ -113,9 +113,9 @@ public class ShopGUI {
         plugin.getShopListener().updatePlayerInventoryLore(player, 2L);
 
         // Update player inventory lore AFTER the GUI is open
-        player.getScheduler().runDelayed(plugin, task -> {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
             plugin.getShopListener().updatePlayerInventoryLore(player);
-        }, null, 3L);
+        }, 3L);
     }
 
     /**
@@ -255,7 +255,7 @@ public class ShopGUI {
                             ? prettifyMaterialName(specialItem.getDisplayMaterial().name())
                             : specialItem.getId();
                 }
-                meta.displayName(MessageManager.parseComponent("§e§l" + displayName));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + displayName));
             }
 
             Material baseMat = specialItem.getDisplayMaterial();
@@ -304,9 +304,7 @@ public class ShopGUI {
                                 plugin.getMessageManager().getMessage("lore-stock-negative", stockPlaceholders));
 
                         double hours = ShopDataManager.getVariantShortageHours(variantId);
-                        double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
-                        double multiplier = Math.pow(1.0 + hourlyRate, hours);
-                        double percentIncrease = (multiplier - 1.0) * 100.0;
+                        double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
                         double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
                         boolean capped = percentIncrease >= maxPercent;
                         if (capped) percentIncrease = maxPercent;
@@ -322,9 +320,7 @@ public class ShopGUI {
                         MessageManager.addLoreIfNotEmpty(lore, plugin.getMessageManager().getMessage("lore-out-of-stock"));
 
                         double hours = ShopDataManager.getVariantShortageHours(variantId);
-                        double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
-                        double multiplier = Math.pow(1.0 + hourlyRate, hours);
-                        double percentIncrease = (multiplier - 1.0) * 100.0;
+                        double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
                         double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
                         boolean capped = percentIncrease >= maxPercent;
                         if (capped) percentIncrease = maxPercent;
@@ -364,7 +360,7 @@ public class ShopGUI {
                     }
                 }
 
-                meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
                 item.setItemMeta(meta);
                 return item;
             }
@@ -420,7 +416,7 @@ public class ShopGUI {
                 lore.add("§eLeft-click to BUY");
             }
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
 
@@ -461,12 +457,12 @@ public class ShopGUI {
             item = new ItemStack(Material.BARRIER);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                meta.displayName(MessageManager.parseComponent("§c§lINVALID ITEM"));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§c§lINVALID ITEM"));
                 List<String> lore = new ArrayList<>();
                 lore.add("§7Material: " + mat);
                 lore.add("§cThis item is invalid");
                 lore.add("§cin this version.");
-                meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
                 item.setItemMeta(meta);
             }
             return item;
@@ -478,11 +474,11 @@ public class ShopGUI {
             if (customName != null) {
                 // Custom name always wins — set BOTH to override any template name
                 net.kyori.adventure.text.Component nameComponent = MessageManager.parseComponent("§e§l" + customName);
-                meta.displayName(nameComponent);
-                meta.itemName(nameComponent);
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, nameComponent);
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setItemName(meta, nameComponent);
             } else if (!meta.hasDisplayName()) {
                 // No custom name and no template name — use prettified material name
-                meta.displayName(
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
                         MessageManager.parseComponent("§e§l" + mat.name().replace("_", " ")));
             }
 
@@ -517,9 +513,7 @@ public class ShopGUI {
 
                     // Show price increase for negative stock too
                     double hours = ShopDataManager.getHoursInShortage(mat);
-                    double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
-                    double multiplier = Math.pow(1.0 + hourlyRate, hours);
-                    double percentIncrease = (multiplier - 1.0) * 100.0;
+                    double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
                     double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
                     boolean capped = percentIncrease >= maxPercent;
                     if (capped) percentIncrease = maxPercent;
@@ -536,9 +530,7 @@ public class ShopGUI {
 
                     // Show price increase for zero stock
                     double hours = ShopDataManager.getHoursInShortage(mat);
-                    double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
-                    double multiplier = Math.pow(1.0 + hourlyRate, hours);
-                    double percentIncrease = (multiplier - 1.0) * 100.0;
+                    double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
                     double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
                     boolean capped = percentIncrease >= maxPercent;
                     if (capped) percentIncrease = maxPercent;
@@ -579,7 +571,7 @@ public class ShopGUI {
                 }
             }
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -612,7 +604,7 @@ public class ShopGUI {
         if (prevName == null) prevName = "§ePrevious Page";
         String prevLore = page > 0 ? plugin.getMessageManager().getMessage("gui-nav-previous-lore") : plugin.getMessageManager().getMessage("gui-nav-previous-none");
         if (prevLore == null) prevLore = page > 0 ? "§7Click to go back" : "§cNo previous page";
-        
+
         // Left Arrow - Previous Page
         ItemStack prevPage = ShopItemBuilder.navItemNexo(prevName, "shop_back_button", Material.ARROW, prevLore);
         pm.sendSlot(inventory, navRow + 0, prevPage);
@@ -621,7 +613,7 @@ public class ShopGUI {
         if (nextName == null) nextName = "§eNext Page";
         String nextLore = page < maxPage ? plugin.getMessageManager().getMessage("gui-nav-next-lore") : plugin.getMessageManager().getMessage("gui-nav-next-none");
         if (nextLore == null) nextLore = page < maxPage ? "§7Click to go forward" : "§cNo next page";
-        
+
         // Right Arrow - Next Page
         ItemStack nextPage = ShopItemBuilder.navItemNexo(nextName, "shop_next_button", Material.ARROW, nextLore);
         pm.sendSlot(inventory, navRow + 8, nextPage);
@@ -634,7 +626,7 @@ public class ShopGUI {
             if (backName == null) backName = "§c§lBack to Categories";
             String backLore = plugin.getMessageManager().getMessage("gui-nav-back-lore");
             if (backLore == null) backLore = "§7Return to category selection";
-            
+
             ItemStack backToCategories = ShopItemBuilder.navItemNexo(backName, "shop_categories_button", Material.BARRIER, backLore);
             pm.sendSlot(inventory, navRow + 4, backToCategories);
         }
@@ -645,7 +637,7 @@ public class ShopGUI {
             if (searchName == null) searchName = "§b§lSearch Items";
             String searchLore = plugin.getMessageManager().getMessage("gui-nav-search-lore");
             if (searchLore == null) searchLore = "§7Open search menu";
-            
+
             ItemStack search = ShopItemBuilder.navItemNexo(searchName, "shop_search_button", Material.COMPASS, searchLore);
             pm.sendSlot(inventory, navRow + 3, search);
         }
@@ -654,18 +646,18 @@ public class ShopGUI {
         int totalItems = (category == ItemCategory.PERMISSIONS || category == ItemCategory.SERVER_SHOP)
                 ? specialItems.size()
                 : displayItems.size();
-                
+
         java.util.Map<String, String> pagePlaceholders = new java.util.HashMap<>();
         pagePlaceholders.put("page", String.valueOf(page + 1));
         pagePlaceholders.put("max", String.valueOf(maxPage + 1));
         pagePlaceholders.put("total", String.valueOf(totalItems));
-        
+
         String pageName = plugin.getMessageManager().getMessage("gui-nav-page", pagePlaceholders);
         if (pageName == null) pageName = "§ePage §f" + (page + 1) + " §7/ §f" + (maxPage + 1);
-        
+
         String pageLoreStr = plugin.getMessageManager().getMessage("gui-nav-page-lore", pagePlaceholders);
         if (pageLoreStr == null) pageLoreStr = "§7Total items: §e" + totalItems;
-        
+
         ItemStack pageInfo = ShopItemBuilder.navItemNexo(pageName, "shop_page_button", Material.PAPER, pageLoreStr);
         pm.sendSlot(inventory, navRow + 5, pageInfo);
 
@@ -673,15 +665,15 @@ public class ShopGUI {
         if (category != ItemCategory.PERMISSIONS && category != ItemCategory.SERVER_SHOP) {
             String filterName = plugin.getMessageManager().getMessage("gui-nav-filter");
             if (filterName == null) filterName = "§6Filter Options";
-            
-            String filterState = hideOutOfStock 
-                    ? plugin.getMessageManager().getMessage("gui-nav-filter-hidden") 
+
+            String filterState = hideOutOfStock
+                    ? plugin.getMessageManager().getMessage("gui-nav-filter-hidden")
                     : plugin.getMessageManager().getMessage("gui-nav-filter-shown");
             if (filterState == null) filterState = hideOutOfStock ? "§aCurrently: §fHiding Out of Stock" : "§cCurrently: §fShowing All";
-            
+
             String filterLoreStr = plugin.getMessageManager().getMessage("gui-nav-filter-lore");
             if (filterLoreStr == null) filterLoreStr = "§7Click to toggle";
-            
+
             ItemStack filterItem = ShopItemBuilder.navItemNexo(filterName, "shop_filter_button", Material.HOPPER, filterState, filterLoreStr);
             pm.sendSlot(inventory, navRow + 2, filterItem);
         }

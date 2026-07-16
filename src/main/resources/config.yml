@@ -58,8 +58,12 @@ webserver:
   cors:
     enabled: false
 
-  # Native SSL Support (Not recommended, use Nginx reverse proxy instead)
-  # Allows you to serve the Web Dashboard over directly HTTPS by providing a Java KeyStore (.jks)
+  # Native SSL support is OFF by default. Leave this false for normal HTTP.
+  # Recommended public setup: keep this false and put the dashboard behind Nginx/Caddy/Apache HTTPS.
+  # To enable direct HTTPS, create/provide a Java KeyStore (.jks) file.
+  # Relative keystore paths resolve inside the plugin data folder:
+  #   plugins/DynamicShop/keystore.jks
+  # You may also use an absolute path, such as "C:/certs/dynamicshop.jks".
   ssl:
     enabled: false
     keystore-path: "keystore.jks"
@@ -89,7 +93,7 @@ dynamic-pricing:
 
   # Price multiplier limits
   min-price-multiplier: 0.01   # Never cheaper than 1% of base price
-  max-price-multiplier: 20.0   # Never more than 20× base price
+  max-price-multiplier: 2.0    # Never more than 2x base price
 
   # --- Negative Stock Pricing ---
   # Applies when players sell more than they buy (stock goes negative)
@@ -119,6 +123,19 @@ dynamic-pricing:
   #
   # Set to 0 to disable decay entirely (shortage hours persist until manual reset).
   shortage-decay-percent-per-hour: 2.0
+
+  # --- High Inflation Correction ---
+  # When a player sell/refill moves an item from zero/negative stock back into positive stock,
+  # and the time-inflation markup is at or above the threshold, immediately cut that markup.
+  #
+  # Example with threshold 100 and reduction 50:
+  #   If shortage time inflation has pushed a buy price +200% above normal,
+  #   recovering to positive stock immediately cuts that time-inflation markup to +100%.
+  #
+  # This only corrects the time-inflation portion. Stock curve and negative-stock pricing still apply normally.
+  high-inflation-correction-enabled: true
+  high-inflation-correction-threshold-percent: 100.0
+  high-inflation-correction-reduction-percent: 50.0
 
   # --- Stock Control ---
   # Prevent players from buying items when stock reaches zero

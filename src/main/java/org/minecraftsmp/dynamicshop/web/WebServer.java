@@ -6,6 +6,14 @@ import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.http.staticfiles.Location;
 import io.javalin.json.JavalinJackson;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -53,6 +61,10 @@ public class WebServer {
         try {
             int port = plugin.getConfig().getInt("webserver.port", 7713);
             String host = plugin.getConfig().getString("webserver.bind", "127.0.0.1");
+            boolean sslEnabled = plugin.getConfig().getBoolean("webserver.ssl.enabled", false);
+            String keyStorePath = plugin.getConfig().getString("webserver.ssl.keystore-path", "keystore.jks");
+            String keyStorePassword = plugin.getConfig().getString("webserver.ssl.keystore-password", "");
+            String protocol = sslEnabled ? "https" : "http";
 
             app = Javalin.create(config -> {
                 File webDir = new File(plugin.getDataFolder(), "web");
@@ -70,6 +82,10 @@ public class WebServer {
 
                 if (plugin.getConfig().getBoolean("webserver.cors.enabled", false)) {
                     config.plugins.enableCors(cors -> cors.add(rule -> rule.anyHost()));
+                }
+
+                if (sslEnabled) {
+                    config.jetty.server(() -> createSslServer(host, port, keyStorePath, keyStorePassword));
                 }
 
             }).start(host, port);
@@ -142,7 +158,7 @@ public class WebServer {
                 plugin.getLogger().info("Web admin panel DISABLED via config.");
             }
 
-            plugin.getLogger().info("Web dashboard → http://" + host + ":" + port);
+            plugin.getLogger().info("Web dashboard → " + protocol + "://" + host + ":" + port);
         } catch (Exception e) {
             plugin.getLogger().severe("╔═══════════════════════════════════════════════════╗");
             plugin.getLogger().severe("FAILED TO START WEB SERVER! Port locked?");
@@ -178,6 +194,42 @@ public class WebServer {
     public void stop() {
         if (app != null)
             app.stop();
+    }
+
+    private Server createSslServer(String host, int port, String keyStorePath, String keyStorePassword) {
+        Server server = new Server();
+
+        SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+        sslContextFactory.setKeyStorePath(resolveKeyStorePath(keyStorePath));
+        sslContextFactory.setKeyStorePassword(keyStorePassword == null ? "" : keyStorePassword);
+
+        HttpConfiguration httpsConfig = new HttpConfiguration();
+        httpsConfig.addCustomizer(new SecureRequestCustomizer());
+
+        ServerConnector connector = new ServerConnector(server,
+                new SslConnectionFactory(sslContextFactory, "http/1.1"),
+                new HttpConnectionFactory(httpsConfig));
+        if (host != null && !host.isBlank()) {
+            connector.setHost(host);
+        }
+        connector.setPort(port);
+        server.setConnectors(new Connector[]{connector});
+        return server;
+    }
+
+    private String resolveKeyStorePath(String keyStorePath) {
+        if (keyStorePath == null || keyStorePath.isBlank()) {
+            throw new IllegalStateException("webserver.ssl.keystore-path is empty");
+        }
+
+        File file = new File(keyStorePath);
+        if (!file.isAbsolute()) {
+            file = new File(plugin.getDataFolder(), keyStorePath);
+        }
+        if (!file.isFile()) {
+            throw new IllegalStateException("SSL keystore not found: " + file.getAbsolutePath());
+        }
+        return file.getAbsolutePath();
     }
 
     private boolean runSyncAdminTask(Context ctx, Runnable task) {
@@ -654,6 +706,7 @@ public class WebServer {
                     mat.name(),
                     ShopDataManager.getCustomName(mat) != null ? ShopDataManager.getCustomName(mat) : prettifyItemName(mat.name()),
                     category.name(),
+                    getCategoryDisplayName(category),
                     buyPrice,
                     sellPrice,
                     stock,
@@ -663,13 +716,14 @@ public class WebServer {
 
         // Add Special Items
         for (org.minecraftsmp.dynamicshop.category.SpecialShopItem specialItem : plugin.getSpecialShopManager().getAllSpecialItems().values()) {
-            String imageUrl = "https://mc.nerothe.com/img/1.21/minecraft_" + 
+            String imageUrl = "https://mc.nerothe.com/img/1.21/minecraft_" +
                 (specialItem.getDisplayMaterial() != null ? specialItem.getDisplayMaterial().name().toLowerCase() : "enchanted_book") + ".png";
-            
+
             items.add(new ShopItemDTO(
                     "special:" + specialItem.getId(),
                     specialItem.getName() != null ? specialItem.getName() : specialItem.getId(),
                     specialItem.getCategory().name(),
+                    getCategoryDisplayName(specialItem.getCategory()),
                     specialItem.getPrice(),
                     0.0,
                     0,
@@ -680,16 +734,17 @@ public class WebServer {
 
         // Add Player Shop Items
         for (PlayerShopListing ps : plugin.getPlayerShopManager().getAllListings()) {
-            String psName = ps.getItem().hasItemMeta() && ps.getItem().getItemMeta().hasDisplayName() ? 
-                PlainTextComponentSerializer.plainText().serialize(ps.getItem().getItemMeta().displayName()) : 
+            String psName = ps.getItem().hasItemMeta() && ps.getItem().getItemMeta().hasDisplayName() ?
+                org.minecraftsmp.dynamicshop.util.PaperCompat.getPlainDisplayName(ps.getItem().getItemMeta()) :
                 prettifyItemName(ps.getItem().getType().name());
-            
+
             String imageUrl = "https://mc.nerothe.com/img/1.21/minecraft_" + ps.getItem().getType().name().toLowerCase() + ".png";
 
             items.add(new ShopItemDTO(
                     "playershop:" + ps.getListingId(),
                     psName,
                     "PLAYER_SHOPS",
+                    getCategoryDisplayName(ItemCategory.PLAYER_SHOPS),
                     ps.getPrice(),
                     0.0,
                     ps.getItem().getAmount(),
@@ -781,6 +836,7 @@ public class WebServer {
         result.put("displayName", customName != null ? customName : prettifyItemName(mat.name()));
         result.put("customName", customName);
         result.put("category", category.name());
+        result.put("categoryDisplayName", getCategoryDisplayName(category));
         result.put("buyPrice", buyPrice);
         result.put("sellPrice", sellPrice);
         result.put("stock", stock);
@@ -814,11 +870,15 @@ public class WebServer {
                     .count();
 
             if (count > 0) {
-                categories.add(new CategoryDTO(cat.name(), prettifyItemName(cat.name()), count));
+                categories.add(new CategoryDTO(cat.name(), getCategoryDisplayName(cat), count));
             }
         }
 
         ctx.json(categories);
+    }
+
+    private String getCategoryDisplayName(ItemCategory category) {
+        return CategoryConfigManager.getDisplayName(category);
     }
 
     private String prettifyItemName(String name) {
@@ -980,13 +1040,14 @@ public class WebServer {
             Map<String, Object> item = buildAdminItemMap(mat);
             items.add(item);
         }
-        
+
         // Add Special Items
         for (org.minecraftsmp.dynamicshop.category.SpecialShopItem specialItem : plugin.getSpecialShopManager().getAllSpecialItems().values()) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("item", "special:" + specialItem.getId());
             item.put("displayName", specialItem.getName() != null ? specialItem.getName() : specialItem.getId());
             item.put("category", specialItem.getCategory().name());
+            item.put("categoryDisplayName", getCategoryDisplayName(specialItem.getCategory()));
             item.put("basePrice", specialItem.getPrice());
             item.put("buyPrice", specialItem.getPrice());
             item.put("sellPrice", 0.0);
@@ -999,7 +1060,7 @@ public class WebServer {
             item.put("buyDisabled", false);
             item.put("sellDisabled", false);
             item.put("disabled", false);
-            String imageUrl = "https://mc.nerothe.com/img/1.21/minecraft_" + 
+            String imageUrl = "https://mc.nerothe.com/img/1.21/minecraft_" +
                 (specialItem.getDisplayMaterial() != null ? specialItem.getDisplayMaterial().name().toLowerCase() : "enchanted_book") + ".png";
             item.put("imageUrl", imageUrl);
             items.add(item);
@@ -1008,13 +1069,14 @@ public class WebServer {
         // Add Player Shop Items
         for (PlayerShopListing ps : plugin.getPlayerShopManager().getAllListings()) {
             Map<String, Object> item = new LinkedHashMap<>();
-            String psName = ps.getItem().hasItemMeta() && ps.getItem().getItemMeta().hasDisplayName() ? 
-                PlainTextComponentSerializer.plainText().serialize(ps.getItem().getItemMeta().displayName()) : 
+            String psName = ps.getItem().hasItemMeta() && ps.getItem().getItemMeta().hasDisplayName() ?
+                org.minecraftsmp.dynamicshop.util.PaperCompat.getPlainDisplayName(ps.getItem().getItemMeta()) :
                 prettifyItemName(ps.getItem().getType().name());
 
             item.put("item", "playershop:" + ps.getListingId());
             item.put("displayName", psName);
             item.put("category", "PLAYER_SHOPS");
+            item.put("categoryDisplayName", getCategoryDisplayName(ItemCategory.PLAYER_SHOPS));
             item.put("basePrice", ps.getPrice());
             item.put("buyPrice", ps.getPrice());
             item.put("sellPrice", 0.0);
@@ -1210,6 +1272,9 @@ public class WebServer {
         config.put("useTimeInflation", ConfigCacheManager.useTimeInflation);
         config.put("hourlyIncreasePercent", ConfigCacheManager.hourlyIncreasePercent);
         config.put("shortageDecayPercentPerHour", ConfigCacheManager.shortageDecayPercentPerHour);
+        config.put("highInflationCorrectionEnabled", ConfigCacheManager.highInflationCorrectionEnabled);
+        config.put("highInflationCorrectionThresholdPercent", ConfigCacheManager.highInflationCorrectionThresholdPercent);
+        config.put("highInflationCorrectionReductionPercent", ConfigCacheManager.highInflationCorrectionReductionPercent);
         config.put("restrictBuyingAtZeroStock", ConfigCacheManager.restrictBuyingAtZeroStock);
         config.put("logDynamicPricing", plugin.getConfig().getBoolean("dynamic-pricing.log-dynamic-pricing", false));
 
@@ -1313,6 +1378,21 @@ public class WebServer {
                 plugin.getConfig().set("dynamic-pricing.shortage-decay-percent-per-hour", val);
                 ConfigCacheManager.shortageDecayPercentPerHour = val;
             }
+            if (body.containsKey("highInflationCorrectionEnabled")) {
+                boolean val = (Boolean) body.get("highInflationCorrectionEnabled");
+                plugin.getConfig().set("dynamic-pricing.high-inflation-correction-enabled", val);
+                ConfigCacheManager.highInflationCorrectionEnabled = val;
+            }
+            if (body.containsKey("highInflationCorrectionThresholdPercent")) {
+                double val = ((Number) body.get("highInflationCorrectionThresholdPercent")).doubleValue();
+                plugin.getConfig().set("dynamic-pricing.high-inflation-correction-threshold-percent", val);
+                ConfigCacheManager.highInflationCorrectionThresholdPercent = val;
+            }
+            if (body.containsKey("highInflationCorrectionReductionPercent")) {
+                double val = ((Number) body.get("highInflationCorrectionReductionPercent")).doubleValue();
+                plugin.getConfig().set("dynamic-pricing.high-inflation-correction-reduction-percent", val);
+                ConfigCacheManager.highInflationCorrectionReductionPercent = val;
+            }
             if (body.containsKey("restrictBuyingAtZeroStock")) {
                 boolean val = (Boolean) body.get("restrictBuyingAtZeroStock");
                 plugin.getConfig().set("dynamic-pricing.restrict-buying-at-zero-stock", val);
@@ -1402,6 +1482,7 @@ public class WebServer {
                 plugin.getConfig().set("webserver.enabled", (Boolean) body.get("webserverEnabled"));
             }
             plugin.saveConfig();
+            ConfigCacheManager.reload();
             invalidateShopItemsCache();
         })) return;
 
@@ -1575,7 +1656,7 @@ public class WebServer {
 
         if (!runSyncAdminTask(ctx, () -> {
             boolean categoryChanged = false;
-            
+
             if (body.containsKey("slot")) {
                 CategoryConfigManager.setSlot(cat, ((Number) body.get("slot")).intValue());
                 categoryChanged = true;
@@ -1624,7 +1705,7 @@ public class WebServer {
                     }
                 }
             }
-            
+
             auditLog.log(getAdminUsername(ctx), "category_update", cat.name(), "Updated category layout/restock rules");
         })) return;
 
@@ -1910,9 +1991,7 @@ public class WebServer {
         double stockRate = ShopDataManager.getStockRate(mat);
 
         // Calculate price increase %
-        double hourlyRate = ConfigCacheManager.hourlyIncreasePercent / 100.0;
-        double multiplier = Math.pow(1.0 + hourlyRate, shortageHours);
-        double percentIncrease = (multiplier - 1.0) * 100.0;
+        double percentIncrease = ShopDataManager.getInflationIncreasePercent(shortageHours);
         double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
         if (percentIncrease > maxPercent) percentIncrease = maxPercent;
 
@@ -1935,6 +2014,7 @@ public class WebServer {
         item.put("displayName", adminCustomName != null ? adminCustomName : prettifyItemName(mat.name()));
         item.put("customName", adminCustomName);
         item.put("category", category.name());
+        item.put("categoryDisplayName", getCategoryDisplayName(category));
         item.put("basePrice", basePrice);
         item.put("buyPrice", buyPrice);
         item.put("sellPrice", sellPrice);
@@ -2029,6 +2109,7 @@ public class WebServer {
             String item,
             String displayName,
             String category,
+            String categoryDisplayName,
             double buyPrice,
             double sellPrice,
             double stock,

@@ -57,7 +57,7 @@ public class ItemActionGUI {
 
         String title = plugin.getMessageManager().getMessage("item-action-title");
         if (title == null) title = "§8Buy / Sell";
-        this.inventory = Bukkit.createInventory(null, SIZE,
+        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 MessageManager.parseComponent(title));
     }
 
@@ -101,7 +101,7 @@ public class ItemActionGUI {
         ItemStack back = new ItemStack(Material.ARROW);
         ItemMeta backMeta = back.getItemMeta();
         if (backMeta != null) {
-            backMeta.displayName(MessageManager.parseComponent(backName));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(backMeta, MessageManager.parseComponent(backName));
             back.setItemMeta(backMeta);
         }
         inventory.setItem(SLOT_BACK, back);
@@ -116,7 +116,7 @@ public class ItemActionGUI {
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null && !meta.hasDisplayName()) {
-            meta.displayName(MessageManager.parseComponent("§e§l" + targetItem.name().replace("_", " ")));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + targetItem.name().replace("_", " ")));
             item.setItemMeta(meta);
         }
         return item;
@@ -130,7 +130,7 @@ public class ItemActionGUI {
         ItemStack info = new ItemStack(Material.PAPER);
         ItemMeta meta = info.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§e§lItem Info"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§lItem Info"));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7Buy: §a" + plugin.getEconomyManager().format(buyPrice));
@@ -142,9 +142,7 @@ public class ItemActionGUI {
                 double hours = variantId != null
                         ? ShopDataManager.getVariantShortageHours(variantId)
                         : ShopDataManager.getHoursInShortage(targetItem);
-                double hourlyRate = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.hourlyIncreasePercent / 100.0;
-                double multiplier = Math.pow(1.0 + hourlyRate, hours);
-                double percentIncrease = (multiplier - 1.0) * 100.0;
+                double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
                 double maxPercent = (org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
                 boolean capped = percentIncrease >= maxPercent;
                 if (capped) percentIncrease = maxPercent;
@@ -161,7 +159,7 @@ public class ItemActionGUI {
                 lore.add("§7Stock: §a" + String.format("%.0f", stock));
             }
 
-            meta.lore(lore.stream()
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream()
                     .map(s -> MessageManager.parseComponent(s))
                     .toList());
             info.setItemMeta(meta);
@@ -176,11 +174,11 @@ public class ItemActionGUI {
         ItemStack button = new ItemStack(material);
         ItemMeta meta = button.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent(name));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(name));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7Price: §e" + price);
-            meta.lore(lore.stream()
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream()
                     .map(s -> MessageManager.parseComponent(s))
                     .toList());
 

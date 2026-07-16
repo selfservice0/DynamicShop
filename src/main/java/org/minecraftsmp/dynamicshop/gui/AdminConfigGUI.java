@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * Admin GUI for editing plugin configuration options.
  * Changes are saved to config.yml and take effect immediately.
- * 
+ *
  * Uses InputManager for Paper 1.21+ compatibility.
  */
 public class AdminConfigGUI {
@@ -45,12 +45,15 @@ public class AdminConfigGUI {
     private static final int MAX_PRICE_MULT = 22;
     private static final int SELL_TAX = 23;
     private static final int TRANSACTION_COOLDOWN = 24;
+    private static final int HIGH_INFLATION_CORRECTION = 25;
 
     // Row 3: Player Shops & Cross-Server
     private static final int PLAYER_SHOPS_ENABLED = 28;
     private static final int MAX_LISTINGS = 29;
+    private static final int HIGH_INFLATION_THRESHOLD = 30;
     private static final int CROSS_SERVER_ENABLED = 31;
     private static final int CROSS_SERVER_INTERVAL = 32;
+    private static final int HIGH_INFLATION_REDUCTION = 33;
 
     // Row 4: Web Server & GUI
     private static final int WEBSERVER_ENABLED = 37;
@@ -65,7 +68,7 @@ public class AdminConfigGUI {
         this.plugin = plugin;
         this.player = player;
         this.parentGUI = parentGUI;
-        this.inventory = Bukkit.createInventory(null, SIZE,
+        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 MessageManager.parseComponent("§4§lConfig Editor"));
     }
 
@@ -113,17 +116,26 @@ public class AdminConfigGUI {
                 ConfigCacheManager.sellTaxPercent * 100, "economy.sell_tax_percent", Material.PAPER));
         inventory.setItem(TRANSACTION_COOLDOWN, createIntItem("Transaction Cooldown (ms)",
                 (int) ConfigCacheManager.transactionCooldownMs, "economy.transaction_cooldown_ms", Material.HOPPER));
+        inventory.setItem(HIGH_INFLATION_CORRECTION, createToggleItem("High Inflation Correction",
+                ConfigCacheManager.highInflationCorrectionEnabled,
+                "dynamic-pricing.high-inflation-correction-enabled"));
 
         // === Row 3: Player Shops & Cross-Server ===
         inventory.setItem(PLAYER_SHOPS_ENABLED, createToggleItem("Player Shops Enabled",
                 ConfigCacheManager.playerShopsEnabled, "player-shops.enabled"));
         inventory.setItem(MAX_LISTINGS, createIntItem("Max Listings/Player",
                 ConfigCacheManager.maxListingsPerPlayer, "player-shops.max-listings-per-player", Material.CHEST));
+        inventory.setItem(HIGH_INFLATION_THRESHOLD, createNumberItem("Correction Threshold %",
+                ConfigCacheManager.highInflationCorrectionThresholdPercent,
+                "dynamic-pricing.high-inflation-correction-threshold-percent", Material.REDSTONE_TORCH));
         inventory.setItem(CROSS_SERVER_ENABLED, createToggleItem("Cross-Server Sync",
                 ConfigCacheManager.crossServerEnabled, "cross-server.enabled"));
         inventory.setItem(CROSS_SERVER_INTERVAL, createIntItem("Sync Interval (sec)",
                 ConfigCacheManager.crossServerSaveInterval, "cross-server.save-interval-seconds",
                 Material.ENDER_PEARL));
+        inventory.setItem(HIGH_INFLATION_REDUCTION, createNumberItem("Correction Reduction %",
+                ConfigCacheManager.highInflationCorrectionReductionPercent,
+                "dynamic-pricing.high-inflation-correction-reduction-percent", Material.REDSTONE));
 
         // === Row 4: Web Server & GUI ===
         inventory.setItem(WEBSERVER_ENABLED, createToggleItem("Web Server Enabled",
@@ -143,14 +155,14 @@ public class AdminConfigGUI {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
                     MessageManager.parseComponent((currentValue ? "§a" : "§c") + "§l" + name));
             List<String> lore = new ArrayList<>();
             lore.add("§7Status: " + (currentValue ? "§aENABLED" : "§cDISABLED"));
             lore.add("§7Config: §f" + configPath);
             lore.add("");
             lore.add("§eClick to toggle");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -160,13 +172,13 @@ public class AdminConfigGUI {
         ItemStack item = new ItemStack(icon);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§e§l" + name));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + name));
             List<String> lore = new ArrayList<>();
             lore.add("§7Value: §f" + String.format("%.2f", currentValue));
             lore.add("§7Config: §f" + configPath);
             lore.add("");
             lore.add("§eClick to change");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -176,13 +188,13 @@ public class AdminConfigGUI {
         ItemStack item = new ItemStack(icon);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§e§l" + name));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + name));
             List<String> lore = new ArrayList<>();
             lore.add("§7Value: §f" + currentValue);
             lore.add("§7Config: §f" + configPath);
             lore.add("");
             lore.add("§eClick to change");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -192,10 +204,10 @@ public class AdminConfigGUI {
         ItemStack item = new ItemStack(Material.ARROW);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent("§c§l◀ Back"));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§c§l◀ Back"));
             List<String> lore = new ArrayList<>();
             lore.add("§7Return to admin shop");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -216,6 +228,7 @@ public class AdminConfigGUI {
             case CROSS_SERVER_ENABLED -> toggleBoolean("cross-server.enabled");
             case LOG_DYNAMIC_PRICING -> toggleBoolean("dynamic-pricing.log-dynamic-pricing");
             case WEBSERVER_ENABLED -> toggleBoolean("webserver.enabled");
+            case HIGH_INFLATION_CORRECTION -> toggleBoolean("dynamic-pricing.high-inflation-correction-enabled");
 
             // Number options
             case CURVE_STRENGTH -> editDouble("Curve Strength", "dynamic-pricing.curve-strength");
@@ -226,6 +239,10 @@ public class AdminConfigGUI {
             case SELL_TAX -> editDouble("Sell Tax %", "economy.sell_tax_percent");
             case NEGATIVE_STOCK_PERCENT ->
                 editDouble("Negative Stock %/item", "dynamic-pricing.negative-stock-percent-per-item");
+            case HIGH_INFLATION_THRESHOLD ->
+                editDouble("Correction Threshold %", "dynamic-pricing.high-inflation-correction-threshold-percent");
+            case HIGH_INFLATION_REDUCTION ->
+                editDouble("Correction Reduction %", "dynamic-pricing.high-inflation-correction-reduction-percent");
 
             // Integer options
             case MAX_LISTINGS -> editInt("Max Listings", "player-shops.max-listings-per-player");
@@ -335,7 +352,7 @@ public class AdminConfigGUI {
         ItemStack item = new ItemStack(icon);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent(color + "§lInput Method: " + current.toUpperCase()));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(color + "§lInput Method: " + current.toUpperCase()));
             List<String> lore = new ArrayList<>();
             lore.add("§7Current: " + color + current);
             lore.add("§7Config: §finput-method");
@@ -343,7 +360,7 @@ public class AdminConfigGUI {
             lore.add("§7Options: auto, dialog, anvil, chat");
             lore.add("");
             lore.add("§eClick to cycle");
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;

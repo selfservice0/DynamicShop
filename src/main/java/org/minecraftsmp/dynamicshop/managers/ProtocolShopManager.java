@@ -49,7 +49,7 @@ public class ProtocolShopManager {
         // Create inventory with NULL holder - this makes it "virtual"
         // Size must be multiple of 9
         int rows = Math.max(3, Math.min(6, (size + 8) / 9));
-        Inventory inv = Bukkit.createInventory(null, rows * 9,
+        Inventory inv = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, rows * 9,
                 MessageManager.parseComponent(title, p));
 
         // Register as shop inventory

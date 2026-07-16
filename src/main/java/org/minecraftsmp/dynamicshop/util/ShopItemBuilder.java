@@ -29,7 +29,7 @@ public class ShopItemBuilder {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
 
-            meta.displayName(component("§e§l" + prettify(mat.name())));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, component("§e§l" + prettify(mat.name())));
 
             List<Component> lore = new ArrayList<>();
             lore.add(component("§7────────────────────"));
@@ -47,7 +47,7 @@ public class ShopItemBuilder {
                 lore.add(component("§7Right-click to §cSELL"));
             }
 
-            meta.lore(lore);
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore);
             item.setItemMeta(meta);
         }
 
@@ -69,14 +69,14 @@ public class ShopItemBuilder {
         if (meta != null) {
 
             // Handle both & and § in name if present
-            meta.displayName(MessageManager.parseComponent(name));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(name));
 
             List<Component> lore = new ArrayList<>();
             for (String line : loreLines) {
                 lore.add(MessageManager.parseComponent(line));
             }
 
-            meta.lore(lore);
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore);
             item.setItemMeta(meta);
         }
 
@@ -109,14 +109,14 @@ public class ShopItemBuilder {
 
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(MessageManager.parseComponent(name));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(name));
 
             List<Component> lore = new ArrayList<>();
             for (String line : loreLines) {
                 lore.add(MessageManager.parseComponent(line));
             }
 
-            meta.lore(lore);
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore);
             item.setItemMeta(meta);
         }
 

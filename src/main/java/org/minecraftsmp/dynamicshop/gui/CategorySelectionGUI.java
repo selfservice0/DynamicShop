@@ -35,7 +35,7 @@ public class CategorySelectionGUI {
         String title = plugin.getMessageManager().getMessage("gui-category-title");
         if (title == null) title = "§8§lShop Categories";
         
-        this.inv = Bukkit.createInventory(null, SIZE,
+        this.inv = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 MessageManager.parseComponent(title, player));
     }
 
@@ -75,7 +75,7 @@ public class CategorySelectionGUI {
             String formattedName = displayName.contains("&")
                     ? displayName
                     : "§e§l" + displayName;
-            meta.displayName(MessageManager.parseComponent(formattedName));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(formattedName));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
@@ -93,7 +93,7 @@ public class CategorySelectionGUI {
 
             lore.add("§7───────────────────");
 
-            meta.lore(lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
 

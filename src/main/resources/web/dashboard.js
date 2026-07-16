@@ -433,7 +433,7 @@ async function showItemDetails(item) {
                      onerror="this.style.display='none'">
                 <div>
                     <div style="font-size: 1.25rem; font-weight: 600;">${itemData.displayName}</div>
-                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">${itemData.category}</div>
+                    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">${itemData.categoryDisplayName || itemData.category}</div>
                     <div style="display: flex; gap: 1rem;">
                         <span style="color: var(--success);">Buy: ${formatCurrency(itemData.buyPrice)}</span>
                         <span style="color: var(--danger);">Sell: ${formatCurrency(itemData.sellPrice)}</span>

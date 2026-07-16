@@ -238,7 +238,7 @@ public class PlayerShopManager {
                         ItemMeta meta = item.getItemMeta();
                         plugin.getLogger().fine("[PlayerShops] Loaded item with meta: " +
                                 (meta.hasDisplayName()
-                                        ? PlainTextComponentSerializer.plainText().serialize(meta.displayName())
+                                        ? org.minecraftsmp.dynamicshop.util.PaperCompat.getPlainDisplayName(meta)
                                         : item.getType())
                                 +
                                 (meta.hasEnchants() ? " with " + meta.getEnchants().size() + " enchants" : ""));
