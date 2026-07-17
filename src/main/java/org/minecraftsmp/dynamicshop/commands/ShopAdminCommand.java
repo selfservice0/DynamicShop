@@ -21,6 +21,7 @@ import org.minecraftsmp.dynamicshop.managers.ItemsAdderWrapper;
 import org.minecraftsmp.dynamicshop.managers.NexoWrapper;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.util.BedrockUtil;
+import org.minecraftsmp.dynamicshop.util.PaperCompat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -347,12 +348,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                 if (hostname == null || hostname.isEmpty()) {
                     // Try the IP/domain the player used to connect (best for external access)
                     if (sender instanceof Player p) {
-                        try {
-                            var vhost = p.getVirtualHost();
-                            if (vhost != null) {
-                                hostname = vhost.getHostString();
-                            }
-                        } catch (Exception ignored) {}
+                        hostname = PaperCompat.getVirtualHost(p);
                     }
                     // Fall back to server-ip from server.properties
                     if (hostname == null || hostname.isEmpty() || "0.0.0.0".equals(hostname)) {
@@ -377,7 +373,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                             .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(url))
                             .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
                                     net.kyori.adventure.text.Component.text("Click to open the web admin panel")));
-                    org.minecraftsmp.dynamicshop.util.PaperCompat.sendMessage(p, clickable);
+                    PaperCompat.sendMessage(p, clickable);
                 }
                 return true;
             }

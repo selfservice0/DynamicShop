@@ -13,6 +13,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +36,7 @@ public final class PaperCompat {
     private static final Method GET_LORE = findMethod(ItemMeta.class, "lore");
     private static final Method SEND_COMPONENT = findMethod(CommandSender.class, "sendMessage", Component.class);
     private static final Method SEND_ACTION_BAR = findMethod(Player.class, "sendActionBar", Component.class);
+    private static final Method GET_VIRTUAL_HOST = findMethod(Player.class, "getVirtualHost");
 
     private PaperCompat() {
     }
@@ -148,6 +150,21 @@ public final class PaperCompat {
             }
         }
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(toLegacy(message)));
+    }
+
+    public static String getVirtualHost(Player player) {
+        if (player == null || GET_VIRTUAL_HOST == null) {
+            return null;
+        }
+        try {
+            Object value = GET_VIRTUAL_HOST.invoke(player);
+            if (value instanceof InetSocketAddress address) {
+                return address.getHostString();
+            }
+        } catch (ReflectiveOperationException | LinkageError ignored) {
+            // Fall through to caller's configured/server-ip fallback.
+        }
+        return null;
     }
 
     private static String toLegacy(Component component) {
