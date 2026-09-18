@@ -17,7 +17,7 @@ public class ConfigCacheManager {
     public static long transactionCooldownMs = 0L;
 
     // DYNAMIC PRICING SETTINGS
-    public static boolean dynamicPricingEnabled = true;
+    public static boolean dynamicPricingEnabled = false;
     public static boolean useStockCurve = true;
     public static double curveStrength = 0.7;
     public static double maxStock = 500.0;
@@ -86,7 +86,7 @@ public class ConfigCacheManager {
     }
 
     private static void loadDynamicPricingSettings() {
-        dynamicPricingEnabled = plugin.getConfig().getBoolean("dynamic-pricing.enabled", true);
+        dynamicPricingEnabled = plugin.getConfig().getBoolean("dynamic-pricing.enabled", false);
         useStockCurve = plugin.getConfig().getBoolean("dynamic-pricing.use-stock-curve", true);
         curveStrength = plugin.getConfig().getDouble("dynamic-pricing.curve-strength", 0.7);
         maxStock = plugin.getConfig().getDouble("dynamic-pricing.max-stock", 500.0);

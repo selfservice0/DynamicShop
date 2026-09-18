@@ -9,6 +9,7 @@ import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -126,10 +127,8 @@ public class CategoryConfigManager {
             config.set(path + ".slot", categorySlots.getOrDefault(category,
                     DEFAULT_SLOTS.getOrDefault(category, -1)));
 
-            // Save icon if overridden
-            if (categoryIcons.containsKey(category)) {
-                config.set(path + ".icon", categoryIcons.get(category));
-            }
+            // A missing override must also clear an earlier saved icon.
+            config.set(path + ".icon", categoryIcons.get(category));
 
             // Save name if overridden
             if (categoryNames.containsKey(category)) {
@@ -202,10 +201,22 @@ public class CategoryConfigManager {
     }
 
     /**
-     * Get the icon for a category (returns override or default from enum)
+     * Get the configured icon identifier, preserving custom IDs for editors.
+     */
+    public static String getIconName(ItemCategory category) {
+        return categoryIcons.getOrDefault(category, category.getIcon().name());
+    }
+
+    /**
+     * Get the vanilla icon material. Custom IDs and invalid values use the
+     * category default as a preview; getIconItem resolves custom items in-game.
      */
     public static Material getIcon(ItemCategory category) {
-        return categoryIcons.containsKey(category) ? Material.CHEST : category.getIcon();
+        try {
+            return Material.valueOf(getIconName(category).toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return category.getIcon();
+        }
     }
 
     /**

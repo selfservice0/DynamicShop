@@ -127,12 +127,14 @@ function selectCategory(category) {
 }
 
 // ═══ FILTERING & SORTING ═══
+function normalizeItemSearch(text) {
+    return text.toLowerCase().replace(/_/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
 function filterAndRenderItems() {
     // Filter
     filteredItems = allItems.filter(item => {
-        const matchesSearch = !searchQuery ||
-            item.displayName.toLowerCase().includes(searchQuery) ||
-            item.item.toLowerCase().includes(searchQuery);
+        const matchesSearch = normalizeItemSearch(item.displayName).includes(normalizeItemSearch(searchQuery));
         const matchesCategory = !currentCategory || item.category === currentCategory;
         const matchesStock = !hideOutOfStock || item.stock > 0;
         return matchesSearch && matchesCategory && matchesStock;
@@ -172,11 +174,11 @@ function renderItems() {
             <div class="item-image-wrap">
                 <img class="item-image" 
                      src="${item.imageUrl}" 
-                     alt="${item.displayName}"
+                     alt="${escapeHtml(item.displayName).replace(/"/g, '&quot;')}"
                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22><rect fill=%22%23334155%22 width=%2264%22 height=%2264%22 rx=%228%22/><text x=%2232%22 y=%2238%22 text-anchor=%22middle%22 fill=%22%2394A3B8%22 font-size=%2224%22>?</text></svg>'">
             </div>
             <div class="item-info">
-                <h3 class="item-name">${item.displayName}</h3>
+                <h3 class="item-name">${escapeHtml(item.displayName)}</h3>
                 <span class="item-category">${item.categoryDisplayName || item.category}</span>
             </div>
             <div class="item-prices">
@@ -222,10 +224,10 @@ async function showItemDetails(itemName) {
 
         modalBody.innerHTML = `
             <div class="modal-item-header">
-                <img src="${itemData.imageUrl}" alt="${itemData.displayName}" class="modal-item-image"
+                <img src="${itemData.imageUrl}" alt="${escapeHtml(itemData.displayName).replace(/"/g, '&quot;')}" class="modal-item-image"
                      onerror="this.style.display='none'">
                 <div class="modal-item-details">
-                    <h3>${itemData.displayName}</h3>
+                    <h3>${escapeHtml(itemData.displayName)}</h3>
                     <span class="item-category">${itemData.categoryDisplayName || itemData.category}</span>
                     <div class="modal-prices">
                         <div class="modal-price buy">

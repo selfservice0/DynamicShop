@@ -16,6 +16,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
+import org.minecraftsmp.dynamicshop.util.ShopItemNames;
 
 import java.util.List;
 
@@ -57,7 +58,7 @@ public class ShopDialogManager {
             displayItem = template != null ? template.clone() : new ItemStack(mat);
             if (template != null) displayItem.setAmount(1);
         }
-        String itemName = formatMaterialName(mat);
+        String itemName = ShopItemNames.getDisplayName(mat, deliveryOverride);
 
         double buyPrice1 = variantId != null && variantBasePrice > 0
                 ? ShopDataManager.getTotalVariantBuyCost(variantId, mat, variantBasePrice, 1)
@@ -222,18 +223,6 @@ public class ShopDialogManager {
                         )
                 ), null, 3)));
         player.showDialog(dialog);
-    }
-
-    private String formatMaterialName(Material mat) {
-        String name = mat.name().replace("_", " ").toLowerCase();
-        StringBuilder sb = new StringBuilder();
-        for (String word : name.split(" ")) {
-            if (!word.isEmpty()) {
-                sb.append(Character.toUpperCase(word.charAt(0)))
-                        .append(word.substring(1)).append(" ");
-            }
-        }
-        return sb.toString().trim();
     }
 
     private boolean isSellMatch(ItemStack item, Material mat, ItemStack variantTemplate) {

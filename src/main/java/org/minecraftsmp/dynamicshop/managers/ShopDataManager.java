@@ -11,6 +11,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -460,7 +461,7 @@ public class ShopDataManager {
     // ------------------------------------------------------------------------
     public static double getBasePrice(Material mat) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        return cfg != null ? cfg.basePrice : -1.0;
+        return cfg != null ? validQuote(cfg.basePrice) : -1.0;
     }
 
     // ------------------------------------------------------------------------
@@ -502,6 +503,7 @@ public class ShopDataManager {
     }
 
     public static boolean canBuy(Material mat, int amount) {
+        if (amount <= 0) return false;
         ShopItemConfig cfg = itemConfigs.get(mat);
         if (cfg == null || cfg.basePrice < 0)
             return false;
@@ -517,6 +519,7 @@ public class ShopDataManager {
     }
 
     public static boolean canBuyVariant(String variantId, Material mat, int amount) {
+        if (amount <= 0) return false;
         ShopItemConfig cfg = itemConfigs.get(mat);
         if (cfg == null || cfg.disableBuy)
             return false;
@@ -529,6 +532,7 @@ public class ShopDataManager {
     }
 
     public static boolean canSell(Material mat, int amount) {
+        if (amount <= 0) return false;
         ShopItemConfig cfg = itemConfigs.get(mat);
         if (cfg == null || cfg.basePrice < 0)
             return false;
@@ -543,6 +547,7 @@ public class ShopDataManager {
     }
 
     public static boolean canSellVariant(String variantId, Material mat, int amount) {
+        if (amount <= 0) return false;
         ShopItemConfig cfg = itemConfigs.get(mat);
         if (cfg == null || cfg.disableSell)
             return false;
@@ -638,13 +643,13 @@ public class ShopDataManager {
     // ============================================================================
     public static double getTotalBuyCost(Material mat, double amount) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null || cfg.basePrice < 0)
+        if (cfg == null || validQuote(cfg.basePrice) < 0 || !validQuantity(amount))
             return -1.0;
 
         double B = cfg.basePrice;
 
         if (!ConfigCacheManager.dynamicPricingEnabled) {
-            return B * amount;
+            return validQuote(B * amount);
         }
 
         double s0 = getStock(mat);
@@ -661,7 +666,7 @@ public class ShopDataManager {
 
         double total = computeClampedIntegral(B, a, b, L, minStock, k, q, t);
         logDynamicPricing("BUY", mat.name(), B, s0, amount, h, t, k, q, total);
-        return total;
+        return validQuote(total);
     }
 
     // ============================================================================
@@ -670,14 +675,14 @@ public class ShopDataManager {
     // ============================================================================
     public static double getTotalSellValue(Material mat, int amount) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null || cfg.basePrice < 0)
+        if (cfg == null || validQuote(cfg.basePrice) < 0 || !validQuantity(amount) || !validSellTax())
             return -1.0;
 
         double B = cfg.basePrice;
         double tax = ConfigCacheManager.sellTaxPercent;
 
         if (!ConfigCacheManager.dynamicPricingEnabled) {
-            return B * amount * (1.0 - tax);
+            return applySellTax(B * amount, tax);
         }
 
         double s0 = getStock(mat);
@@ -688,24 +693,20 @@ public class ShopDataManager {
         double q = 1.0 + negPercent;
         double h = getHoursInShortage(mat);
         double t = getInflationMultiplier(h);
-
-        double a = s0;
-        double b = s0 + amount;
-
-        double total = computeClampedIntegral(B, a, b, L, minStock, k, q, t);
-
-        double taxedTotal = Math.max(0.0, total * (1.0 - tax));
+        double total = computeSellIntegral(B, s0, amount, L, minStock, k, q, h);
+        if (validQuote(total) < 0) return -1.0;
+        double taxedTotal = applySellTax(total, tax);
         logDynamicPricing("SELL", mat.name(), B, s0, amount, h, t, k, q, taxedTotal);
-        return taxedTotal;
+        return validQuote(taxedTotal);
     }
 
     public static double getTotalVariantBuyCost(String variantId, Material baseMat, double basePrice, double amount) {
         ShopItemConfig cfg = itemConfigs.get(baseMat);
-        if (variantId == null || cfg == null || basePrice < 0)
+        if (variantId == null || cfg == null || validQuote(basePrice) < 0 || !validQuantity(amount))
             return -1.0;
 
         if (!ConfigCacheManager.dynamicPricingEnabled) {
-            return basePrice * amount;
+            return validQuote(basePrice * amount);
         }
 
         double s0 = getVariantStock(variantId);
@@ -722,18 +723,19 @@ public class ShopDataManager {
 
         double total = computeClampedIntegral(basePrice, a, b, L, minStock, k, q, t);
         logDynamicPricing("BUY", "variant:" + variantId, basePrice, s0, amount, h, t, k, q, total);
-        return total;
+        return validQuote(total);
     }
 
     public static double getTotalVariantSellValue(String variantId, Material baseMat, double basePrice, int amount) {
         ShopItemConfig cfg = itemConfigs.get(baseMat);
-        if (variantId == null || cfg == null || basePrice < 0)
+        if (variantId == null || cfg == null || validQuote(basePrice) < 0
+                || !validQuantity(amount) || !validSellTax())
             return -1.0;
 
         double tax = ConfigCacheManager.sellTaxPercent;
 
         if (!ConfigCacheManager.dynamicPricingEnabled) {
-            return basePrice * amount * (1.0 - tax);
+            return applySellTax(basePrice * amount, tax);
         }
 
         double s0 = getVariantStock(variantId);
@@ -744,15 +746,72 @@ public class ShopDataManager {
         double q = 1.0 + negPercent;
         double h = getVariantShortageHours(variantId);
         double t = getInflationMultiplier(h);
-
-        double a = s0;
-        double b = s0 + amount;
-
-        double total = computeClampedIntegral(basePrice, a, b, L, minStock, k, q, t);
-
-        double taxedTotal = Math.max(0.0, total * (1.0 - tax));
+        double total = computeSellIntegral(basePrice, s0, amount, L, minStock, k, q, h);
+        if (validQuote(total) < 0) return -1.0;
+        double taxedTotal = applySellTax(total, tax);
         logDynamicPricing("SELL", "variant:" + variantId, basePrice, s0, amount, h, t, k, q, taxedTotal);
-        return taxedTotal;
+        return validQuote(taxedTotal);
+    }
+
+    private static boolean validQuantity(double amount) {
+        return Double.isFinite(amount) && amount > 0 && amount <= Integer.MAX_VALUE
+                && amount == Math.floor(amount);
+    }
+
+    private static boolean validSellTax() {
+        double tax = ConfigCacheManager.sellTaxPercent;
+        return Double.isFinite(tax) && tax >= 0 && tax <= 1;
+    }
+
+    private static double applySellTax(double gross, double tax) {
+        if (validQuote(gross) < 0) return -1.0;
+        // Decimal subtraction prevents 80% tax leaving 0.19999999999999996.
+        // Preserve sub-cent currencies rather than imposing two-decimal rounding.
+        return validQuote(BigDecimal.valueOf(gross)
+                .multiply(BigDecimal.ONE.subtract(BigDecimal.valueOf(tax))).doubleValue());
+    }
+
+    private static double validQuote(double value) {
+        return Double.isFinite(value) && value >= 0 ? value : -1.0;
+    }
+
+    /**
+     * Integrates a sell across the stock path while accounting for the
+     * high-inflation correction that is applied when stock recovers above zero.
+     *
+     * Without splitting at the recovery boundary, one large sale prices every
+     * item with the pre-recovery multiplier while equivalent smaller sales use
+     * the corrected multiplier after crossing zero.
+     */
+    static double computeSellIntegral(double basePrice, double startStock, int amount,
+            double maxStock, double minStock, double curveStrength,
+            double negativeStockMultiplier, double shortageHours) {
+        double endStock = startStock + amount;
+        double initialTimeMultiplier = getInflationMultiplier(shortageHours);
+
+        if (!shouldApplyHighInflationCorrection(startStock, endStock)) {
+            return computeClampedIntegral(basePrice, startStock, endStock,
+                    maxStock, minStock, curveStrength, negativeStockMultiplier,
+                    initialTimeMultiplier);
+        }
+
+        double correctedHours = getCorrectedShortageHours(shortageHours);
+        double correctedTimeMultiplier = getInflationMultiplier(correctedHours);
+        double total = 0.0;
+
+        if (startStock < 0.0) {
+            double beforeRecovery = computeClampedIntegral(basePrice, startStock, 0.0,
+                    maxStock, minStock, curveStrength, negativeStockMultiplier,
+                    initialTimeMultiplier);
+            if (validQuote(beforeRecovery) < 0) return -1.0;
+            total += beforeRecovery;
+        }
+
+        double afterRecovery = computeClampedIntegral(basePrice, Math.max(0.0, startStock), endStock,
+                maxStock, minStock, curveStrength, negativeStockMultiplier,
+                correctedTimeMultiplier);
+        if (validQuote(afterRecovery) < 0) return -1.0;
+        return validQuote(total + afterRecovery);
     }
 
     private static void logDynamicPricing(String action, String itemId, double basePrice, double stock, double amount,
@@ -774,6 +833,17 @@ public class ShopDataManager {
     // ============================================================================
     private static double computeClampedIntegral(double B, double a, double b,
             double L, double minStock, double k, double q, double t) {
+        // Invalid state must not collapse into a zero-cost quote or an overpayment.
+        if (validQuote(B) < 0 || !Double.isFinite(a) || !Double.isFinite(b) || b < a
+                || !Double.isFinite(L) || !Double.isFinite(minStock) || L <= minStock
+                || !Double.isFinite(k) || k < 0 || k > 1
+                || !Double.isFinite(q) || q < 1 || validQuote(t) < 0
+                || validQuote(ConfigCacheManager.minPriceMultiplier) < 0
+                || validQuote(ConfigCacheManager.maxPriceMultiplier) < 0
+                || ConfigCacheManager.maxPriceMultiplier < ConfigCacheManager.minPriceMultiplier) {
+            return -1.0;
+        }
+        if (B == 0 || a == b) return 0.0;
         double total = 0.0;
         double lowerBound = minStock;
         double upperBound = L;
@@ -1910,7 +1980,7 @@ public class ShopDataManager {
      */
     public static boolean isItemDisabled(Material mat) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        return cfg == null || cfg.basePrice < 0;
+        return cfg == null || validQuote(cfg.basePrice) < 0;
     }
 
     /**

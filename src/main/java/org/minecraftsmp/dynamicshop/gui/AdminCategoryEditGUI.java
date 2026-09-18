@@ -68,12 +68,12 @@ public class AdminCategoryEditGUI {
         }
 
         // ── Icon editor ─────────────────────────────────────────────
-        ItemStack iconItem = new ItemStack(category.getIcon());
+        ItemStack iconItem = CategoryConfigManager.getIconItem(category);
         ItemMeta meta = iconItem.getItemMeta();
         if (meta != null) {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§b§lChange Category Icon"));
             org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, List.of(
-                    text("§7Current: §f" + category.getIcon().name()),
+                    text("§7Current: §f" + CategoryConfigManager.getIconName(category)),
                     text(""),
                     text("§eHold new icon item and click"),
                     text("§eto change the category icon.")));

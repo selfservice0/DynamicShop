@@ -274,7 +274,7 @@ public class PlayerShopListener implements Listener {
         // Remove listing
         manager.removeListing(listing.getListingId());
 
-        String itemName = item.getType().toString().toLowerCase().replace("_", " ");
+        String itemName = org.minecraftsmp.dynamicshop.util.ShopItemNames.getDisplayName(item);
         Map<String, String> ph1 = new HashMap<>();
         ph1.put("item", itemName);
         ph1.put("amount", String.valueOf(item.getAmount()));
@@ -286,7 +286,15 @@ public class PlayerShopListener implements Listener {
      */
     private void purchaseItem(Player player, PlayerShopListing listing) {
         PlayerShopManager manager = plugin.getPlayerShopManager();
+        if (!manager.isEnabled()) {
+            player.sendMessage("§cPlayer shops are currently disabled.");
+            return;
+        }
         double price = listing.getPrice();
+        if (!Double.isFinite(price) || price <= 0) {
+            player.sendMessage("§cThis listing has an invalid price and cannot be purchased.");
+            return;
+        }
 
         // ---------------------------
         // 1. Check buyer's balance
@@ -327,7 +335,9 @@ public class PlayerShopListener implements Listener {
             ph3.put("buyer", player.getName());
             ph3.put("price", String.format("%.2f", price));
             seller.sendMessage(plugin.getMessageManager().getMessage("playershop-sold-notification", ph3));
-        } else if (seller != null) {
+        } else {
+            // Bukkit.getPlayer returns null when the seller is offline.
+            // Resolve the seller by UUID so offline sales are paid as well.
             OfflinePlayer offline = Bukkit.getOfflinePlayer(listing.getSellerId());
             plugin.getEconomyManager().depositOffline(offline, price);
         }
@@ -339,7 +349,7 @@ public class PlayerShopListener implements Listener {
         manager.removeListing(listing.getListingId());
 
         // Buyer confirmation
-        String itemName = item.getType().toString().toLowerCase().replace("_", " ");
+        String itemName = org.minecraftsmp.dynamicshop.util.ShopItemNames.getDisplayName(item);
         Map<String, String> ph4 = new HashMap<>();
         ph4.put("item", itemName);
         ph4.put("amount", String.valueOf(item.getAmount()));

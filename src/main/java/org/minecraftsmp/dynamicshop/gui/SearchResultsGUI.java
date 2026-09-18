@@ -11,6 +11,7 @@ import org.minecraftsmp.dynamicshop.managers.ProtocolShopManager;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.managers.ConfigCacheManager;
 import org.minecraftsmp.dynamicshop.util.ShopItemBuilder;
+import org.minecraftsmp.dynamicshop.util.ShopItemNames;
 import org.minecraftsmp.dynamicshop.managers.MessageManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +40,6 @@ public class SearchResultsGUI {
         this.player = player;
         this.pm = plugin.getProtocolShopManager();
 
-        String lower = query.toLowerCase();
         this.results = new ArrayList<>();
 
         // Get items to search through
@@ -57,11 +57,10 @@ public class SearchResultsGUI {
             }
         }
 
-        // Filter by query (match material name or custom display name)
+        // Search the name players see, including names stored on item templates.
+        // Named custom items must not also match their underlying vanilla material.
         for (Material mat : searchPool) {
-            String customName = ShopDataManager.getCustomName(mat);
-            if (mat.name().toLowerCase().contains(lower)
-                    || (customName != null && customName.toLowerCase().contains(lower))) {
+            if (ShopItemNames.matches(ShopItemNames.getDisplayName(mat), query)) {
                 results.add(mat);
             }
         }
@@ -83,6 +82,12 @@ public class SearchResultsGUI {
 
         render();
         player.openInventory(inventory);
+
+        // Opening the transaction dialog closes this inventory, which causes
+        // ShopListener to unregister it. Always restore the listener mapping
+        // when the same search is opened again (for example via Return), or
+        // the result items can be removed like items from a normal inventory.
+        plugin.getShopListener().registerSearch(player, this);
 
         // AFTER OPEN: update hover-lore
         plugin.getShopListener().updatePlayerInventoryLore(player, 2L);
@@ -127,7 +132,7 @@ public class SearchResultsGUI {
             net.kyori.adventure.text.Component nameComponent = MessageManager.parseComponent("§e§l" + customName);
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, nameComponent);
             org.minecraftsmp.dynamicshop.util.PaperCompat.setItemName(meta, nameComponent);
-        } else if (!meta.hasDisplayName()) {
+        } else if (!meta.hasDisplayName() && !meta.hasItemName()) {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + mat.name().replace("_", " ")));
         }
 

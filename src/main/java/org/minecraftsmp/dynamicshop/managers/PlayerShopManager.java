@@ -31,15 +31,18 @@ public class PlayerShopManager {
      * Add a listing to a player's shop
      */
     public synchronized boolean addListing(Player seller, ItemStack item, double price) {
-        if (item == null || item.getType() == Material.AIR) {
+        if (!isEnabled() || item == null || item.getType() == Material.AIR || item.getAmount() <= 0) {
             return false;
         }
 
-        if (price <= 0) {
+        if (!Double.isFinite(price) || price <= 0) {
             return false;
         }
 
         UUID sellerId = seller.getUniqueId();
+        if (getListingCount(sellerId) >= plugin.getConfig().getInt("player-shops.max-listings-per-player", 27)) {
+            return false;
+        }
         PlayerShopListing listing = new PlayerShopListing(
                 sellerId,
                 seller.getName(),
@@ -53,6 +56,10 @@ public class PlayerShopManager {
                 item.getType() + " x" + item.getAmount() + " for $" + price);
 
         return true;
+    }
+
+    public boolean isEnabled() {
+        return plugin.getConfig().getBoolean("player-shops.enabled", true);
     }
 
     /**

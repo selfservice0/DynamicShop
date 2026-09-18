@@ -32,6 +32,7 @@ public final class PaperCompat {
     private static final Method SET_DISPLAY_NAME = findMethod(ItemMeta.class, "displayName", Component.class);
     private static final Method GET_DISPLAY_NAME = findMethod(ItemMeta.class, "displayName");
     private static final Method SET_ITEM_NAME = findMethod(ItemMeta.class, "itemName", Component.class);
+    private static final Method GET_ITEM_NAME = findMethod(ItemMeta.class, "itemName");
     private static final Method SET_LORE = findMethod(ItemMeta.class, "lore", List.class);
     private static final Method GET_LORE = findMethod(ItemMeta.class, "lore");
     private static final Method SEND_COMPONENT = findMethod(CommandSender.class, "sendMessage", Component.class);
@@ -92,6 +93,20 @@ public final class PaperCompat {
             }
         }
         meta.setItemName(toLegacy(name));
+    }
+
+    public static Component getItemName(ItemMeta meta) {
+        if (GET_ITEM_NAME != null) {
+            try {
+                Object value = GET_ITEM_NAME.invoke(meta);
+                if (value instanceof Component component) {
+                    return component;
+                }
+            } catch (ReflectiveOperationException | LinkageError ignored) {
+                // Fall through to the Spigot metadata API.
+            }
+        }
+        return LEGACY.deserialize(meta.hasItemName() ? meta.getItemName() : "");
     }
 
     public static void setLore(ItemMeta meta, List<Component> lore) {

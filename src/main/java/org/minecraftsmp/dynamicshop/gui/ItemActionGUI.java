@@ -115,7 +115,7 @@ public class ItemActionGUI {
             item.setAmount(1);
         }
         ItemMeta meta = item.getItemMeta();
-        if (meta != null && !meta.hasDisplayName()) {
+        if (meta != null && !meta.hasDisplayName() && !meta.hasItemName()) {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + targetItem.name().replace("_", " ")));
             item.setItemMeta(meta);
         }

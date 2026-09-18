@@ -299,7 +299,7 @@ public class MultiCurrencyEconomyManager {
      * Charge player with explicit currency
      */
     public boolean charge(Player p, double amount, String currency) {
-        if (amount < 0) return false;
+        if (!Double.isFinite(amount) || amount < 0) return false;
         if (amount == 0) return true;
 
         if (useCoinEngine) {
@@ -346,7 +346,7 @@ public class MultiCurrencyEconomyManager {
      * Deposit to player with explicit currency
      */
     public void deposit(Player p, double amount, String currency) {
-        if (amount < 0) return;
+        if (!Double.isFinite(amount) || amount < 0) return;
 
         if (useCoinEngine) {
             Object curr = getCoinEngineCurrency(currency);
@@ -361,7 +361,7 @@ public class MultiCurrencyEconomyManager {
     }
 
     public void depositOffline(OfflinePlayer offline, UUID uuid, double amount, String currency) {
-        if (amount < 0) return;
+        if (!Double.isFinite(amount) || amount < 0) return;
 
         if (useCoinEngine) {
             Object curr = getCoinEngineCurrency(currency);
@@ -379,6 +379,7 @@ public class MultiCurrencyEconomyManager {
      * Deposit to player with default currency (backward compatible)
      */
     public void deposit(Player p, double amount) {
+        if (!Double.isFinite(amount) || amount < 0) return;
         if (useCoinEngine) {
             deposit(p, amount, defaultCurrency);
         } else {
@@ -390,8 +391,7 @@ public class MultiCurrencyEconomyManager {
     // OFFLINE DEPOSIT SUPPORT
     // ------------------------------------------------------------------
     public void depositOffline(OfflinePlayer offline, double amount) {
-
-
+        if (!Double.isFinite(amount) || amount < 0) return;
         if (useCoinEngine) {
             UUID uuid = offline.getUniqueId();
             depositOffline(offline, uuid, amount, defaultCurrency);
@@ -407,7 +407,8 @@ public class MultiCurrencyEconomyManager {
      * Check if player has enough money (explicit currency)
      */
     public boolean hasEnough(Player p, double amount, String currency) {
-        if (amount <= 0) return true;
+        if (!Double.isFinite(amount) || amount < 0) return false;
+        if (amount == 0) return true;
 
         if (useCoinEngine) {
             Object curr = getCoinEngineCurrency(currency);
@@ -425,6 +426,7 @@ public class MultiCurrencyEconomyManager {
      * Check if player has enough money with default currency (backward compatible)
      */
     public boolean hasEnough(Player p, double amount) {
+        if (!Double.isFinite(amount) || amount < 0) return false;
         if (useCoinEngine) {
             return hasEnough(p, amount, defaultCurrency);
         } else {

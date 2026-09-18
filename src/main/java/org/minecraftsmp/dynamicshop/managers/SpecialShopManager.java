@@ -420,7 +420,16 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     // PURCHASE HANDLING
     // ------------------------------------------------------------
-    public void purchase(Player p, SpecialShopItem item) {
+    public void purchase(Player p, SpecialShopItem requestedItem) {
+        SpecialShopItem item = requestedItem == null ? null : registry.get(requestedItem.getId());
+        if (item == null || item != requestedItem) {
+            p.sendMessage("§cThis shop item has changed. Reopen the shop to see its current price and requirements.");
+            return;
+        }
+        if (!Double.isFinite(item.getPrice()) || item.getPrice() < 0) {
+            p.sendMessage("§cThis shop item has an invalid price. Please contact an administrator.");
+            return;
+        }
         // Check required permission first
         if (item.hasRequiredPermission()) {
             if (!p.hasPermission(item.getRequiredPermission())) {

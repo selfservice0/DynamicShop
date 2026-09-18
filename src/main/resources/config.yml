@@ -81,7 +81,7 @@ logging:
 # ================================================================
 dynamic-pricing:
   # Master toggle for all dynamic pricing features
-  enabled: true
+  enabled: false
 
   # --- Stock-based pricing (positive stock only) ---
   # When enabled, prices decrease as stock increases

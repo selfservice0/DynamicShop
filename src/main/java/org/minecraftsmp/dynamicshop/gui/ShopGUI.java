@@ -245,9 +245,9 @@ public class ShopGUI {
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            // Display name: use the configured name from the special item,
-            // falling back to the stored_item's existing name, then prettified material name
-            if (!meta.hasDisplayName()) {
+            // Preserve both custom_name and item_name (used by Oraxen and other custom items).
+            // Only fall back to the configured/material name when neither is present.
+            if (!meta.hasDisplayName() && !meta.hasItemName()) {
                 String displayName = specialItem.getDisplayName();
                 // If the display name is just the auto-generated ID, prettify the material name instead
                 if (displayName == null || displayName.equals(specialItem.getId())) {
@@ -476,7 +476,7 @@ public class ShopGUI {
                 net.kyori.adventure.text.Component nameComponent = MessageManager.parseComponent("§e§l" + customName);
                 org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, nameComponent);
                 org.minecraftsmp.dynamicshop.util.PaperCompat.setItemName(meta, nameComponent);
-            } else if (!meta.hasDisplayName()) {
+            } else if (!meta.hasDisplayName() && !meta.hasItemName()) {
                 // No custom name and no template name — use prettified material name
                 org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
                         MessageManager.parseComponent("§e§l" + mat.name().replace("_", " ")));

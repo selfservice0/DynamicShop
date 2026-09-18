@@ -1394,12 +1394,16 @@
         }
 
         // ─── Search ───
+        function normalizeItemSearch(text) {
+            return text.toLowerCase().replace(/_/g, ' ').trim().replace(/\s+/g, ' ');
+        }
+
         function handleSearch() {
             const q = document.getElementById('globalSearch').value.toLowerCase().trim();
             if (!q) { renderCategories(allCategories); return; }
 
             // Search items
-            const matched = allItems.filter(i => i.displayName.toLowerCase().includes(q) || i.item.toLowerCase().includes(q));
+            const matched = allItems.filter(i => normalizeItemSearch(i.displayName).includes(normalizeItemSearch(q)));
             // Also match categories
             const matchedCats = allCategories.filter(c => c.displayName.toLowerCase().includes(q) || c.id.toLowerCase().includes(q));
 
@@ -1430,7 +1434,7 @@
             if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">No items</td></tr>'; return; }
             tbody.innerHTML = items.map(i => `<tr>
         <td><input type="checkbox" class="item-select-chk" value="${i.item}" onchange="updateBulkActionUI()"></td>
-        <td><div class="item-cell"><img src="${i.imageUrl}" onerror="this.style.display='none'"><div><div class="name">${i.displayName}</div><div class="id">${i.item}</div></div></div></td>
+        <td><div class="item-cell"><img src="${i.imageUrl}" onerror="this.style.display='none'"><div><div class="name">${escHtml(i.displayName)}</div><div class="id">${i.item}</div></div></div></td>
         <td>$${i.basePrice.toFixed(2)}</td>
         <td>$${i.buyPrice.toFixed(2)}</td>
         <td>$${i.sellPrice.toFixed(2)}</td>

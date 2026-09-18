@@ -128,9 +128,9 @@ public class PlayerShopViewGUI {
         ItemMeta meta = displayItem.getItemMeta();
 
         if (meta != null) {
-            // Preserve original custom name if it exists
+            // Preserve the original custom_name or item_name if it exists
             // Otherwise use material name
-            if (!meta.hasDisplayName()) {
+            if (!meta.hasDisplayName() && !meta.hasItemName()) {
                 String materialName = displayItem.getType().toString().replace("_", " ");
                 materialName = capitalizeWords(materialName);
                 org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§f" + materialName));

@@ -22,6 +22,7 @@ import org.minecraftsmp.dynamicshop.category.ItemCategory;
 import org.minecraftsmp.dynamicshop.managers.ConfigCacheManager;
 import org.minecraftsmp.dynamicshop.managers.CategoryConfigManager;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
+import org.minecraftsmp.dynamicshop.util.ShopItemNames;
 import org.minecraftsmp.dynamicshop.transactions.Transaction;
 import org.minecraftsmp.dynamicshop.models.PlayerShopListing;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -662,10 +663,8 @@ public class WebServer {
 
         // Apply search filter if present
         if (query != null && !query.isEmpty()) {
-            String lowerQuery = query.toLowerCase();
             items = items.stream()
-                    .filter(item -> item.displayName().toLowerCase().contains(lowerQuery)
-                            || item.item().toLowerCase().contains(lowerQuery))
+                    .filter(item -> ShopItemNames.matches(item.displayName(), query))
                     .collect(Collectors.toList());
         }
 
@@ -704,7 +703,7 @@ public class WebServer {
 
             items.add(new ShopItemDTO(
                     mat.name(),
-                    ShopDataManager.getCustomName(mat) != null ? ShopDataManager.getCustomName(mat) : prettifyItemName(mat.name()),
+                    ShopItemNames.getDisplayName(mat),
                     category.name(),
                     getCategoryDisplayName(category),
                     buyPrice,
@@ -734,9 +733,7 @@ public class WebServer {
 
         // Add Player Shop Items
         for (PlayerShopListing ps : plugin.getPlayerShopManager().getAllListings()) {
-            String psName = ps.getItem().hasItemMeta() && ps.getItem().getItemMeta().hasDisplayName() ?
-                org.minecraftsmp.dynamicshop.util.PaperCompat.getPlainDisplayName(ps.getItem().getItemMeta()) :
-                prettifyItemName(ps.getItem().getType().name());
+            String psName = ShopItemNames.getDisplayName(ps.getItem());
 
             String imageUrl = "https://mc.nerothe.com/img/1.21/minecraft_" + ps.getItem().getType().name().toLowerCase() + ".png";
 
@@ -833,7 +830,7 @@ public class WebServer {
         Map<String, Object> result = new HashMap<>();
         result.put("item", mat.name());
         String customName = ShopDataManager.getCustomName(mat);
-        result.put("displayName", customName != null ? customName : prettifyItemName(mat.name()));
+        result.put("displayName", ShopItemNames.getDisplayName(mat));
         result.put("customName", customName);
         result.put("category", category.name());
         result.put("categoryDisplayName", getCategoryDisplayName(category));
@@ -1069,9 +1066,7 @@ public class WebServer {
         // Add Player Shop Items
         for (PlayerShopListing ps : plugin.getPlayerShopManager().getAllListings()) {
             Map<String, Object> item = new LinkedHashMap<>();
-            String psName = ps.getItem().hasItemMeta() && ps.getItem().getItemMeta().hasDisplayName() ?
-                org.minecraftsmp.dynamicshop.util.PaperCompat.getPlainDisplayName(ps.getItem().getItemMeta()) :
-                prettifyItemName(ps.getItem().getType().name());
+            String psName = ShopItemNames.getDisplayName(ps.getItem());
 
             item.put("item", "playershop:" + ps.getListingId());
             item.put("displayName", psName);
@@ -1608,7 +1603,7 @@ public class WebServer {
             Map<String, Object> catMap = new LinkedHashMap<>();
             catMap.put("id", cat.name());
             catMap.put("displayName", displayName);
-            catMap.put("icon", icon.name());
+            catMap.put("icon", CategoryConfigManager.getIconName(cat));
             catMap.put("iconUrl", iconUrl);
             catMap.put("slot", slot);
             catMap.put("hidden", hidden);
@@ -2011,7 +2006,7 @@ public class WebServer {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("item", mat.name());
         String adminCustomName = ShopDataManager.getCustomName(mat);
-        item.put("displayName", adminCustomName != null ? adminCustomName : prettifyItemName(mat.name()));
+        item.put("displayName", ShopItemNames.getDisplayName(mat));
         item.put("customName", adminCustomName);
         item.put("category", category.name());
         item.put("categoryDisplayName", getCategoryDisplayName(category));

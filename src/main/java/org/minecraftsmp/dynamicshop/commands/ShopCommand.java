@@ -199,6 +199,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     // SELL HAND: sell entire held stack to the dynamic shop
     // --------------------------------------------------------------------
     private boolean handleSellHand(Player p) {
+        if (!plugin.getShopListener().checkTransactionCooldown(p)) return true;
         ItemStack held = p.getInventory().getItemInMainHand();
         if (held == null || held.getType() == Material.AIR) {
             p.sendMessage("§c✗ §7You're not holding anything!");
@@ -238,6 +239,10 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
 
         double payout = ShopDataManager.getTotalSellValue(mat, amount);
+        if (!Double.isFinite(payout) || payout < 0) {
+            p.sendMessage(plugin.getMessageManager().cannotSell());
+            return true;
+        }
 
         // Remove items from hand
         int remaining = held.getAmount() - amount;
@@ -248,12 +253,14 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
 
         ShopDataManager.updateStock(mat, amount);
-        plugin.getEconomyManager().deposit(p, payout);
+        String currency = plugin.getEconomyManager().getCurrency(mat);
+        plugin.getEconomyManager().deposit(p, payout, currency);
+        plugin.getShopListener().recordTransaction(p);
 
         Map<String, String> ph = new HashMap<>();
         ph.put("amount", String.valueOf(amount));
-        ph.put("item", mat.name().replace("_", " ").toLowerCase());
-        ph.put("price", plugin.getEconomyManager().format(payout));
+        ph.put("item", org.minecraftsmp.dynamicshop.util.ShopItemNames.getDisplayName(mat));
+        ph.put("price", plugin.getEconomyManager().format(payout, currency));
         p.sendMessage(plugin.getMessageManager().getMessage("sold-item-success", ph));
 
         plugin.getTransactionLogger().log(Transaction.now(
@@ -272,6 +279,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     // SELL ALL: sell every sellable item in inventory
     // --------------------------------------------------------------------
     private boolean handleSellAll(Player p) {
+        if (!plugin.getShopListener().checkTransactionCooldown(p)) return true;
         // Gather sellable materials and counts
         Map<Material, Integer> sellable = new java.util.LinkedHashMap<>();
 
@@ -292,7 +300,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        double totalPayout = 0;
+        Map<String, Double> payoutsByCurrency = new java.util.LinkedHashMap<>();
         int totalItems = 0;
         int itemTypes = 0;
 
@@ -308,14 +316,17 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             }
 
             if (amount <= 0) continue;
-
-            double payout = ShopDataManager.getTotalSellValue(mat, amount);
-
+            double quote = ShopDataManager.getTotalSellValue(mat, amount);
+            String currency = plugin.getEconomyManager().getCurrency(mat);
+            if (!Double.isFinite(quote) || quote < 0
+                    || !Double.isFinite(payoutsByCurrency.getOrDefault(currency, 0.0) + quote)) continue;
+            Map<Integer, ItemStack> originalSlots = new HashMap<>();
             // Remove items from inventory
             int toRemove = amount;
             for (int i = 0; i < p.getInventory().getSize(); i++) {
                 ItemStack item = p.getInventory().getItem(i);
                 if (isShopSellMatch(item, mat) && !isDamaged(item) && toRemove > 0) {
+                    originalSlots.put(i, item.clone());
                     int take = Math.min(item.getAmount(), toRemove);
                     int newAmt = item.getAmount() - take;
                     if (newAmt <= 0) {
@@ -328,8 +339,19 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             }
 
             int actuallySold = amount - toRemove;
+            if (actuallySold <= 0) {
+                continue;
+            }
+
+            double payout = ShopDataManager.getTotalSellValue(mat, actuallySold);
+            if (!Double.isFinite(payout) || payout < 0
+                    || !Double.isFinite(payoutsByCurrency.getOrDefault(currency, 0.0) + payout)) {
+                originalSlots.forEach((slot, original) -> p.getInventory().setItem(slot, original));
+                continue;
+            }
+
             ShopDataManager.updateStock(mat, actuallySold);
-            totalPayout += payout;
+            payoutsByCurrency.merge(currency, payout, Double::sum);
             totalItems += actuallySold;
             itemTypes++;
 
@@ -348,15 +370,28 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        plugin.getEconomyManager().deposit(p, totalPayout);
+        StringBuilder payoutSummary = new StringBuilder();
+        plugin.getShopListener().recordTransaction(p);
+        for (Map.Entry<String, Double> payoutEntry : payoutsByCurrency.entrySet()) {
+            plugin.getEconomyManager().deposit(p, payoutEntry.getValue(), payoutEntry.getKey());
+            if (payoutSummary.length() > 0) {
+                payoutSummary.append(", ");
+            }
+            payoutSummary.append(plugin.getEconomyManager().format(
+                    payoutEntry.getValue(), payoutEntry.getKey()));
+        }
 
         p.sendMessage("§a✓ §7Sold §f" + totalItems + " items §7(§e" + itemTypes + " types§7) for §a" +
-                plugin.getEconomyManager().format(totalPayout));
+                payoutSummary);
 
         return true;
     }
 
     private boolean handleSellCommand(Player player, String[] args) {
+        if (!plugin.getPlayerShopManager().isEnabled()) {
+            player.sendMessage("§cPlayer shops are currently disabled.");
+            return true;
+        }
         // Check permission
         if (!player.hasPermission("dynamicshop.playershop.sell")) {
             player.sendMessage(plugin.getMessageManager().getMessage("playershop-no-permission-sell"));
@@ -373,7 +408,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (price <= 0) {
+        if (!Double.isFinite(price) || price <= 0) {
             player.sendMessage(plugin.getMessageManager().getMessage("playershop-price-must-be-positive"));
             return true;
         }

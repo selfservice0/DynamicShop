@@ -29,6 +29,7 @@ import org.minecraftsmp.dynamicshop.gui.ItemActionGUI;
 import org.minecraftsmp.dynamicshop.gui.SearchResultsGUI;
 import org.minecraftsmp.dynamicshop.gui.ShopGUI;
 import org.minecraftsmp.dynamicshop.util.BedrockUtil;
+import org.minecraftsmp.dynamicshop.util.ShopItemNames;
 import org.minecraftsmp.dynamicshop.managers.ConfigCacheManager;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.transactions.Transaction;
@@ -53,6 +54,22 @@ public class ShopListener implements Listener {
 
     public ShopListener(DynamicShop plugin) {
         this.plugin = plugin;
+    }
+
+    public boolean checkTransactionCooldown(Player player) {
+        if (ConfigCacheManager.transactionCooldownMs <= 0 || player.hasPermission("dynamicshop.bypass.cooldown")) {
+            return true;
+        }
+        long elapsed = System.currentTimeMillis() - lastTransaction.getOrDefault(player.getUniqueId(), 0L);
+        if (elapsed >= ConfigCacheManager.transactionCooldownMs) return true;
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("time", String.format("%.1f", (ConfigCacheManager.transactionCooldownMs - elapsed) / 1000.0));
+        player.sendMessage(plugin.getMessageManager().getMessage("transaction-cooldown", placeholders));
+        return false;
+    }
+
+    public void recordTransaction(Player player) {
+        lastTransaction.put(player.getUniqueId(), System.currentTimeMillis());
     }
 
     public void unregisterCategory(Player p) {
@@ -549,20 +566,11 @@ public class ShopListener implements Listener {
     }
 
     public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride, double variantBasePrice, String variantId) {
-
-        if (ConfigCacheManager.transactionCooldownMs > 0 && !p.hasPermission("dynamicshop.bypass.cooldown")) {
-            long now = System.currentTimeMillis();
-            long last = lastTransaction.getOrDefault(p.getUniqueId(), 0L);
-            long diff = now - last;
-
-            if (diff < ConfigCacheManager.transactionCooldownMs) {
-                double waitSeconds = (ConfigCacheManager.transactionCooldownMs - diff) / 1000.0;
-                Map<String, String> ph = new HashMap<>();
-                ph.put("time", String.format("%.1f", waitSeconds));
-                p.sendMessage(plugin.getMessageManager().getMessage("transaction-cooldown", ph));
-                return;
-            }
+        if (amount <= 0) {
+            p.sendMessage("§cChoose a positive item quantity.");
+            return;
         }
+        if (!checkTransactionCooldown(p)) return;
 
         if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
             p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
@@ -603,7 +611,7 @@ public class ShopListener implements Listener {
         }
 
         String currency = plugin.getEconomyManager().getCurrency(mat);
-        if (totalCost < 0 || !plugin.getEconomyManager().hasEnough(p, totalCost, currency)) {
+        if (!Double.isFinite(totalCost) || totalCost < 0 || !plugin.getEconomyManager().hasEnough(p, totalCost, currency)) {
             Map<String, String> ph = new HashMap<>();
             ph.put("price", plugin.getEconomyManager().format(totalCost, currency));
             p.sendMessage(plugin.getMessageManager().getMessage("not-enough-money-need", ph));
@@ -657,7 +665,7 @@ public class ShopListener implements Listener {
 
         Map<String, String> ph = new HashMap<>();
         ph.put("amount", String.valueOf(amount));
-        ph.put("item", mat.name().replace("_", " ").toLowerCase());
+        ph.put("item", ShopItemNames.getDisplayName(mat, deliveryOverride));
         ph.put("price", plugin.getEconomyManager().format(totalCost, currency));
         p.sendMessage(plugin.getMessageManager().getMessage("bought-item", ph));
 
@@ -670,7 +678,7 @@ public class ShopListener implements Listener {
                 ShopDataManager.detectCategory(mat).name(),
                 ""));
 
-        lastTransaction.put(p.getUniqueId(), System.currentTimeMillis());
+        recordTransaction(p);
 
         if (gui instanceof ShopGUI)
             ((ShopGUI) gui).render();
@@ -688,20 +696,11 @@ public class ShopListener implements Listener {
     }
 
     public void sellItem(Player p, Material mat, int amount, Object gui, ItemStack variantTemplate, double variantBasePrice, String variantId) {
-
-        if (ConfigCacheManager.transactionCooldownMs > 0 && !p.hasPermission("dynamicshop.bypass.cooldown")) {
-            long now = System.currentTimeMillis();
-            long last = lastTransaction.getOrDefault(p.getUniqueId(), 0L);
-            long diff = now - last;
-
-            if (diff < ConfigCacheManager.transactionCooldownMs) {
-                double waitSeconds = (ConfigCacheManager.transactionCooldownMs - diff) / 1000.0;
-                Map<String, String> ph = new HashMap<>();
-                ph.put("time", String.format("%.1f", waitSeconds));
-                p.sendMessage(plugin.getMessageManager().getMessage("transaction-cooldown", ph));
-                return;
-            }
+        if (amount <= 0) {
+            p.sendMessage("§cChoose a positive item quantity.");
+            return;
         }
+        if (!checkTransactionCooldown(p)) return;
 
         if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
             p.sendMessage(plugin.getMessageManager().cannotSell());
@@ -722,7 +721,7 @@ public class ShopListener implements Listener {
 
         if (removed == 0) {
             Map<String, String> ph = new HashMap<>();
-            ph.put("item", mat.name().replace("_", " ").toLowerCase());
+            ph.put("item", ShopItemNames.getDisplayName(mat, variantTemplate));
             p.sendMessage(plugin.getMessageManager().getMessage("not-enough-items", ph));
             return;
         }
@@ -747,14 +746,20 @@ public class ShopListener implements Listener {
             }
         }
 
-        double totalPayout = variantId != null && variantBasePrice > 0
+        double quotedPayout = variantId != null && variantBasePrice > 0
                 ? ShopDataManager.getTotalVariantSellValue(variantId, mat, variantBasePrice, removed)
                 : ShopDataManager.getTotalSellValue(mat, removed);
+        if (!Double.isFinite(quotedPayout) || quotedPayout < 0) {
+            p.sendMessage(plugin.getMessageManager().cannotSell());
+            return;
+        }
 
+        Map<Integer, ItemStack> originalSlots = new HashMap<>();
         int actuallyRemoved = 0;
         for (int i = 0; i < p.getInventory().getSize(); i++) {
             ItemStack item = p.getInventory().getItem(i);
             if (isSellMatch(item, mat, variantTemplate) && actuallyRemoved < removed && !isDamaged(item)) {
+                originalSlots.put(i, item.clone());
                 int take = Math.min(item.getAmount(), removed - actuallyRemoved);
                 int newAmt = item.getAmount() - take;
                 if (newAmt <= 0) {
@@ -764,6 +769,20 @@ public class ShopListener implements Listener {
                 }
                 actuallyRemoved += take;
             }
+        }
+
+        if (actuallyRemoved <= 0) {
+            p.sendMessage(plugin.getMessageManager().cannotSell());
+            return;
+        }
+
+        double totalPayout = variantId != null && variantBasePrice > 0
+                ? ShopDataManager.getTotalVariantSellValue(variantId, mat, variantBasePrice, actuallyRemoved)
+                : ShopDataManager.getTotalSellValue(mat, actuallyRemoved);
+        if (!Double.isFinite(totalPayout) || totalPayout < 0) {
+            originalSlots.forEach((slot, original) -> p.getInventory().setItem(slot, original));
+            p.sendMessage(plugin.getMessageManager().cannotSell());
+            return;
         }
 
         if (variantId != null) {
@@ -777,7 +796,7 @@ public class ShopListener implements Listener {
 
         Map<String, String> ph = new HashMap<>();
         ph.put("amount", String.valueOf(actuallyRemoved));
-        ph.put("item", mat.name().replace("_", " ").toLowerCase());
+        ph.put("item", ShopItemNames.getDisplayName(mat, variantTemplate));
         ph.put("price", plugin.getEconomyManager().format(totalPayout, currency));
         p.sendMessage(plugin.getMessageManager().getMessage("sold-item-success", ph));
 
@@ -790,7 +809,7 @@ public class ShopListener implements Listener {
                 ShopDataManager.detectCategory(mat).name(),
                 ""));
 
-        lastTransaction.put(p.getUniqueId(), System.currentTimeMillis());
+        recordTransaction(p);
 
         if (gui instanceof ShopGUI)
             ((ShopGUI) gui).render();
