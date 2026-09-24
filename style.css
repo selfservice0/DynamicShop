@@ -196,6 +196,15 @@ html[data-theme-motion=false] .item-card:hover,html[data-theme-motion=false] .it
 @media(max-width:900px){.appearance-preview-wrap{position:static;max-width:none}.appearance-layout{display:flex;flex-direction:column}.appearance-controls{width:100%}}
 @media(max-width:560px){.appearance-colors{grid-template-columns:1fr}.appearance-choices button{padding:9px}.appearance-sample-brand{padding:12px}}
 
+.theme-palettes{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:16px 0 24px}
+.theme-palettes button{display:grid;grid-template-columns:1fr auto;gap:8px;text-align:left;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:var(--control-radius,6px);padding:10px;cursor:pointer}
+.theme-palettes button strong{font-size:11px;align-self:center}
+.theme-palettes button small{font-size:10px;color:var(--muted);align-self:center}
+.palette-swatches{display:flex;grid-column:1/-1;overflow:hidden;height:28px;border:1px solid var(--border);border-radius:3px}
+.palette-swatches i{flex:1}
+.theme-palettes button[aria-pressed=true]{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+.theme-palettes button:focus-visible,.theme-presets button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+
 /* The second storefront uses the same controls and data, with a separate layout. */
 .design-picker{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
 .design-picker>button{padding:10px;text-align:left;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;min-width:0}
@@ -696,3 +705,74 @@ html[data-design=chest] .buy-dot{background:#1f4fa3}html[data-design=chest] .sel
 html[data-design=chest] .brand{display:flex}
 html[data-design=chest] #browse h2>span{display:inline-block;white-space:nowrap}
 html[data-design=chest] .brand>span,html[data-design=chest] .brand>span>span{display:block;font-size:26px;line-height:1.2}
+
+/* DSX Exchange — adapted from the user-supplied DynamicShop-Web-DSX design. */
+.dsx-only{display:none}
+html[data-design=dsx]{--sidebar:0px;--dsx-bid:#38d6c8;--dsx-line:color-mix(in srgb,var(--panel) 70%,var(--text) 30%)}
+html[data-design=dsx][data-theme-tone=light]{--dsx-bid:#08786f}
+html[data-design=dsx] body{font-variant-numeric:tabular-nums}
+html[data-design=dsx] .workspace{margin-left:0;padding-top:52px}
+html[data-design=dsx] .sidebar{inset:0 0 auto;width:100%;height:52px;padding:0 18px;display:flex;flex-direction:row;align-items:center;gap:24px;border-bottom:1px solid var(--dsx-line);z-index:20}
+html[data-design=dsx] .brand{font-size:13px;letter-spacing:0;white-space:nowrap}
+html[data-design=dsx] .brand:before{content:'DSX';font:700 19px var(--theme-font);color:var(--sidebar-accent);letter-spacing:1px}
+html[data-design=dsx] .brand small,html[data-design=dsx] .server,html[data-design=dsx] .nav-label,html[data-design=dsx] .sidebar-bottom{display:none}
+html[data-design=dsx] .sidebar nav{display:flex;align-items:center;gap:5px;height:100%;white-space:nowrap}
+html[data-design=dsx] .sidebar nav a{height:100%;padding:0 12px;border-radius:0;font-size:12px;gap:7px}
+html[data-design=dsx] .sidebar nav a.active{border-bottom:2px solid var(--sidebar-accent);background:transparent}
+html[data-design=dsx] .sidebar nav svg{display:none}
+html[data-design=dsx] .topbar{height:38px;padding:0 18px;border-color:var(--dsx-line);background:var(--sidebar-bg);color:var(--sidebar-text)}
+html[data-design=dsx] .topbar-right{gap:12px}
+html[data-design=dsx] main{max-width:none;padding:16px 18px 0}
+html[data-design=dsx] #catalogView{display:grid;grid-template-columns:210px minmax(0,1fr);gap:14px;align-items:start}
+html[data-design=dsx] .hero{display:none}
+html[data-design=dsx] #catalogView>.section-heading{grid-column:2;grid-row:1;margin:0;gap:12px}
+html[data-design=dsx] #catalogView>.section-heading .eyebrow{display:none}
+html[data-design=dsx] #catalogTitle{font:600 17px var(--theme-font);letter-spacing:0}
+html[data-design=dsx] #catalogTitle span{font-size:11px}
+html[data-design=dsx] #catalogView>.filter-row{grid-column:1;grid-row:1/span 5;display:flex;flex-direction:column;align-items:stretch;gap:22px;padding:12px;background:var(--panel);border:1px solid var(--dsx-line);margin:0}
+html[data-design=dsx] #categories{display:flex;flex-direction:column;align-items:stretch;gap:3px;overflow:visible;white-space:normal}
+html[data-design=dsx] #categories:before{content:'SECTORS';font-size:11px;letter-spacing:1px;color:var(--muted);padding:5px 8px 12px}
+html[data-design=dsx] #categories button{width:100%;display:flex;justify-content:space-between;text-align:left;font:600 12px var(--theme-font);padding:8px;border-radius:0;white-space:normal}
+html[data-design=dsx] .stock-filter{white-space:normal;font-size:11px}
+html[data-design=dsx] .sort{flex-wrap:wrap;font-size:11px;margin:0}
+html[data-design=dsx] .search{width:min(320px,45%);border-radius:0}
+html[data-design=dsx] .search input{min-width:0;width:100%}
+html[data-design=dsx] #itemGrid{display:none}
+html[data-design=dsx] .dsx-board{display:block;grid-column:2;grid-row:2;min-width:0;background:var(--panel);border:1px solid var(--dsx-line);padding:12px}
+.dsx-board-heading{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:14px}
+.dsx-board-heading h2{font:700 19px var(--theme-font);letter-spacing:0}
+.dsx-board-heading>span,.dsx-history-note{font-size:10px;color:var(--muted);line-height:1.6}
+.dsx-history-note{margin-top:12px}
+.dsx-table-scroll{overflow:auto}
+.dsx-board table{width:100%;border-collapse:collapse;white-space:nowrap;font:12px var(--theme-font)}
+.dsx-board thead th{font:600 10px var(--theme-font);letter-spacing:.6px;color:var(--muted);text-transform:uppercase;background:var(--theme-soft);padding:10px;border-bottom:1px solid var(--dsx-line)}
+.dsx-board td,.dsx-board tbody th{height:42px;padding:7px 10px;border-bottom:1px solid var(--dsx-line);font-weight:400;text-align:left}
+.dsx-board tr:hover{background:var(--theme-soft)}
+.dsx-board tbody th{background:transparent;text-transform:none;letter-spacing:0}
+.dsx-board .dsx-instrument{font-size:12px;letter-spacing:0;text-transform:none}
+.dsx-board .dsx-number{text-align:right}
+.dsx-instrument{display:flex;align-items:center;gap:10px;background:transparent;text-align:left;color:var(--text);font:inherit;padding:0;max-width:260px;white-space:normal}
+.dsx-instrument .pixel-item{width:24px;height:24px;flex:none;object-fit:contain}
+.dsx-watch{background:transparent;color:var(--muted);font-size:20px;padding:0 3px}
+.dsx-watch[aria-pressed=true]{color:var(--green)}
+.dsx-ask{color:var(--green);font-weight:600!important}.dsx-bid{color:var(--dsx-bid);font-weight:600!important}
+html[data-design=dsx] .dsx-tape{display:block;overflow:hidden;padding:7px 0;min-height:30px;background:var(--panel);border-bottom:1px solid var(--dsx-line);color:var(--muted);font:11px var(--theme-font)}
+.dsx-tape-track{display:flex;width:max-content;animation:dsx-tape 65s linear infinite}
+.dsx-tape-item{white-space:nowrap;background:transparent;font:inherit;padding:0 20px;border-right:1px solid var(--dsx-line)}
+.dsx-tape:hover .dsx-tape-track,.dsx-tape:focus-within .dsx-tape-track{animation-play-state:paused}
+@keyframes dsx-tape{from{transform:translateX(0)}to{transform:translateX(-35%)}}
+html[data-theme-motion=false] .dsx-tape-track{animation:none}
+@media(prefers-reduced-motion:reduce){.dsx-tape-track{animation:none}}
+html[data-design=dsx] .load-more-row{grid-column:2;grid-row:3;margin:0}
+html[data-design=dsx] .empty-state{grid-column:2;grid-row:2}
+html[data-design=dsx] .market-strip{grid-column:1/-1;grid-row:6;margin:0;border:1px solid var(--dsx-line);background:var(--panel)}
+html[data-design=dsx] .catalog-foot{grid-column:1/-1;grid-row:7;margin:0;font-size:10px}
+html[data-design=dsx] footer{margin-top:24px}
+html[data-design=dsx] .admin-config-card,html[data-design=dsx] .admin-category-card,html[data-design=dsx] .metric-card,html[data-design=dsx] .activity-chart,html[data-design=dsx] .economy-health{border:1px solid var(--dsx-line)}
+html[data-design=dsx] .detail-prices>div:first-child strong{color:var(--green)}
+html[data-design=dsx] .detail-prices>div:last-child strong{color:var(--dsx-bid)}
+.design-dsx{background:#0a0d11!important;border:1px solid #22303c}.design-dsx i{background:#f0b429!important}.design-dsx b,.design-dsx em{background:repeating-linear-gradient(#22303c 0 2px,transparent 2px 8px)!important;border-radius:0!important}
+.appearance-sample[data-design=dsx]{border-radius:0;border:1px solid var(--border);font-family:var(--theme-font)}
+.appearance-sample[data-design=dsx] .appearance-sample-item{border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:14px 0}
+@media(max-width:900px){html[data-design=dsx] .sidebar{gap:12px;padding:0 12px;overflow-x:auto}html[data-design=dsx] .brand small{display:none}html[data-design=dsx] .sidebar nav a{padding:0 8px}html[data-design=dsx] #catalogView{grid-template-columns:160px minmax(0,1fr)}html[data-design=dsx] #catalogView>.section-heading{flex-wrap:wrap}html[data-design=dsx] .search{width:100%}}
+@media(max-width:600px){html[data-design=dsx] .brand>span{display:none}html[data-design=dsx] .sidebar{gap:5px}html[data-design=dsx] .sidebar nav a{font-size:10px;padding:0 7px}html[data-design=dsx] main{padding:12px 10px 0}html[data-design=dsx] #catalogView{display:flex;flex-direction:column;gap:12px}html[data-design=dsx] #catalogView>*{width:100%}html[data-design=dsx] #catalogView>.filter-row{gap:12px}html[data-design=dsx] #categories{flex-direction:row;overflow-x:auto;white-space:nowrap}html[data-design=dsx] #categories:before{display:none}html[data-design=dsx] #categories button{width:auto;white-space:nowrap;gap:8px}html[data-design=dsx] .dsx-board{padding:10px}html[data-design=dsx] .market-strip{display:none}html[data-design=dsx] .breadcrumb{display:none}html[data-design=dsx] .topbar{justify-content:flex-end;padding:0 10px}.dsx-board-heading>span{font-size:9px}}
