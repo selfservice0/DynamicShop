@@ -1832,34 +1832,11 @@ public class WebServer {
                         categoryChanged = true;
                     }
                     if (body.containsKey("icon")) {
-                        String iconName = (String) body.get("icon");
-                        if (iconName == null
-                                || iconName.isEmpty()
-                                || iconName.equalsIgnoreCase("DEFAULT")) {
-                            CategoryConfigManager.removeIcon(cat);
-                        } else {
-                            try {
-                                if (org.minecraftsmp.dynamicshop.managers.CustomItemSupport
-                                        .isCustomItem(iconName)) {
-                                    CategoryConfigManager.setIcon(cat, iconName);
-                                } else {
-                                    CategoryConfigManager.setIcon(
-                                            cat, Material.valueOf(iconName.toUpperCase()).name());
-                                }
-                            } catch (Exception ignored) {
-                            }
-                        }
+                        applyCategoryIcon(cat, body);
                         categoryChanged = true;
                     }
                     if (body.containsKey("displayName")) {
-                        String displayName = (String) body.get("displayName");
-                        if (displayName == null
-                                || displayName.isEmpty()
-                                || displayName.equals(cat.getDisplayName())) {
-                            CategoryConfigManager.removeDisplayName(cat);
-                        } else {
-                            CategoryConfigManager.setDisplayName(cat, displayName);
-                        }
+                        applyCategoryName(cat, body);
                         categoryChanged = true;
                     }
 
@@ -3045,4 +3022,35 @@ public class WebServer {
             String payload,
             Material deliveryMaterial,
             int amount) {}
+
+    private void applyCategoryIcon(ItemCategory cat, Map<String, Object> body) {
+
+        String iconName = (String) body.get("icon");
+        if (iconName == null || iconName.isEmpty() || iconName.equalsIgnoreCase("DEFAULT")) {
+            CategoryConfigManager.removeIcon(cat);
+        } else {
+            try {
+                if (org.minecraftsmp.dynamicshop.managers.CustomItemSupport.isCustomItem(
+                        iconName)) {
+                    CategoryConfigManager.setIcon(cat, iconName);
+                } else {
+                    CategoryConfigManager.setIcon(
+                            cat, Material.valueOf(iconName.toUpperCase()).name());
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private void applyCategoryName(ItemCategory cat, Map<String, Object> body) {
+
+        String displayName = (String) body.get("displayName");
+        if (displayName == null
+                || displayName.isEmpty()
+                || displayName.equals(cat.getDisplayName())) {
+            CategoryConfigManager.removeDisplayName(cat);
+        } else {
+            CategoryConfigManager.setDisplayName(cat, displayName);
+        }
+    }
 }

@@ -339,13 +339,10 @@ public class MultiCurrencyEconomyManager {
                 error = "Vault economy provider is unavailable";
             } else {
                 provider = "Vault/" + vaultEconomy.getName();
-                EconomyResponse response = vaultEconomy.depositPlayer(player, amount);
-                if (response != null && response.transactionSuccess()) return true;
-                outcome = response == null ? "UNKNOWN" : "FAILED";
-                error =
-                        response == null
-                                ? "Provider returned no response"
-                                : response.type + ": " + response.errorMessage;
+                SalePaymentFailure failure = depositVaultSale(player, amount);
+                if (failure == null) return true;
+                outcome = failure.outcome;
+                error = failure.error;
             }
         } catch (ReflectiveOperationException | RuntimeException ex) {
             // The provider might have changed the balance before throwing.
@@ -648,5 +645,16 @@ public class MultiCurrencyEconomyManager {
                     Boolean.FALSE.equals(result) ? "FAILED" : "UNKNOWN",
                     "CoinsEngine returned " + result);
         }
+    }
+
+    private SalePaymentFailure depositVaultSale(Player player, double amount) {
+        EconomyResponse response = vaultEconomy.depositPlayer(player, amount);
+        if (response != null && response.transactionSuccess()) return null;
+        String outcome = response == null ? "UNKNOWN" : "FAILED";
+        String error =
+                response == null
+                        ? "Provider returned no response"
+                        : response.type + ": " + response.errorMessage;
+        return new SalePaymentFailure(outcome, error);
     }
 }

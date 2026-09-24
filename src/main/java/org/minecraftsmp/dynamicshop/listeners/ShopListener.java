@@ -365,62 +365,7 @@ public class ShopListener implements Listener {
             return;
         }
 
-        // REGULAR ITEM
-        Material mat = gui.getItemFromSlot(slot);
-        ItemStack deliveryOverride = null; // For stored_item variants
-        double variantBasePrice = -1; // -1 means use normal pricing
-        String variantId = null;
-
-        SpecialShopItem mixedSpecialItem = gui.getSpecialItemFromSlot(slot);
-        if (mixedSpecialItem != null && mixedSpecialItem.isServerShopItem()) {
-            if (right) {
-                p.sendMessage(plugin.getMessageManager().getMessage("cannot-sell-special-item"));
-                return;
-            }
-
-            plugin.getSpecialShopManager().purchase(p, mixedSpecialItem);
-            gui.render();
-            return;
-        }
-
-        // If no regular item found, check for non-server stored_item variants in this category.
-        if (mat == null) {
-            SpecialShopItem sItem = mixedSpecialItem;
-            if (sItem != null
-                    && sItem.getDisplayMaterial() != null
-                    && "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
-                mat = sItem.getDisplayMaterial();
-                variantBasePrice = sItem.getPrice();
-                variantId = sItem.getId();
-                ShopDataManager.initializeVariantData(variantId, mat);
-                // Load the specific stored ItemStack so the correct variant is delivered
-                String configPath = "special_items." + sItem.getId() + ".stored_item";
-                deliveryOverride = plugin.getConfig().getItemStack(configPath);
-            }
-        }
-
-        if (mat == null) return;
-
-        // Bedrock players: open ItemActionGUI instead of direct buy/sell
-        if (BedrockUtil.isBedrock(p)) {
-            p.closeInventory();
-            ItemActionGUI actionGUI =
-                    new ItemActionGUI(
-                            plugin, p, mat, gui, deliveryOverride, variantBasePrice, variantId);
-            registerItemAction(p, actionGUI);
-            actionGUI.open();
-            return;
-        }
-
-        // Dialog-based buy/sell (configurable, Java edition only)
-        if (ConfigCacheManager.useDialogGui) {
-            p.closeInventory();
-            plugin.getShopDialogManager()
-                    .openDialog(p, mat, gui, deliveryOverride, variantBasePrice, variantId);
-            return;
-        }
-
-        tradeClickedItem(p, gui, right, shift, mat, deliveryOverride, variantBasePrice, variantId);
+        handleRegularShopClick(p, gui, slot, right, shift);
     }
 
     // ------------------------------------------------------------------
@@ -513,21 +458,7 @@ public class ShopListener implements Listener {
             ItemStack deliveryOverride,
             double variantBasePrice,
             String variantId) {
-        if (amount <= 0) {
-            p.sendMessage("§cChoose a positive item quantity.");
-            return;
-        }
-        if (!checkTransactionCooldown(p)) return;
-
-        if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
-            p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
-            return;
-        }
-
-        if (ShopDataManager.isBuyDisabled(mat)) {
-            p.sendMessage("§cBuying this item is disabled.");
-            return;
-        }
+        if (!validatePurchase(p, mat, amount, variantId)) return;
 
         amount = limitBuyAmount(p, mat, amount, variantId);
         if (amount <= 0) return;
@@ -612,21 +543,7 @@ public class ShopListener implements Listener {
             ItemStack variantTemplate,
             double variantBasePrice,
             String variantId) {
-        if (amount <= 0) {
-            p.sendMessage("§cChoose a positive item quantity.");
-            return;
-        }
-        if (!checkTransactionCooldown(p)) return;
-
-        if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
-            p.sendMessage(plugin.getMessageManager().cannotSell());
-            return;
-        }
-
-        if (ShopDataManager.isSellDisabled(mat)) {
-            p.sendMessage("§cSelling this item is disabled.");
-            return;
-        }
+        if (!validateSale(p, mat, amount, variantId)) return;
 
         int removed = countSaleItems(p, mat, variantTemplate, amount);
 
@@ -1273,6 +1190,104 @@ public class ShopListener implements Listener {
         T gui = open.get(player);
         if (gui == null || !inventoryOf.apply(gui).equals(inventory)) return false;
         open.remove(player);
+        return true;
+    }
+
+    private void handleRegularShopClick(
+            Player p, ShopGUI gui, int slot, boolean right, boolean shift) {
+        // REGULAR ITEM
+        Material mat = gui.getItemFromSlot(slot);
+        ItemStack deliveryOverride = null; // For stored_item variants
+        double variantBasePrice = -1; // -1 means use normal pricing
+        String variantId = null;
+
+        SpecialShopItem mixedSpecialItem = gui.getSpecialItemFromSlot(slot);
+        if (mixedSpecialItem != null && mixedSpecialItem.isServerShopItem()) {
+            if (right) {
+                p.sendMessage(plugin.getMessageManager().getMessage("cannot-sell-special-item"));
+                return;
+            }
+
+            plugin.getSpecialShopManager().purchase(p, mixedSpecialItem);
+            gui.render();
+            return;
+        }
+
+        // If no regular item found, check for non-server stored_item variants in this category.
+        if (mat == null) {
+            SpecialShopItem sItem = mixedSpecialItem;
+            if (sItem != null
+                    && sItem.getDisplayMaterial() != null
+                    && "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
+                mat = sItem.getDisplayMaterial();
+                variantBasePrice = sItem.getPrice();
+                variantId = sItem.getId();
+                ShopDataManager.initializeVariantData(variantId, mat);
+                // Load the specific stored ItemStack so the correct variant is delivered
+                String configPath = "special_items." + sItem.getId() + ".stored_item";
+                deliveryOverride = plugin.getConfig().getItemStack(configPath);
+            }
+        }
+
+        if (mat == null) return;
+
+        // Bedrock players: open ItemActionGUI instead of direct buy/sell
+        if (BedrockUtil.isBedrock(p)) {
+            p.closeInventory();
+            ItemActionGUI actionGUI =
+                    new ItemActionGUI(
+                            plugin, p, mat, gui, deliveryOverride, variantBasePrice, variantId);
+            registerItemAction(p, actionGUI);
+            actionGUI.open();
+            return;
+        }
+
+        // Dialog-based buy/sell (configurable, Java edition only)
+        if (ConfigCacheManager.useDialogGui) {
+            p.closeInventory();
+            plugin.getShopDialogManager()
+                    .openDialog(p, mat, gui, deliveryOverride, variantBasePrice, variantId);
+            return;
+        }
+
+        tradeClickedItem(p, gui, right, shift, mat, deliveryOverride, variantBasePrice, variantId);
+    }
+
+    private boolean validatePurchase(Player p, Material mat, int amount, String variantId) {
+        if (amount <= 0) {
+            p.sendMessage("§cChoose a positive item quantity.");
+            return false;
+        }
+        if (!checkTransactionCooldown(p)) return false;
+
+        if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
+            p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
+            return false;
+        }
+
+        if (ShopDataManager.isBuyDisabled(mat)) {
+            p.sendMessage("§cBuying this item is disabled.");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateSale(Player p, Material mat, int amount, String variantId) {
+        if (amount <= 0) {
+            p.sendMessage("§cChoose a positive item quantity.");
+            return false;
+        }
+        if (!checkTransactionCooldown(p)) return false;
+
+        if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
+            p.sendMessage(plugin.getMessageManager().cannotSell());
+            return false;
+        }
+
+        if (ShopDataManager.isSellDisabled(mat)) {
+            p.sendMessage("§cSelling this item is disabled.");
+            return false;
+        }
         return true;
     }
 }

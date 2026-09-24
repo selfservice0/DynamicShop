@@ -729,81 +729,12 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
         // /shopadmin remove perm <slot>
         if (removeType.equals("perm")) {
-            if (args.length < 3) {
-                sender.sendMessage("§cUsage: /shopadmin remove perm <slot>");
-                sender.sendMessage("§7Slot numbers start at 1");
-                return true;
-            }
-
-            int slot;
-            try {
-                slot = Integer.parseInt(args[2]);
-            } catch (NumberFormatException e) {
-                sender.sendMessage("§cInvalid slot number: " + args[2]);
-                return true;
-            }
-
-            int count = plugin.getSpecialShopManager().getPermissionItemCount();
-            if (slot < 1 || slot > count) {
-                sender.sendMessage(
-                        "§cInvalid slot. There are only §e" + count + " §cpermission items.");
-                return true;
-            }
-
-            // Convert 1-based slot to 0-based index
-            var item = plugin.getSpecialShopManager().getPermissionItemByIndex(slot - 1);
-            if (item == null) {
-                sender.sendMessage("§cCould not find permission item at slot " + slot);
-                return true;
-            }
-
-            String itemId = item.getId();
-            String permission = item.getPermission();
-            boolean removed = plugin.getSpecialShopManager().removeSpecialItem(itemId);
-
-            if (removed) {
-                sender.sendMessage("§a✓ §7Removed permission item: §e" + permission);
-            } else {
-                sender.sendMessage("§cFailed to remove permission item.");
-            }
-            return true;
+            return removePermission(sender, args);
         }
 
         // /shopadmin remove group <slot>
         if (removeType.equals("group")) {
-            if (args.length < 3) {
-                sender.sendMessage("§cUsage: /shopadmin remove group <slot>");
-                sender.sendMessage("§7Slot numbers start at 1");
-                return true;
-            }
-
-            int slot;
-            try {
-                slot = Integer.parseInt(args[2]);
-            } catch (NumberFormatException e) {
-                sender.sendMessage("§cInvalid slot number: " + args[2]);
-                return true;
-            }
-
-            int count = plugin.getSpecialShopManager().getGroupItemCount();
-            if (slot < 1 || slot > count) {
-                sender.sendMessage("§cInvalid slot. There are only §e" + count + " §cgroup items.");
-                return true;
-            }
-
-            var gItem = plugin.getSpecialShopManager().getGroupItemByIndex(slot - 1);
-            if (gItem == null) {
-                sender.sendMessage("§cCould not find group item at slot " + slot);
-                return true;
-            }
-
-            boolean gRemoved = plugin.getSpecialShopManager().removeSpecialItem(gItem.getId());
-            if (gRemoved) {
-                sender.sendMessage("§a✓ §7Removed group item: §e" + gItem.getGroupName());
-            } else {
-                sender.sendMessage("§cFailed to remove group item.");
-            }
-            return true;
+            return removeGroup(sender, args);
         }
 
         sender.sendMessage(
@@ -828,23 +759,9 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         }
 
         Material mat = held.getType();
-        ItemCategory category = ShopDataManager.detectCategory(mat);
-        String customName = null;
-
-        // Optional category override: /shopadmin add item <price> <category> [custom name...]
-        if (args.length >= 4) {
-            // Try to parse args[3] as a category
-            try {
-                category = ItemCategory.valueOf(args[3].toUpperCase());
-                // If category parsed, remaining args are the custom name
-                if (args.length >= 5) {
-                    customName = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
-                }
-            } catch (IllegalArgumentException e) {
-                // args[3] is not a category — treat it and everything after as the custom name
-                customName = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
-            }
-        }
+        ItemOptions options = itemOptions(mat, args);
+        ItemCategory category = options.category;
+        String customName = options.customName;
 
         // Apply custom name to the base material IMMEDIATELY, before any plugin-specific
         // paths (ItemsAdder, Nexo, ValhallaMMO) that may return early.
@@ -857,62 +774,10 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                             + customName);
         }
 
-        String iaId = null;
-        if (Bukkit.getPluginManager().getPlugin("ItemsAdder") != null) {
-            iaId = ItemsAdderWrapper.getCustomItemId(held);
-        }
-        String nexoId = null;
-        if (Bukkit.getPluginManager().getPlugin("Nexo") != null) {
-            nexoId = NexoWrapper.getCustomItemId(held);
-        }
-        String oraxenId = org.minecraftsmp.dynamicshop.managers.OraxenWrapper.getCustomItemId(held);
-        String valhallaId = null;
-        if (Bukkit.getPluginManager().getPlugin("ValhallaMMO") != null) {
-            valhallaId =
-                    org.minecraftsmp.dynamicshop.managers.ValhallaMMOWrapper.getCustomItemId(held);
-        }
+        RegisteredItem registered = registeredItem(held);
 
-        if (iaId != null || nexoId != null || oraxenId != null || valhallaId != null) {
-            String id =
-                    iaId != null
-                            ? iaId
-                            : (nexoId != null
-                                    ? nexoId
-                                    : (oraxenId != null ? oraxenId : valhallaId));
-            id = id.replace(":", "_");
-            String customId =
-                    iaId != null
-                            ? iaId
-                            : (nexoId != null
-                                    ? nexoId
-                                    : (oraxenId != null ? oraxenId : valhallaId));
-
-            // Delegate to addServerShop logic
-            plugin.getSpecialShopManager()
-                    .addServerShopItem(id, customId, price, id, mat, null, true);
-
-            // Update the config delivery method correctly
-            String basePath = "special_items." + id;
-            String deliveryMethod =
-                    iaId != null
-                            ? "itemsadder"
-                            : (nexoId != null
-                                    ? "nexo"
-                                    : (oraxenId != null ? "oraxen" : "valhallammo"));
-            plugin.getConfig().set(basePath + ".delivery_method", deliveryMethod);
-            plugin.getConfig().set(basePath + ".nbt", customId);
-            plugin.saveConfig();
-            plugin.getSpecialShopManager().reload(); // Reload to apply delivery method
-
-            Map<String, String> placeholders = new HashMap<>();
-            placeholders.put("item", id);
-            placeholders.put("price", String.valueOf(price));
-            placeholders.put("category", "Server items");
-
-            sender.sendMessage(
-                    plugin.getMessageManager()
-                            .getMessageWithPrefix("admin-server-shop-added", placeholders));
-            return true;
+        if (registered != null) {
+            return addRegisteredItem(sender, mat, price, registered);
         }
         // Check if the held item has custom components (enchantments, name, lore, etc.)
         ItemStack plainCheck = new ItemStack(mat);
@@ -922,96 +787,10 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         // add it as a server-shop item (stored_item) instead of overwriting the regular entry.
         // This prevents an enchanted diamond sword from replacing a plain diamond sword.
         if (hasCustomComponents && ShopDataManager.itemConfigs.containsKey(mat)) {
-            // Generate a unique ID based on material + timestamp
-            String id = mat.name().toLowerCase() + "_custom_" + System.currentTimeMillis() % 100000;
-            String displayName = customName != null ? customName : id;
-
-            // Store as a special server-shop item with stored_item delivery
-            plugin.getSpecialShopManager()
-                    .addServerShopItem(id, displayName, price, id, mat, null, true);
-
-            // Place it in the same category as the base material (e.g., TOOLS, COMBAT)
-            String basePath = "special_items." + id;
-            plugin.getConfig().set(basePath + ".delivery_method", "stored_item");
-            plugin.getConfig().set(basePath + ".stored_item", held.clone());
-            plugin.getConfig().set(basePath + ".category", category.name());
-            if (customName != null) {
-                plugin.getConfig().set(basePath + ".name", customName);
-            }
-            plugin.saveConfig();
-            plugin.getSpecialShopManager().reload();
-
-            sender.sendMessage(
-                    "§a✓ §7Added as custom variant in §e" + category.getDisplayName() + "§7.");
-            sender.sendMessage("§7ID: §f" + id);
-            if (customName != null) {
-                sender.sendMessage("§7Display name: §e" + customName);
-            }
-            sender.sendMessage(
-                    "§7The regular §e"
-                            + mat.name().replace("_", " ")
-                            + " §7in the shop is unchanged.");
-            return true;
+            return addStoredVariant(sender, held, mat, price, category, customName);
         }
 
-        // Write to config as a regular shop item
-        plugin.getConfig().set("items." + mat.name() + ".base", price);
-
-        // Save the category override if explicitly specified
-        if (category != ShopDataManager.detectCategory(mat)) {
-            plugin.getConfig().set("items." + mat.name() + ".category", category.name());
-        }
-
-        plugin.saveConfig();
-
-        // If item has custom components and material is NOT yet in the shop,
-        // store it as a template so buyers receive the full item
-        if (hasCustomComponents) {
-            ShopDataManager.setTemplate(mat, held);
-            sender.sendMessage(
-                    "§a✓ §7Item has custom components — template stored! Buyers will receive the exact item.");
-        } else {
-            // Remove any old template if re-adding as plain
-            ShopDataManager.removeTemplate(mat);
-        }
-
-        ShopDataManager.reload();
-
-        // Set custom display name AFTER reload so it persists in both config and memory
-        if (customName != null) {
-            ShopDataManager.setCustomName(mat, customName);
-        }
-
-        // Initialize stock so the item is immediately purchasable at ~base price.
-        // Half of maxStock is the pricing midpoint where price ≈ base price.
-        if (ShopDataManager.getStock(mat) == 0) {
-            double initialStock = ConfigCacheManager.maxStock / 2.0;
-            ShopDataManager.ShopItemConfig cfg = ShopDataManager.itemConfigs.get(mat);
-            if (cfg != null && cfg.maxStock() != null) {
-                initialStock = cfg.maxStock() / 2.0;
-            }
-            ShopDataManager.setStockDirect(mat, initialStock);
-            ShopDataManager.setHoursInShortage(mat, 0.0);
-            ShopDataManager.saveDynamicData();
-            sender.sendMessage(
-                    "§7Initial stock set to §e"
-                            + (int) initialStock
-                            + "§7. Adjust with §f/shopadmin setstock "
-                            + mat.name()
-                            + " <amount>");
-        }
-
-        Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("item", mat.name().replace("_", " ").toLowerCase());
-        placeholders.put("price", String.valueOf(price));
-        placeholders.put("category", category.name());
-
-        sender.sendMessage(
-                plugin.getMessageManager().getMessageWithPrefix("admin-item-added", placeholders));
-        if (customName != null) {
-            sender.sendMessage("§7Display name: §e" + customName);
-        }
-        return true;
+        return addMaterialItem(sender, held, mat, price, category, customName, hasCustomComponents);
     }
 
     private boolean addPermission(CommandSender sender, Player p, String[] args) {
@@ -1140,74 +919,17 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
 
             // SPAWNER MODE (shortcut for 1.21 spawners)
             if (mode.equals("spawner")) {
-                if (args.length < modeStartIndex + 2) {
-                    sender.sendMessage(
-                            "§cUsage: /shopadmin add server-shop <price> <id> spawner <mob_type>");
-                    return true;
-                }
-                String mobType = args[modeStartIndex + 1].toLowerCase();
-
-                // Build 1.21 component data
-                String componentData =
-                        "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"minecraft:"
-                                + mobType
-                                + "\"}}}";
-
-                plugin.getConfig().set(basePath + ".delivery_method", "component");
-                plugin.getConfig().set(basePath + ".material", "SPAWNER");
-                plugin.getConfig().set(basePath + ".nbt", componentData);
-                plugin.getConfig().set(basePath + ".display_material", "SPAWNER");
-                plugin.saveConfig();
-
-                sender.sendMessage("§aAdded spawner: §e" + id + " §7(mob: " + mobType + ")");
-
-                // Reload to apply changes
-                plugin.getSpecialShopManager().reload();
-                return true;
+                return addSpawnerDelivery(sender, args, modeStartIndex, id, basePath);
             }
 
             // COMMAND MODE (run any command when purchased)
             if (mode.equals("command")) {
-                if (args.length < modeStartIndex + 2) {
-                    sender.sendMessage(
-                            "§cUsage: /shopadmin add server-shop <price> <id> command <command_string>");
-                    return true;
-                }
-                String command =
-                        String.join(" ", Arrays.copyOfRange(args, modeStartIndex + 1, args.length));
-
-                plugin.getConfig().set(basePath + ".delivery_method", "command");
-                plugin.getConfig().set(basePath + ".nbt", command); // Store command in NBT field
-                plugin.saveConfig();
-
-                sender.sendMessage("§aAdded command item: §e" + id);
-                sender.sendMessage("§7Command: §f/" + command);
-                sender.sendMessage("§7Use {player} as placeholder for player name");
-
-                // Reload to apply changes
-                plugin.getSpecialShopManager().reload();
-                return true;
+                return addCommandDelivery(sender, args, modeStartIndex, id, basePath);
             }
 
             // VALHALLAMMO MODE
             if (mode.equals("valhallammo")) {
-                if (args.length < modeStartIndex + 2) {
-                    sender.sendMessage(
-                            "§cUsage: /shopadmin add server-shop <price> <id> valhallammo <valhallammo_id>");
-                    return true;
-                }
-                String valhallaId = args[modeStartIndex + 1].toLowerCase();
-
-                plugin.getConfig().set(basePath + ".delivery_method", "valhallammo");
-                plugin.getConfig().set(basePath + ".nbt", valhallaId);
-                plugin.saveConfig();
-
-                sender.sendMessage("§aAdded ValhallaMMO item: §e" + id);
-                sender.sendMessage("§7ValhallaMMO ID: §f" + valhallaId);
-
-                // Reload to apply changes
-                plugin.getSpecialShopManager().reload();
-                return true;
+                return addValhallaDelivery(sender, args, modeStartIndex, id, basePath);
             }
 
             // COMPONENT MODE (generic 1.21 components)
@@ -1217,54 +939,8 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
             // <component_data>
             //   → Manual component string (for spawner shortcuts, etc.)
             if (mode.equals("component")) {
-                if (args.length < modeStartIndex + 2) {
-                    // No extra args — capture the held item as stored_item
-                    ItemStack heldCustom = p.getInventory().getItemInMainHand();
-                    if (heldCustom == null || heldCustom.getType() == Material.AIR) {
-                        sender.sendMessage(
-                                "§cHold the item you want to add, or provide material + component data.");
-                        sender.sendMessage(
-                                "§7Usage: /shopadmin add server-shop <price> <id> component [material] [component_data]");
-                        return true;
-                    }
-
-                    ItemCategory detectedCategory =
-                            ShopDataManager.detectCategory(heldCustom.getType());
-
-                    plugin.getConfig().set(basePath + ".delivery_method", "stored_item");
-                    plugin.getConfig().set(basePath + ".stored_item", heldCustom.clone());
-                    plugin.getConfig()
-                            .set(basePath + ".display_material", heldCustom.getType().name());
-                    plugin.getConfig().set(basePath + ".category", detectedCategory.name());
-
-                    plugin.saveConfig();
-                    plugin.getSpecialShopManager().reload();
-
-                    sender.sendMessage("§a✓ §7Stored custom item as §e" + id + " §7(stored_item).");
-                    sender.sendMessage(
-                            "§7All item components preserved. Category: §e"
-                                    + detectedCategory.name());
+                if (addComponentDelivery(sender, p, args, modeStartIndex, id, basePath))
                     return true;
-                }
-
-                // Extra args provided — manual component string mode
-                if (args.length < modeStartIndex + 3) {
-                    sender.sendMessage(
-                            "§cUsage: /shopadmin add server-shop <price> <id> component <material> <component_data>");
-                    return true;
-                }
-
-                String materialName = args[modeStartIndex + 1];
-                String componentData =
-                        String.join(" ", Arrays.copyOfRange(args, modeStartIndex + 2, args.length));
-
-                plugin.getConfig().set(basePath + ".delivery_method", "component");
-                plugin.getConfig().set(basePath + ".material", materialName.toUpperCase());
-                plugin.getConfig().set(basePath + ".nbt", componentData);
-                plugin.saveConfig();
-
-                // Reload to apply changes
-                plugin.getSpecialShopManager().reload();
             }
 
             // OLD NBT MODE (kept for backwards compatibility, will auto-convert)
@@ -1379,7 +1055,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
     }
 
     private List<String> completeDelivery(String[] args) {
-        boolean requiresPermission = args.length >= 5 && args[4].equalsIgnoreCase("requiresperm");
+        boolean requiresPermission = args.length >= 6 && args[4].equalsIgnoreCase("requiresperm");
         int modeIndex = requiresPermission ? 6 : 4;
         boolean valhalla = Bukkit.getPluginManager().getPlugin("ValhallaMMO") != null;
         if (args.length == modeIndex + 1) {
@@ -1396,5 +1072,393 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                     org.minecraftsmp.dynamicshop.managers.ValhallaMMOWrapper.getAllItemIds());
         }
         return List.of();
+    }
+
+    private boolean removePermission(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage("§cUsage: /shopadmin remove perm <slot>");
+            sender.sendMessage("§7Slot numbers start at 1");
+            return true;
+        }
+
+        int slot;
+        try {
+            slot = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage("§cInvalid slot number: " + args[2]);
+            return true;
+        }
+
+        int count = plugin.getSpecialShopManager().getPermissionItemCount();
+        if (slot < 1 || slot > count) {
+            sender.sendMessage(
+                    "§cInvalid slot. There are only §e" + count + " §cpermission items.");
+            return true;
+        }
+
+        // Convert 1-based slot to 0-based index
+        var item = plugin.getSpecialShopManager().getPermissionItemByIndex(slot - 1);
+        if (item == null) {
+            sender.sendMessage("§cCould not find permission item at slot " + slot);
+            return true;
+        }
+
+        String itemId = item.getId();
+        String permission = item.getPermission();
+        boolean removed = plugin.getSpecialShopManager().removeSpecialItem(itemId);
+
+        if (removed) {
+            sender.sendMessage("§a✓ §7Removed permission item: §e" + permission);
+        } else {
+            sender.sendMessage("§cFailed to remove permission item.");
+        }
+        return true;
+    }
+
+    private boolean removeGroup(CommandSender sender, String[] args) {
+        if (args.length < 3) {
+            sender.sendMessage("§cUsage: /shopadmin remove group <slot>");
+            sender.sendMessage("§7Slot numbers start at 1");
+            return true;
+        }
+
+        int slot;
+        try {
+            slot = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage("§cInvalid slot number: " + args[2]);
+            return true;
+        }
+
+        int count = plugin.getSpecialShopManager().getGroupItemCount();
+        if (slot < 1 || slot > count) {
+            sender.sendMessage("§cInvalid slot. There are only §e" + count + " §cgroup items.");
+            return true;
+        }
+
+        var gItem = plugin.getSpecialShopManager().getGroupItemByIndex(slot - 1);
+        if (gItem == null) {
+            sender.sendMessage("§cCould not find group item at slot " + slot);
+            return true;
+        }
+
+        boolean gRemoved = plugin.getSpecialShopManager().removeSpecialItem(gItem.getId());
+        if (gRemoved) {
+            sender.sendMessage("§a✓ §7Removed group item: §e" + gItem.getGroupName());
+        } else {
+            sender.sendMessage("§cFailed to remove group item.");
+        }
+        return true;
+    }
+
+    private ItemOptions itemOptions(Material mat, String[] args) {
+        ItemCategory category = ShopDataManager.detectCategory(mat);
+        String customName = null;
+
+        // Optional category override: /shopadmin add item <price> <category> [custom name...]
+        if (args.length >= 4) {
+            // Try to parse args[3] as a category
+            try {
+                category = ItemCategory.valueOf(args[3].toUpperCase());
+                // If category parsed, remaining args are the custom name
+                if (args.length >= 5) {
+                    customName = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
+                }
+            } catch (IllegalArgumentException e) {
+                // args[3] is not a category — treat it and everything after as the custom name
+                customName = String.join(" ", Arrays.copyOfRange(args, 3, args.length));
+            }
+        }
+
+        return new ItemOptions(category, customName);
+    }
+
+    private record ItemOptions(ItemCategory category, String customName) {}
+
+    private RegisteredItem registeredItem(ItemStack held) {
+        String iaId = null;
+        if (Bukkit.getPluginManager().getPlugin("ItemsAdder") != null) {
+            iaId = ItemsAdderWrapper.getCustomItemId(held);
+        }
+        String nexoId = null;
+        if (Bukkit.getPluginManager().getPlugin("Nexo") != null) {
+            nexoId = NexoWrapper.getCustomItemId(held);
+        }
+        String oraxenId = org.minecraftsmp.dynamicshop.managers.OraxenWrapper.getCustomItemId(held);
+        String valhallaId = null;
+        if (Bukkit.getPluginManager().getPlugin("ValhallaMMO") != null) {
+            valhallaId =
+                    org.minecraftsmp.dynamicshop.managers.ValhallaMMOWrapper.getCustomItemId(held);
+        }
+
+        if (iaId != null) return new RegisteredItem(iaId, "itemsadder");
+        if (nexoId != null) return new RegisteredItem(nexoId, "nexo");
+        if (oraxenId != null) return new RegisteredItem(oraxenId, "oraxen");
+        if (valhallaId != null) return new RegisteredItem(valhallaId, "valhallammo");
+        return null;
+    }
+
+    private record RegisteredItem(String id, String deliveryMethod) {}
+
+    private boolean addRegisteredItem(
+            CommandSender sender, Material mat, double price, RegisteredItem registered) {
+
+        String customId = registered.id;
+        String id = customId.replace(":", "_");
+
+        // Delegate to addServerShop logic
+        plugin.getSpecialShopManager().addServerShopItem(id, customId, price, id, mat, null, true);
+
+        // Update the config delivery method correctly
+        String basePath = "special_items." + id;
+        String deliveryMethod = registered.deliveryMethod;
+        plugin.getConfig().set(basePath + ".delivery_method", deliveryMethod);
+        plugin.getConfig().set(basePath + ".nbt", customId);
+        plugin.saveConfig();
+        plugin.getSpecialShopManager().reload(); // Reload to apply delivery method
+
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("item", id);
+        placeholders.put("price", String.valueOf(price));
+        placeholders.put("category", "Server items");
+
+        sender.sendMessage(
+                plugin.getMessageManager()
+                        .getMessageWithPrefix("admin-server-shop-added", placeholders));
+        return true;
+    }
+
+    private boolean addStoredVariant(
+            CommandSender sender,
+            ItemStack held,
+            Material mat,
+            double price,
+            ItemCategory category,
+            String customName) {
+
+        // Generate a unique ID based on material + timestamp
+        String id = mat.name().toLowerCase() + "_custom_" + System.currentTimeMillis() % 100000;
+        String displayName = customName != null ? customName : id;
+
+        // Store as a special server-shop item with stored_item delivery
+        plugin.getSpecialShopManager()
+                .addServerShopItem(id, displayName, price, id, mat, null, true);
+
+        // Place it in the same category as the base material (e.g., TOOLS, COMBAT)
+        String basePath = "special_items." + id;
+        plugin.getConfig().set(basePath + ".delivery_method", "stored_item");
+        plugin.getConfig().set(basePath + ".stored_item", held.clone());
+        plugin.getConfig().set(basePath + ".category", category.name());
+        if (customName != null) {
+            plugin.getConfig().set(basePath + ".name", customName);
+        }
+        plugin.saveConfig();
+        plugin.getSpecialShopManager().reload();
+
+        sender.sendMessage(
+                "§a✓ §7Added as custom variant in §e" + category.getDisplayName() + "§7.");
+        sender.sendMessage("§7ID: §f" + id);
+        if (customName != null) {
+            sender.sendMessage("§7Display name: §e" + customName);
+        }
+        sender.sendMessage(
+                "§7The regular §e" + mat.name().replace("_", " ") + " §7in the shop is unchanged.");
+        return true;
+    }
+
+    private boolean addMaterialItem(
+            CommandSender sender,
+            ItemStack held,
+            Material mat,
+            double price,
+            ItemCategory category,
+            String customName,
+            boolean hasCustomComponents) {
+        // Write to config as a regular shop item
+        plugin.getConfig().set("items." + mat.name() + ".base", price);
+
+        // Save the category override if explicitly specified
+        if (category != ShopDataManager.detectCategory(mat)) {
+            plugin.getConfig().set("items." + mat.name() + ".category", category.name());
+        }
+
+        plugin.saveConfig();
+
+        // If item has custom components and material is NOT yet in the shop,
+        // store it as a template so buyers receive the full item
+        if (hasCustomComponents) {
+            ShopDataManager.setTemplate(mat, held);
+            sender.sendMessage(
+                    "§a✓ §7Item has custom components — template stored! Buyers will receive the exact item.");
+        } else {
+            // Remove any old template if re-adding as plain
+            ShopDataManager.removeTemplate(mat);
+        }
+
+        ShopDataManager.reload();
+
+        // Set custom display name AFTER reload so it persists in both config and memory
+        if (customName != null) {
+            ShopDataManager.setCustomName(mat, customName);
+        }
+
+        // Initialize stock so the item is immediately purchasable at ~base price.
+        // Half of maxStock is the pricing midpoint where price ≈ base price.
+        if (ShopDataManager.getStock(mat) == 0) {
+            double initialStock = ConfigCacheManager.maxStock / 2.0;
+            ShopDataManager.ShopItemConfig cfg = ShopDataManager.itemConfigs.get(mat);
+            if (cfg != null && cfg.maxStock() != null) {
+                initialStock = cfg.maxStock() / 2.0;
+            }
+            ShopDataManager.setStockDirect(mat, initialStock);
+            ShopDataManager.setHoursInShortage(mat, 0.0);
+            ShopDataManager.saveDynamicData();
+            sender.sendMessage(
+                    "§7Initial stock set to §e"
+                            + (int) initialStock
+                            + "§7. Adjust with §f/shopadmin setstock "
+                            + mat.name()
+                            + " <amount>");
+        }
+
+        Map<String, String> placeholders = new HashMap<>();
+        placeholders.put("item", mat.name().replace("_", " ").toLowerCase());
+        placeholders.put("price", String.valueOf(price));
+        placeholders.put("category", category.name());
+
+        sender.sendMessage(
+                plugin.getMessageManager().getMessageWithPrefix("admin-item-added", placeholders));
+        if (customName != null) {
+            sender.sendMessage("§7Display name: §e" + customName);
+        }
+        return true;
+    }
+
+    private boolean addSpawnerDelivery(
+            CommandSender sender, String[] args, int modeStartIndex, String id, String basePath) {
+        if (args.length < modeStartIndex + 2) {
+            sender.sendMessage(
+                    "§cUsage: /shopadmin add server-shop <price> <id> spawner <mob_type>");
+            return true;
+        }
+        String mobType = args[modeStartIndex + 1].toLowerCase();
+
+        // Build 1.21 component data
+        String componentData =
+                "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"minecraft:"
+                        + mobType
+                        + "\"}}}";
+
+        plugin.getConfig().set(basePath + ".delivery_method", "component");
+        plugin.getConfig().set(basePath + ".material", "SPAWNER");
+        plugin.getConfig().set(basePath + ".nbt", componentData);
+        plugin.getConfig().set(basePath + ".display_material", "SPAWNER");
+        plugin.saveConfig();
+
+        sender.sendMessage("§aAdded spawner: §e" + id + " §7(mob: " + mobType + ")");
+
+        // Reload to apply changes
+        plugin.getSpecialShopManager().reload();
+        return true;
+    }
+
+    private boolean addCommandDelivery(
+            CommandSender sender, String[] args, int modeStartIndex, String id, String basePath) {
+        if (args.length < modeStartIndex + 2) {
+            sender.sendMessage(
+                    "§cUsage: /shopadmin add server-shop <price> <id> command <command_string>");
+            return true;
+        }
+        String command =
+                String.join(" ", Arrays.copyOfRange(args, modeStartIndex + 1, args.length));
+
+        plugin.getConfig().set(basePath + ".delivery_method", "command");
+        plugin.getConfig().set(basePath + ".nbt", command); // Store command in NBT field
+        plugin.saveConfig();
+
+        sender.sendMessage("§aAdded command item: §e" + id);
+        sender.sendMessage("§7Command: §f/" + command);
+        sender.sendMessage("§7Use {player} as placeholder for player name");
+
+        // Reload to apply changes
+        plugin.getSpecialShopManager().reload();
+        return true;
+    }
+
+    private boolean addValhallaDelivery(
+            CommandSender sender, String[] args, int modeStartIndex, String id, String basePath) {
+        if (args.length < modeStartIndex + 2) {
+            sender.sendMessage(
+                    "§cUsage: /shopadmin add server-shop <price> <id> valhallammo <valhallammo_id>");
+            return true;
+        }
+        String valhallaId = args[modeStartIndex + 1].toLowerCase();
+
+        plugin.getConfig().set(basePath + ".delivery_method", "valhallammo");
+        plugin.getConfig().set(basePath + ".nbt", valhallaId);
+        plugin.saveConfig();
+
+        sender.sendMessage("§aAdded ValhallaMMO item: §e" + id);
+        sender.sendMessage("§7ValhallaMMO ID: §f" + valhallaId);
+
+        // Reload to apply changes
+        plugin.getSpecialShopManager().reload();
+        return true;
+    }
+
+    private boolean addComponentDelivery(
+            CommandSender sender,
+            Player p,
+            String[] args,
+            int modeStartIndex,
+            String id,
+            String basePath) {
+
+        if (args.length < modeStartIndex + 2) {
+            // No extra args — capture the held item as stored_item
+            ItemStack heldCustom = p.getInventory().getItemInMainHand();
+            if (heldCustom == null || heldCustom.getType() == Material.AIR) {
+                sender.sendMessage(
+                        "§cHold the item you want to add, or provide material + component data.");
+                sender.sendMessage(
+                        "§7Usage: /shopadmin add server-shop <price> <id> component [material] [component_data]");
+                return true;
+            }
+
+            ItemCategory detectedCategory = ShopDataManager.detectCategory(heldCustom.getType());
+
+            plugin.getConfig().set(basePath + ".delivery_method", "stored_item");
+            plugin.getConfig().set(basePath + ".stored_item", heldCustom.clone());
+            plugin.getConfig().set(basePath + ".display_material", heldCustom.getType().name());
+            plugin.getConfig().set(basePath + ".category", detectedCategory.name());
+
+            plugin.saveConfig();
+            plugin.getSpecialShopManager().reload();
+
+            sender.sendMessage("§a✓ §7Stored custom item as §e" + id + " §7(stored_item).");
+            sender.sendMessage(
+                    "§7All item components preserved. Category: §e" + detectedCategory.name());
+            return true;
+        }
+
+        // Extra args provided — manual component string mode
+        if (args.length < modeStartIndex + 3) {
+            sender.sendMessage(
+                    "§cUsage: /shopadmin add server-shop <price> <id> component <material> <component_data>");
+            return true;
+        }
+
+        String materialName = args[modeStartIndex + 1];
+        String componentData =
+                String.join(" ", Arrays.copyOfRange(args, modeStartIndex + 2, args.length));
+
+        plugin.getConfig().set(basePath + ".delivery_method", "component");
+        plugin.getConfig().set(basePath + ".material", materialName.toUpperCase());
+        plugin.getConfig().set(basePath + ".nbt", componentData);
+        plugin.saveConfig();
+
+        // Reload to apply changes
+        plugin.getSpecialShopManager().reload();
+        return false;
     }
 }
