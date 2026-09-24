@@ -355,6 +355,7 @@ public class PlayerShopListener implements Listener {
         ph4.put("amount", String.valueOf(item.getAmount()));
         ph4.put("price", String.format("%.2f", price));
         player.sendMessage(plugin.getMessageManager().getMessage("playershop-purchased", ph4));
+        if (plugin.getFeatureMetrics() != null) plugin.getFeatureMetrics().recordPlayerShopPurchase();
 
         // Log transaction
         plugin.getLogger().info("[PlayerShops] " + player.getName() + " bought " +

@@ -154,7 +154,7 @@ public class CategoryConfigManager {
                 "Customize display order, icons, and names",
                 "",
                 "slot: The inventory slot position (0-44 for a 54-slot GUI, -1 = hidden)",
-                "icon: Override the default icon (optional, must be a valid material name)",
+                "icon: Material name, nexo:item_id or oraxen:item_id (optional)",
                 "name: Override the default display name (optional)",
                 "",
                 "CUSTOM_1 through CUSTOM_20 are placeholder categories you can enable",
@@ -183,14 +183,18 @@ public class CategoryConfigManager {
      * Get the icon item stack for a category
      */
     public static org.bukkit.inventory.ItemStack getIconItem(ItemCategory category) {
+        return getIconItem(category, null);
+    }
+
+    public static org.bukkit.inventory.ItemStack getIconItem(ItemCategory category, org.bukkit.entity.Player viewer) {
+        if (org.minecraftsmp.dynamicshop.util.BedrockUtil.isBedrock(viewer)) {
+            return new org.bukkit.inventory.ItemStack(getIcon(category));
+        }
         String iconStr = categoryIcons.get(category);
         if (iconStr != null) {
-            if (iconStr.toLowerCase().startsWith("nexo:")) {
-                String nexoId = iconStr.substring(5);
-                if (DynamicShop.getInstance().getServer().getPluginManager().getPlugin("Nexo") != null) {
-                    org.bukkit.inventory.ItemStack nexoItem = NexoWrapper.getItem(nexoId);
-                    if (nexoItem != null) return nexoItem.clone();
-                }
+            if (CustomItemSupport.isCustomItem(iconStr)) {
+                org.bukkit.inventory.ItemStack customItem = CustomItemSupport.getItem(iconStr);
+                if (customItem != null) return customItem.clone();
             } else {
                 try {
                     return new org.bukkit.inventory.ItemStack(Material.valueOf(iconStr.toUpperCase()));

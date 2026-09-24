@@ -1,6 +1,6 @@
 # plugin.yml
 name: DynamicShop
-version: '2.6.7'
+version: '@project.version@'
 main: org.minecraftsmp.dynamicshop.DynamicShop
 api-version: '1.20'
 author: selfservice0
@@ -8,7 +8,7 @@ description: A dynamic economy shop with player-interactive GUI
 website: https://minecraftsmp.org
 
 depend: [Vault, ProtocolLib]
-softdepend: [PlaceholderAPI, ItemsAdder, Nexo, CoinsEngine, floodgate, ValhallaMMO]
+softdepend: [PlaceholderAPI, ItemsAdder, Nexo, Oraxen, CoinsEngine, floodgate, ValhallaMMO]
 
 commands:
   shop:
@@ -18,7 +18,7 @@ commands:
     permission: dynamicshop.use
   shopadmin:
     description: Admin commands for managing the shop
-    usage: /shopadmin <reload|setstock|setrate|changerate|resetshortage|setinflation>
+    usage: /shopadmin <reload|setstock|setrate|changerate|resetshortage|setinflation|webadmin|webupdate [check]>
     aliases: [dsa, shopadm]
     permission: dynamicshop.admin
 

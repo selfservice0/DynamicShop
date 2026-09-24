@@ -1,6 +1,12 @@
 # DynamicShop Configuration File
 # Created for Paper/Spigot servers with ProtocolLib
 
+# Anonymous bStats feature adoption and transaction-volume charts.
+# No player names, server addresses, item IDs, or prices are included in these charts.
+# Also respects plugins/bStats/config.yml enabled. Website metrics have their own setting.
+metrics:
+  feature-usage: true
+
 # ================================================================
 # ECONOMY SETTINGS
 # ================================================================
@@ -21,9 +27,13 @@ gui:
   # Bottom 9 slots are reserved for navigation
   shop_menu_size: 54
 
+  # Provider for GUI glyphs and custom navigation buttons: auto, nexo, oraxen, none.
+  # Auto preserves Nexo priority when both plugins are enabled.
+  custom_item_provider: "auto"
+
   # Item used to fill empty slots in GUIs.
   # Can be a Material name (e.g. AIR, GRAY_STAINED_GLASS_PANE)
-  # Or a Nexo item (e.g. nexo:shop_empty_slot)
+  # Or a custom item (e.g. nexo:shop_empty_slot or oraxen:shop_empty_slot)
   filler_material: "AIR"
 
   # Use Paper's Dialog API for buy/sell instead of click-based transactions.
@@ -51,7 +61,16 @@ webserver:
   # /shopadmin webadmin and all admin API endpoints are disabled.
   admin-enabled: true
 
-  # Force re-extract web files from JAR on startup
+  # Share aggregate website page views and feature-use counts through bStats.
+  # No visitor IDs, search text, player names, or admin form contents are sent.
+  # Visitors can opt out using Usage privacy in the website footer.
+  # Set false to stop website metrics server-wide (also respects bStats opt-out).
+  usage-metrics: true
+
+  # Back up and replace bundled website files on every startup when true.
+  # When false, existing files are kept and admins are notified about updates.
+  # Update manually with /shopadmin webupdate or the web admin Actions page.
+  # Backups are saved in plugins/DynamicShop/web-backups/.
   force-update-files: false
 
   # CORS settings for web API
@@ -73,6 +92,9 @@ webserver:
 # TRANSACTION LOGGING
 # ================================================================
 logging:
+  # Print each server-shop transaction to console as well as the transaction files.
+  # Player-shop purchases and payment errors already log to console independently.
+  console_transactions: false
   # Maximum transactions to keep in memory for web dashboard
   max_recent_transactions: 10000
 

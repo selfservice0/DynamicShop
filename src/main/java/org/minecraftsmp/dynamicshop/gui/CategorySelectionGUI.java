@@ -65,7 +65,7 @@ public class CategorySelectionGUI {
 
     private ItemStack createCategoryItem(ItemCategory category) {
         // Use configured icon and name from CategoryConfigManager
-        ItemStack item = CategoryConfigManager.getIconItem(category);
+        ItemStack item = CategoryConfigManager.getIconItem(category, player);
         String displayName = CategoryConfigManager.getDisplayName(category);
 
         ItemMeta meta = item.getItemMeta();
@@ -75,7 +75,7 @@ public class CategorySelectionGUI {
             String formattedName = displayName.contains("&")
                     ? displayName
                     : "§e§l" + displayName;
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(formattedName));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(formattedName, player));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
@@ -122,7 +122,7 @@ public class CategorySelectionGUI {
     }
 
     private ItemStack createFiller() {
-        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
     }
 
     public void handleClick(Player p, int slot) {

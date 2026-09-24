@@ -185,7 +185,7 @@ public class AdminSpecialItemEditGUI {
     }
 
     private ItemStack createFiller() {
-        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
     }
 
     public void handleClick(int slot, boolean isShiftClick) {

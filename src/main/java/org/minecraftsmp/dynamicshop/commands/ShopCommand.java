@@ -15,6 +15,7 @@ import org.minecraftsmp.dynamicshop.gui.ShopGUI;
 import org.minecraftsmp.dynamicshop.managers.CategoryConfigManager;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.transactions.Transaction;
+import org.minecraftsmp.dynamicshop.util.ShopItemNames;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -254,12 +255,14 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
 
         ShopDataManager.updateStock(mat, amount);
         String currency = plugin.getEconomyManager().getCurrency(mat);
-        plugin.getEconomyManager().deposit(p, payout, currency);
         plugin.getShopListener().recordTransaction(p);
+        String itemName = ShopItemNames.getDisplayName(mat);
+        if (!plugin.getEconomyManager().depositSale(p, payout, currency,
+                amount + "x " + itemName + " [" + mat.name() + "]")) return true;
 
         Map<String, String> ph = new HashMap<>();
         ph.put("amount", String.valueOf(amount));
-        ph.put("item", org.minecraftsmp.dynamicshop.util.ShopItemNames.getDisplayName(mat));
+        ph.put("item", itemName);
         ph.put("price", plugin.getEconomyManager().format(payout, currency));
         p.sendMessage(plugin.getMessageManager().getMessage("sold-item-success", ph));
 
@@ -301,8 +304,8 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
 
         Map<String, Double> payoutsByCurrency = new java.util.LinkedHashMap<>();
+        Map<String, List<Transaction>> salesByCurrency = new java.util.LinkedHashMap<>();
         int totalItems = 0;
-        int itemTypes = 0;
 
         for (Map.Entry<Material, Integer> entry : sellable.entrySet()) {
             Material mat = entry.getKey();
@@ -353,9 +356,8 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             ShopDataManager.updateStock(mat, actuallySold);
             payoutsByCurrency.merge(currency, payout, Double::sum);
             totalItems += actuallySold;
-            itemTypes++;
 
-            plugin.getTransactionLogger().log(Transaction.now(
+            salesByCurrency.computeIfAbsent(currency, key -> new ArrayList<>()).add(Transaction.now(
                     p.getName(),
                     Transaction.TransactionType.SELL,
                     mat.name(),
@@ -371,9 +373,23 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
 
         StringBuilder payoutSummary = new StringBuilder();
+        int paidItems = 0;
+        int paidTypes = 0;
         plugin.getShopListener().recordTransaction(p);
         for (Map.Entry<String, Double> payoutEntry : payoutsByCurrency.entrySet()) {
-            plugin.getEconomyManager().deposit(p, payoutEntry.getValue(), payoutEntry.getKey());
+            List<Transaction> sales = salesByCurrency.get(payoutEntry.getKey());
+            java.util.StringJoiner items = new java.util.StringJoiner(", ");
+            for (Transaction sale : sales) {
+                items.add(sale.getAmount() + "x " + ShopItemNames.getDisplayName(Material.valueOf(sale.getItem()))
+                        + " [" + sale.getItem() + "]");
+            }
+            if (!plugin.getEconomyManager().depositSale(p, payoutEntry.getValue(), payoutEntry.getKey(),
+                    items.toString())) continue;
+            for (Transaction sale : sales) {
+                plugin.getTransactionLogger().log(sale);
+                paidItems += sale.getAmount();
+                paidTypes++;
+            }
             if (payoutSummary.length() > 0) {
                 payoutSummary.append(", ");
             }
@@ -381,7 +397,8 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
                     payoutEntry.getValue(), payoutEntry.getKey()));
         }
 
-        p.sendMessage("§a✓ §7Sold §f" + totalItems + " items §7(§e" + itemTypes + " types§7) for §a" +
+        if (paidTypes == 0) return true;
+        p.sendMessage("§a✓ §7Sold §f" + paidItems + " items §7(§e" + paidTypes + " types§7) for §a" +
                 payoutSummary);
 
         return true;

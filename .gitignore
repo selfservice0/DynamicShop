@@ -37,3 +37,7 @@ build/
 
 ### Mac OS ###
 .DS_Store
+# Local website verification logs
+web-src/checks/*.jsonl
+
+web-src/checks/live-app.txt

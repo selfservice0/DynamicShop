@@ -43,6 +43,11 @@ public class WebServer {
     private final WebAdminTokenManager tokenManager = new WebAdminTokenManager();
     private WebAdminUserManager userManager;
     private WebAdminAuditLog auditLog;
+    private WebAppearanceStore appearanceStore;
+    private final WebUsageMetrics usageMetrics;
+    private final boolean bstatsEnabled;
+    public WebUsageMetrics usageMetrics() { return usageMetrics; }
+    public String websiteDesign() { return appearanceStore == null ? null : (String) appearanceStore.get().get("design"); }
 
     // Cache for /api/shop/items endpoint (60 second TTL)
     private static final long CACHE_TTL_MS = 60_000; // 60 seconds
@@ -51,6 +56,11 @@ public class WebServer {
 
     public WebServer(DynamicShop plugin) {
         this.plugin = plugin;
+        File metricsConfig = new File(plugin.getDataFolder().getParentFile(), "bStats/config.yml");
+        this.bstatsEnabled = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(metricsConfig).getBoolean("enabled", true);
+        this.usageMetrics = new WebUsageMetrics(() -> app != null && bstatsEnabled
+                && plugin.getConfig().getBoolean("webserver.usage-metrics", true));
+        this.webFileManager = new WebFileManager(plugin.getDataFolder().toPath(), plugin::getResource);
         this.userManager = new WebAdminUserManager(plugin);
         this.auditLog = new WebAdminAuditLog(plugin);
     }
@@ -60,6 +70,7 @@ public class WebServer {
             return;
 
         try {
+            appearanceStore = new WebAppearanceStore(plugin.getDataFolder().toPath().resolve("website-appearance.json"));
             int port = plugin.getConfig().getInt("webserver.port", 7713);
             String host = plugin.getConfig().getString("webserver.bind", "127.0.0.1");
             boolean sslEnabled = plugin.getConfig().getBoolean("webserver.ssl.enabled", false);
@@ -91,6 +102,17 @@ public class WebServer {
 
             }).start(host, port);
 
+            app.get("/api/website", ctx -> ctx.json(Map.of("appearance", appearanceStore.get(), "version", "3.0.0", "adminEnabled", plugin.getConfig().getBoolean("webserver.admin-enabled", true), "usageMetricsEnabled", usageMetrics.isEnabled())));
+            app.get("/api/usage/status", ctx -> { ctx.header("Cache-Control", "no-store"); ctx.json(Map.of("enabled", usageMetrics.isEnabled())); });
+            app.post("/api/usage/event", ctx -> handleUsageEvent(ctx, usageMetrics));
+            app.get("/api/market/catalog", this::handleWebsiteCatalog);
+            app.get("/api/market/activity", this::handleWebsiteActivity);
+            app.get("/admin.html", ctx -> {
+                ctx.header("Cache-Control","no-store");ctx.contentType("text/html; charset=utf-8");
+                if(!"1".equals(ctx.queryParam("legacy"))&&Boolean.TRUE.equals(webFileManager.status().get("needsUpdate"))){
+                    try(var in=plugin.getResource("web/web-update.html")){if(in==null)throw new java.io.IOException("Website updater resource missing");ctx.result(in.readAllBytes());}
+                }else ctx.result(java.nio.file.Files.readString(new File(plugin.getDataFolder(),"web/admin.html").toPath()));
+            });
             // Basic endpoints
             app.get("/", ctx -> ctx.redirect("/index.html"));
             app.get("/api/recent", this::handleRecent);
@@ -117,21 +139,20 @@ public class WebServer {
                 app.post("/api/auth/register", this::handleRegister);
                 app.post("/api/auth/login", this::handleLogin);
                 app.get("/api/auth/verify", this::handleVerify);
+                app.post("/api/auth/logout", ctx -> {String session=ctx.header("X-Session-Token");if(session!=null)userManager.logout(session);ctx.json(Map.of("success",true));});
 
                 // ADMIN API ENDPOINTS (token or session auth required)
-                app.before("/api/admin/*", ctx -> {
-                    // Check one-time token first
-                    String token = ctx.queryParam("token");
-                    if (token == null) token = ctx.header("X-Admin-Token");
-                    if (tokenManager.isValid(token)) return; // one-time token valid
-
-                    // Check session token
-                    String session = ctx.queryParam("session");
-                    if (session == null) session = ctx.header("X-Session-Token");
-                    if (userManager.isValidSession(session)) return; // session valid
-
-                    ctx.status(401).json(Map.of("error", "Unauthorized — invalid or expired token"));
+                app.before("/api/admin/*", this::requireAdmin);
+                app.get("/api/admin/website-files", ctx -> ctx.json(webFileManager.status()));
+                app.post("/api/admin/website-files/update", ctx -> {
+                    Map<String,Object> result=webFileManager.update();
+                    auditLog.log(getAdminUsername(ctx),"website_update","web", "Backup: "+result.get("backup"));
+                    ctx.json(result);
                 });
+                app.post("/api/admin/appearance", this::handleWebsiteAppearance);
+                app.get("/api/admin/entries", this::handleWebsiteEntries);
+                app.post("/api/admin/entry/{id}", this::handleWebsiteEntrySave);
+                app.delete("/api/admin/category/{category}", this::handleWebsiteCategoryDelete);
                 app.get("/api/admin/items", this::handleAdminItems);
                 app.get("/api/admin/item/{item}", this::handleAdminItemDetail);
                 app.post("/api/admin/item/{item}", this::handleAdminItemUpdate);
@@ -173,6 +194,31 @@ public class WebServer {
             plugin.getLogger().severe("╚═══════════════════════════════════════════════════╝");
             app = null;
         }
+    }
+    static void handleUsageEvent(Context ctx, WebUsageMetrics usageMetrics) {
+                ctx.header("Cache-Control", "no-store");
+                if (!usageMetrics.isEnabled() || "1".equals(ctx.header("DNT")) || "1".equals(ctx.header("Sec-GPC"))) { ctx.status(204); return; }
+                if (ctx.bodyAsBytes().length > 128) { ctx.status(413); return; }
+                try {
+                    Map<String,Object> body = ctx.bodyAsClass(Map.class);
+                    if (body == null || body.size() != 1 || !(body.get("event") instanceof String event) || !WebUsageMetrics.EVENTS.contains(event)) {
+                        ctx.status(400); return;
+                    }
+                    ctx.status(usageMetrics.record(event) ? 204 : 429);
+                } catch (IllegalArgumentException e) { ctx.status(400); }
+    }
+
+    void requireAdmin(Context ctx) {
+        String token = ctx.header("X-Admin-Token");
+        if (token == null) token = ctx.queryParam("token");
+        if (tokenManager.isValid(token)) return;
+
+        String session = ctx.header("X-Session-Token");
+        if (session == null) session = ctx.queryParam("session");
+        if (userManager.isValidSession(session)) return;
+
+        // Throwing stops Javalin before a protected mutation handler can run.
+        throw new io.javalin.http.UnauthorizedResponse("Invalid or expired admin session");
     }
     private String getAdminUsername(io.javalin.http.Context ctx) {
         String token = ctx.queryParam("token");
@@ -248,83 +294,23 @@ public class WebServer {
             }
             return Bukkit.getScheduler().callSyncMethod(plugin, task).get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
+            Throwable reason=e instanceof java.util.concurrent.ExecutionException?e.getCause():e;
+            if(reason instanceof IllegalArgumentException){ctx.status(400).json(Map.of("error",Objects.toString(reason.getMessage(),"Invalid request")));return null;}
             plugin.getLogger().warning("[WebAdmin] Failed to apply admin request: " + e.getMessage());
             ctx.status(500).json(Map.of("error", "Failed to apply admin request"));
             return null;
         }
     }
 
+    public WebFileManager webFiles() { return webFileManager; }
+    private final WebFileManager webFileManager;
     private void extractWebFiles(File webDir) {
-        String[] webFiles = { "index.html", "style.css", "dashboard.js", "items.html", "items.js", "admin.html" };
-        boolean forceUpdate = plugin.getConfig().getBoolean("webserver.force-update-files", false);
-
-        for (String fileName : webFiles) {
-            File targetFile = new File(webDir, fileName);
-
-            if (!forceUpdate && targetFile.exists()) {
-                // Version-aware check: read marker from JAR and disk
-                String jarVersion  = readWebFileVersion(plugin.getResource("web/" + fileName));
-                String diskVersion = readDiskFileVersion(targetFile);
-
-                if (jarVersion != null && jarVersion.equals(diskVersion)) {
-                    continue; // Up to date — skip
-                }
-
-                if (jarVersion != null) {
-                    plugin.getLogger().info("Updating web/" + fileName
-                            + " (disk: " + diskVersion + " \u2192 jar: " + jarVersion + ")");
-                }
-                // If JAR has no marker, fall through and overwrite anyway
-            }
-
-            try (var input = plugin.getResource("web/" + fileName)) {
-                if (input == null) {
-                    plugin.getLogger().warning("Could not find web/" + fileName + " in JAR");
-                    continue;
-                }
-
-                java.nio.file.Files.copy(input, targetFile.toPath(),
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-
-                plugin.getLogger().info("Extracted web/" + fileName);
-            } catch (Exception e) {
-                plugin.getLogger().warning("Failed to extract web/" + fileName + ": " + e.getMessage());
-            }
-        }
+        try {
+            if(plugin.getConfig().getBoolean("webserver.force-update-files",false))webFileManager.update();
+            else webFileManager.installMissing();
+            if(Boolean.TRUE.equals(webFileManager.status().get("needsUpdate")))plugin.getLogger().warning("Website update available. Run /shopadmin webupdate to back up and update the installed web files.");
+        }catch(java.io.IOException e){throw new IllegalStateException("Could not prepare website files",e);}
     }
-
-    /** Read the DS-WEB-VERSION marker from a JAR resource stream. */
-    private String readWebFileVersion(java.io.InputStream in) {
-        if (in == null) return null;
-        try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(in))) {
-            return parseVersionMarker(reader.readLine());
-        } catch (Exception e) { return null; }
-    }
-
-    /** Read the DS-WEB-VERSION marker from an on-disk file. */
-    private String readDiskFileVersion(File file) {
-        try (var reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
-            return parseVersionMarker(reader.readLine());
-        } catch (Exception e) { return null; }
-    }
-
-    /** Extracts version from markers in three comment styles:
-     *  HTML: {@code <!-- DS-WEB-VERSION: 2.5.3 -->}
-     *  CSS:  {@code /* DS-WEB-VERSION: 2.5.3 * /}
-     *  JS:   {@code // DS-WEB-VERSION: 2.5.3}
-     */
-    private String parseVersionMarker(String line) {
-        if (line == null) return null;
-        String t = line.trim();
-        final String KEY = "DS-WEB-VERSION:";
-        if (!t.contains(KEY)) return null;
-        int colon = t.indexOf(KEY) + KEY.length();
-        // Strip trailing comment closers
-        String raw = t.substring(colon);
-        raw = raw.replace("-->", "").replace("*/", "").trim();
-        return raw.isEmpty() ? null : raw;
-    }
-
 
     private ObjectMapper createFixedMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -609,7 +595,7 @@ public class WebServer {
      * Returns searchable list of items with metadata
      */
     private void handleItemList(Context ctx) {
-        String query = ctx.queryParam("query").toLowerCase();
+        String query = Optional.ofNullable(ctx.queryParam("query")).orElse("").toLowerCase();
         var txs = plugin.getTransactionLogger().getRecentTransactions();
 
         Map<String, List<Transaction>> byItem = txs.stream()
@@ -987,8 +973,10 @@ public class WebServer {
      * Verify that a token or session is valid. Returns auth type.
      */
     private void handleVerify(Context ctx) {
-        String token = ctx.queryParam("token");
-        String session = ctx.queryParam("session");
+        String token = ctx.header("X-Admin-Token");
+        if (token == null) token = ctx.queryParam("token");
+        String session = ctx.header("X-Session-Token");
+        if (session == null) session = ctx.queryParam("session");
 
         if (token != null && tokenManager.isValid(token)) {
             String playerName = tokenManager.getPlayerName(token);
@@ -1003,7 +991,7 @@ public class WebServer {
         }
 
         if (session != null && userManager.isValidSession(session)) {
-            ctx.json(Map.of("valid", true, "type", "session"));
+            ctx.json(Map.of("valid", true, "type", "session", "username", userManager.getUsername(session)));
             return;
         }
 
@@ -1031,9 +1019,6 @@ public class WebServer {
 
         List<Map<String, Object>> items = new ArrayList<>();
         for (Material mat : ShopDataManager.getAllTrackedMaterials()) {
-            double basePrice = ShopDataManager.getBasePrice(mat);
-            if (basePrice < 0) continue;
-
             Map<String, Object> item = buildAdminItemMap(mat);
             items.add(item);
         }
@@ -1101,7 +1086,7 @@ public class WebServer {
         if (ctx.statusCode() == 401) return;
 
         Material mat = Material.matchMaterial(ctx.pathParam("item"));
-        if (mat == null || ShopDataManager.getBasePrice(mat) < 0) {
+        if (mat == null || !ShopDataManager.getAllTrackedMaterials().contains(mat)) {
             ctx.status(404).json(Map.of("error", "Item not found"));
             return;
         }
@@ -1117,7 +1102,7 @@ public class WebServer {
         if (ctx.statusCode() == 401) return;
 
         Material mat = Material.matchMaterial(ctx.pathParam("item"));
-        if (mat == null || ShopDataManager.getBasePrice(mat) < 0) {
+        if (mat == null || !ShopDataManager.getAllTrackedMaterials().contains(mat)) {
             ctx.status(404).json(Map.of("error", "Item not found"));
             return;
         }
@@ -1133,6 +1118,12 @@ public class WebServer {
 
         // Apply changes on main thread for thread safety
         if (!runSyncAdminTask(ctx, () -> {
+            for(String field:List.of("basePrice","stockRate","shortageHours"))if(body.containsKey(field))websiteNumber(body,field,0,1e12);
+            if(body.containsKey("stock"))websiteNumber(body,"stock",-1e12,1e12);
+            if(body.get("maxStock")!=null)websiteNumber(body,"maxStock",0.000001,1e12);
+            if(body.get("maxStockStorage")!=null)websiteNumber(body,"maxStockStorage",0,Integer.MAX_VALUE);
+            if(body.get("stock") instanceof Number st && body.get("maxStockStorage") instanceof Number cap && st.doubleValue()>cap.doubleValue())throw new IllegalArgumentException("Stock exceeds the storage limit");
+            if(body.containsKey("category"))ItemCategory.valueOf(((String)body.get("category")).toUpperCase());
             boolean isDisabled = false;
             if (body.containsKey("disabled")) {
                 isDisabled = (Boolean) body.get("disabled");
@@ -1224,13 +1215,18 @@ public class WebServer {
         List<Material> materialsToUpdate = new ArrayList<>();
         for (String itemName : items) {
              Material mat = Material.matchMaterial(itemName);
-             if (mat != null && ShopDataManager.getBasePrice(mat) >= 0) {
+             if (mat != null && ShopDataManager.getAllTrackedMaterials().contains(mat)) {
                  materialsToUpdate.add(mat);
              }
         }
 
         if (!runSyncAdminTask(ctx, () -> {
+            if(updates.containsKey("stock")){
+                double stock=websiteNumber(updates,"stock",-1e12,1e12);
+                for(Material mat:materialsToUpdate){var cfg=ShopDataManager.itemConfigs.get(mat);if(cfg!=null&&cfg.maxStockStorage()!=null&&stock>cfg.maxStockStorage())throw new IllegalArgumentException("Stock exceeds storage limit for "+mat.name());}
+            }
             for (Material mat : materialsToUpdate) {
+                if(updates.containsKey("stock"))ShopDataManager.setStockDirect(mat,((Number)updates.get("stock")).doubleValue());
                 if (updates.containsKey("disabled")) {
                     ShopDataManager.setItemDisabled(mat, (Boolean) updates.get("disabled"));
                 }
@@ -1281,6 +1277,12 @@ public class WebServer {
         config.put("shopMenuSize", plugin.getConfig().getInt("gui.shop_menu_size", 54));
 
         // Logging
+        config.put("websiteUsageMetrics", plugin.getConfig().getBoolean("webserver.usage-metrics", true));
+        config.put("consoleTransactions", plugin.getConfig().getBoolean("logging.console_transactions", false));
+        config.put("useDialogGui", plugin.getConfig().getBoolean("gui.use_dialog_gui", false));
+        config.put("inputMethod", plugin.getConfig().getString("input-method", "auto"));
+        config.put("webserverSslEnabled", plugin.getConfig().getBoolean("webserver.ssl.enabled", false));
+        config.put("webserverSslKeystorePath", plugin.getConfig().getString("webserver.ssl.keystore-path", "keystore.jks"));
         config.put("maxRecentTransactions", plugin.getConfig().getInt("logging.max_recent_transactions", 10000));
 
         // Player Shops
@@ -1323,6 +1325,20 @@ public class WebServer {
         }
 
         if (!runSyncAdminTask(ctx, () -> {
+            if(body.containsKey("websiteUsageMetrics")) {
+                if (!(body.get("websiteUsageMetrics") instanceof Boolean value)) throw new IllegalArgumentException("Invalid website usage metrics setting");
+                plugin.getConfig().set("webserver.usage-metrics", value);
+                if (!value) usageMetrics.clear();
+            }
+            if(body.containsKey("consoleTransactions"))plugin.getConfig().set("logging.console_transactions", (Boolean)body.get("consoleTransactions"));
+            if(body.containsKey("useDialogGui"))plugin.getConfig().set("gui.use_dialog_gui", (Boolean)body.get("useDialogGui"));
+            if(body.containsKey("inputMethod")) {
+                String method=(String)body.get("inputMethod");
+                if(!Set.of("auto","dialog","anvil","chat").contains(method))throw new IllegalArgumentException("Invalid input method");
+                plugin.getConfig().set("input-method",method);
+            }
+            if(body.containsKey("webserverSslEnabled"))plugin.getConfig().set("webserver.ssl.enabled", (Boolean)body.get("webserverSslEnabled"));
+            if(body.containsKey("webserverSslKeystorePath"))plugin.getConfig().set("webserver.ssl.keystore-path", (String)body.get("webserverSslKeystorePath"));
             if (body.containsKey("dynamicPricingEnabled")) {
                 boolean val = (Boolean) body.get("dynamicPricingEnabled");
                 plugin.getConfig().set("dynamic-pricing.enabled", val);
@@ -1602,6 +1618,8 @@ public class WebServer {
 
             Map<String, Object> catMap = new LinkedHashMap<>();
             catMap.put("id", cat.name());
+            catMap.put("defaultName", cat.getDisplayName());
+            catMap.put("defaultIcon", cat.getIcon().name());
             catMap.put("displayName", displayName);
             catMap.put("icon", CategoryConfigManager.getIconName(cat));
             catMap.put("iconUrl", iconUrl);
@@ -1651,6 +1669,17 @@ public class WebServer {
 
         if (!runSyncAdminTask(ctx, () -> {
             boolean categoryChanged = false;
+            if(body.containsKey("slot")){
+                double slot=websiteNumber(body,"slot",-1,53);
+                if(slot!=Math.rint(slot))throw new IllegalArgumentException("Slot must be a whole number");
+                for(ItemCategory other:ItemCategory.values())if(other!=cat&&slot>=0&&CategoryConfigManager.getSlot(other)==(int)slot)throw new IllegalArgumentException("That category slot is occupied");
+            }
+            if(body.containsKey("icon")){
+                String value=(String)body.get("icon");
+                if(value!=null&&!value.isBlank()&&!value.equalsIgnoreCase("DEFAULT")&&!org.minecraftsmp.dynamicshop.managers.CustomItemSupport.isCustomItem(value)&&Material.matchMaterial(value)==null)throw new IllegalArgumentException("Unknown icon material; custom category icons support nexo: and oraxen: IDs");
+            }
+            if(body.containsKey("restockTarget")&&body.get("restockTarget")!=null)websiteNumber(body,"restockTarget",1,Integer.MAX_VALUE);
+            if(body.containsKey("restockInterval")&&body.get("restockInterval")!=null)websiteNumber(body,"restockInterval",1,Integer.MAX_VALUE);
 
             if (body.containsKey("slot")) {
                 CategoryConfigManager.setSlot(cat, ((Number) body.get("slot")).intValue());
@@ -1662,7 +1691,7 @@ public class WebServer {
                     CategoryConfigManager.removeIcon(cat);
                 } else {
                     try {
-                        if (iconName.startsWith("nexo:")) {
+                        if (org.minecraftsmp.dynamicshop.managers.CustomItemSupport.isCustomItem(iconName)) {
                             CategoryConfigManager.setIcon(cat, iconName);
                         } else {
                             CategoryConfigManager.setIcon(cat, Material.valueOf(iconName.toUpperCase()).name());
@@ -1704,6 +1733,7 @@ public class WebServer {
             auditLog.log(getAdminUsername(ctx), "category_update", cat.name(), "Updated category layout/restock rules");
         })) return;
 
+        invalidateShopItemsCache();
         ctx.json(Map.of("success", true));
     }
 
@@ -1780,6 +1810,7 @@ public class WebServer {
             invalidateShopItemsCache();
         })) return;
         auditLog.log(getAdminUsername(ctx), "item_remove", mat.name(), "Disabled/removed from shop");
+        invalidateShopItemsCache();
         ctx.json(Map.of("success", true));
     }
 
@@ -2031,9 +2062,126 @@ public class WebServer {
     // ═══════════════════════════════════════════════════════════════
 
 
+    private void handleWebsiteAppearance(Context ctx) {
+        try {
+            Map<String,Object> saved=appearanceStore.save(ctx.bodyAsClass(Map.class));
+            auditLog.log(getAdminUsername(ctx),"appearance_update","website","Design: "+saved.get("design"));
+            ctx.json(saved);
+        } catch(IllegalArgumentException e){ctx.status(400).json(Map.of("error",e.getMessage()));}
+        catch(Exception e){ctx.status(500).json(Map.of("error","Could not save website appearance"));}
+    }
+
+    private void handleWebsiteCatalog(Context ctx) {
+        List<Map<String,Object>> result=callSyncAdminTask(ctx,()->{
+            List<Map<String,Object>> list=new ArrayList<>();
+            for(Material mat:ShopDataManager.getAllTrackedMaterials()){
+                if(ShopDataManager.isItemDisabled(mat))continue;
+                Map<String,Object> row=buildAdminItemMap(mat);
+                row.put("historyId",mat.name());row.put("kind","material");list.add(row);
+            }
+            for(var item:plugin.getSpecialShopManager().getAllSpecialItems().values()){
+                Map<String,Object> row=new LinkedHashMap<>();
+                row.put("item","special:"+item.getId());row.put("displayName",item.getName());
+                row.put("category",item.getCategory().name());row.put("categoryDisplayName",getCategoryDisplayName(item.getCategory()));
+                row.put("buyPrice",item.getPrice());row.put("sellPrice",null);row.put("stock",null);row.put("kind","special");
+                String historyId=item.isServerShopItem()?"SERVER_SHOP:"+item.getItemIdentifier():item.isGroupItem()?"GROUP:"+item.getGroupName():item.isCommandItem()?"CMD:"+item.getId():"PERMISSION:"+item.getPermission();
+                row.put("historyId",historyId);
+                row.put("imageUrl","https://mc.nerothe.com/img/1.21/minecraft_"+(item.getDisplayMaterial()==null?"enchanted_book":item.getDisplayMaterial().name().toLowerCase(Locale.ROOT))+".png");list.add(row);
+            }
+            for(var item:plugin.getPlayerShopManager().getAllListings()){
+                Map<String,Object> row=new LinkedHashMap<>();row.put("item","playershop:"+item.getListingId());
+                row.put("displayName",ShopItemNames.getDisplayName(item.getItem()));row.put("category","PLAYER_SHOPS");row.put("categoryDisplayName",getCategoryDisplayName(ItemCategory.PLAYER_SHOPS));
+                row.put("kind","playershop");row.put("buyPrice",item.getPrice());row.put("sellPrice",null);row.put("stock",item.getItem().getAmount());row.put("seller",item.getSellerName());
+                row.put("imageUrl","https://mc.nerothe.com/img/1.21/minecraft_"+item.getItem().getType().name().toLowerCase(Locale.ROOT)+".png");list.add(row);
+            }
+            list.sort(Comparator.comparing(m->String.valueOf(m.get("displayName")),String.CASE_INSENSITIVE_ORDER));return list;
+        });
+        if(result!=null)ctx.json(result);
+    }
+
+    private void handleWebsiteActivity(Context ctx) {
+        var rows=plugin.getTransactionLogger().getRecentTransactions().stream()
+            .sorted(Comparator.comparing(Transaction::getTimestampRaw).reversed()).map(t->{
+                Map<String,Object> row=new LinkedHashMap<>();
+                row.put("item",t.getItem());row.put("playerName",t.getPlayerName());row.put("type",t.getType().name());row.put("amount",t.getAmount());row.put("price",t.getPrice());
+                row.put("timestamp",t.getTimestampRaw().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());return row;
+            }).toList();
+        ctx.json(Map.of("transactions",rows,"serverTime",System.currentTimeMillis(),"retainedOnly",true));
+    }
+
+    private void handleWebsiteEntries(Context ctx) {
+        Map<String,Object> result=callSyncAdminTask(ctx,()->{
+            List<Map<String,Object>> entries=new ArrayList<>();
+            for(var item:plugin.getSpecialShopManager().getAllSpecialItems().values()){
+                Map<String,Object> row=new LinkedHashMap<>();String path="special_items."+item.getId()+".";
+                row.put("id",item.getId());row.put("name",item.getName());row.put("price",item.getPrice());row.put("material",item.getDisplayMaterial().name());row.put("gate",Objects.toString(item.getRequiredPermission(),""));
+                String type=item.isServerShopItem()?"server":item.isCommandItem()?"command":item.isGroupItem()?"group":"perm";
+                row.put("type",type);row.put("value",switch(type){case "server"->item.getItemIdentifier();case "command"->item.getCommandOnPurchase();case "group"->item.getGroupName();default->item.getPermission();});
+                row.put("world",Objects.toString(type.equals("group")?item.getGroupWorld():item.getPermissionWorld(),""));
+                row.put("delivery",Objects.toString(item.getDeliveryMethod(),"item"));row.put("command",Objects.toString(item.getNbt(),""));
+                row.put("deliveryMaterial",plugin.getConfig().getString(path+"material",item.getDisplayMaterial().name()));row.put("amount",item.getAmount());
+                entries.add(row);
+            }
+            List<Map<String,Object>> listings=new ArrayList<>();
+            for(var listing:plugin.getPlayerShopManager().getAllListings())listings.add(Map.of("id",listing.getListingId(),"name",ShopItemNames.getDisplayName(listing.getItem()),"material",listing.getItem().getType().name(),"seller",listing.getSellerName(),"quantity",listing.getItem().getAmount(),"price",listing.getPrice()));
+            return Map.of("entries",entries,"listings",listings);
+        });if(result!=null)ctx.json(result);
+    }
+
+    private void handleWebsiteEntrySave(Context ctx) {
+        try {
+            String id=ctx.pathParam("id");if(!id.matches("[A-Za-z0-9_-]{1,160}"))throw new IllegalArgumentException("Invalid item ID");
+            Map<String,Object> b=ctx.bodyAsClass(Map.class);
+            String type=requiredWebsiteText(b,"type",20),name=requiredWebsiteText(b,"name",100),value=requiredWebsiteText(b,"value",4096);
+            if(!Set.of("server","perm","group","command").contains(type))throw new IllegalArgumentException("Invalid purchase type");
+            double price=websiteNumber(b,"price",0,Double.MAX_VALUE);
+            Material material=Material.matchMaterial(requiredWebsiteText(b,"material",100));if(material==null||!material.isItem())throw new IllegalArgumentException("Invalid display material");
+            String delivery=Objects.toString(b.get("delivery"),"item"),payload=Objects.toString(b.get("command"),"");
+            if(type.equals("server")&&!Set.of("item","command","itemsadder","nexo","oraxen","nbt","component","valhallammo","stored_item").contains(delivery))throw new IllegalArgumentException("Unsupported delivery method");
+            if(type.equals("server")&&!delivery.equals("item")&&payload.isBlank())throw new IllegalArgumentException("Enter the delivery command, data, or custom item ID");
+            if(payload.length()>65536)throw new IllegalArgumentException("Delivery data is too long");
+            Material deliveryMaterial=Material.matchMaterial(Objects.toString(b.get("deliveryMaterial"),material.name()));if(deliveryMaterial==null||!deliveryMaterial.isItem())throw new IllegalArgumentException("Invalid delivery material");
+            double amountValue=b.containsKey("amount")?websiteNumber(b,"amount",1,2304):1;
+            if(amountValue!=Math.rint(amountValue))throw new IllegalArgumentException("Amount must be a whole number");
+            int amount=(int)amountValue;
+            if(!runSyncAdminTask(ctx,()->{
+                boolean exists=plugin.getSpecialShopManager().getSpecialItem(id)!=null;
+                if(Boolean.TRUE.equals(b.get("create"))&&exists)throw new IllegalArgumentException("An entry with this ID already exists");
+                if(!Boolean.TRUE.equals(b.get("create"))&&!exists)throw new IllegalArgumentException("Entry no longer exists; reload the page");
+                String path="special_items."+id+".";
+                plugin.getConfig().set(path+"type",type.equals("server")?"server-shop":type);
+                plugin.getConfig().set(path+"name",name);plugin.getConfig().set(path+"price",price);plugin.getConfig().set(path+"display_material",material.name());
+                plugin.getConfig().set(path+"required_permission",Objects.toString(b.get("gate"),""));
+                plugin.getConfig().set(path+switch(type){case "server"->"identifier";case "command"->"command";case "group"->"group";default->"permission";},value);
+                if(type.equals("server")){
+                    plugin.getConfig().set(path+"delivery_method",delivery);plugin.getConfig().set(path+"nbt",payload);plugin.getConfig().set(path+"component",null);
+                    plugin.getConfig().set(path+"material",deliveryMaterial.name());plugin.getConfig().set(path+"amount",amount);
+                }else if(!type.equals("command"))plugin.getConfig().set(path+(type.equals("group")?"group_world":"permission_world"),Objects.toString(b.get("world"),""));
+                plugin.saveConfig();plugin.getSpecialShopManager().reload();invalidateShopItemsCache();
+            }))return;
+            auditLog.log(getAdminUsername(ctx),"special_item_save",id,"Updated "+name);ctx.json(Map.of("success",true));
+        }catch(IllegalArgumentException e){ctx.status(400).json(Map.of("error",e.getMessage()));}
+    }
+
+    private void handleWebsiteCategoryDelete(Context ctx) {
+        try {
+            ItemCategory category=ItemCategory.valueOf(ctx.pathParam("category"));
+            if(!category.isCustomCategory())throw new IllegalArgumentException("Only custom categories can be deleted");
+            if(!runSyncAdminTask(ctx,()->{
+                for(Material mat:ShopDataManager.getAllTrackedMaterials())if(ShopDataManager.detectCategory(mat)==category)ShopDataManager.setCategoryOverride(mat,ItemCategory.MISC);
+                for(var item:plugin.getSpecialShopManager().getAllSpecialItems().values())if(item.getCategory()==category)plugin.getConfig().set("special_items."+item.getId()+".category","MISC");
+                CategoryConfigManager.setSlot(category,-1);CategoryConfigManager.removeDisplayName(category);CategoryConfigManager.removeIcon(category);CategoryConfigManager.save();
+                plugin.getRestockManager().removeRuleForCategory(category);plugin.saveConfig();plugin.getSpecialShopManager().reload();ShopDataManager.saveDynamicData();invalidateShopItemsCache();
+            }))return;
+            auditLog.log(getAdminUsername(ctx),"category_delete",category.name(),"Moved items to Miscellaneous");ctx.json(Map.of("success",true));
+        }catch(IllegalArgumentException e){ctx.status(400).json(Map.of("error",e.getMessage()));}
+    }
+    private static String requiredWebsiteText(Map<String,Object> map,String key,int max){if(!(map.get(key) instanceof String s)||s.isBlank()||s.length()>max)throw new IllegalArgumentException("Invalid "+key);return s.trim();}
+    private static double websiteNumber(Map<String,Object> map,String key,double min,double max){if(!(map.get(key) instanceof Number n)||!Double.isFinite(n.doubleValue())||n.doubleValue()<min||n.doubleValue()>max)throw new IllegalArgumentException("Invalid "+key);return n.doubleValue();}
+
     private int parseLimit(String s, int def) {
         try {
-            return s == null ? def : Math.min(Integer.parseInt(s), 1000);
+            return s == null ? def : Math.max(1, Math.min(Integer.parseInt(s), 1000));
         } catch (Exception e) {
             return def;
         }

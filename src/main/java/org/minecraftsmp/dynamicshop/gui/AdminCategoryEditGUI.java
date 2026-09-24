@@ -68,7 +68,7 @@ public class AdminCategoryEditGUI {
         }
 
         // ── Icon editor ─────────────────────────────────────────────
-        ItemStack iconItem = CategoryConfigManager.getIconItem(category);
+        ItemStack iconItem = CategoryConfigManager.getIconItem(category, player);
         ItemMeta meta = iconItem.getItemMeta();
         if (meta != null) {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§b§lChange Category Icon"));
@@ -162,7 +162,7 @@ public class AdminCategoryEditGUI {
     }
 
     private ItemStack createFiller() {
-        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
     }
 
     /**
@@ -184,9 +184,10 @@ public class AdminCategoryEditGUI {
         // Check if player is holding an item (left-click with item)
         ItemStack heldItem = player.getInventory().getItemInMainHand();
         if (!isRightClick && heldItem != null && heldItem.getType() != Material.AIR) {
-            // Use the held item's material
-            CategoryConfigManager.setIcon(category, heldItem.getType().name());
-            player.sendMessage("§a[DynamicShop] §fIcon changed to §e" + heldItem.getType().name());
+            String icon = org.minecraftsmp.dynamicshop.managers.CustomItemSupport.getItemIdentifier(heldItem);
+            if (icon == null) icon = heldItem.getType().name();
+            CategoryConfigManager.setIcon(category, icon);
+            player.sendMessage("§a[DynamicShop] §fIcon changed to §e" + icon);
             render();
             return;
         }
@@ -195,12 +196,15 @@ public class AdminCategoryEditGUI {
         plugin.getShopListener().unregisterAdminCategoryEdit(player);
 
         plugin.getInputManager().requestText(player,
-                "Enter Material Name (e.g. STONE)",
-                CategoryConfigManager.getIcon(category).name(),
+                "Icon: STONE, nexo:id or oraxen:id",
+                CategoryConfigManager.getIconName(category),
                 input -> {
                     if (input != null && !input.trim().isEmpty()) {
                         Material mat = Material.matchMaterial(input.trim());
-                        if (mat != null) {
+                        if (org.minecraftsmp.dynamicshop.managers.CustomItemSupport.isCustomItem(input.trim())) {
+                            CategoryConfigManager.setIcon(category, input.trim());
+                            player.sendMessage("§a[DynamicShop] §fIcon changed to §e" + input.trim());
+                        } else if (mat != null) {
                             CategoryConfigManager.setIcon(category, mat.name());
                             player.sendMessage("§a[DynamicShop] §fIcon changed to §e" + mat.name());
                         } else {

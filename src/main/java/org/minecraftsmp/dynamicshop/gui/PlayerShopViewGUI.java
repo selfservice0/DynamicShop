@@ -84,7 +84,7 @@ public class PlayerShopViewGUI {
         slotListingIds.clear();
 
         // Fill borders: top row + side columns
-        ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(viewer);
         // Top row
         for (int col = 0; col < 9; col++) {
             inventory.setItem(col, filler);

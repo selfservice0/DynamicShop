@@ -752,6 +752,19 @@ public class SpecialShopManager {
                 return giveInventoryItem(player, customStack);
             }
 
+            // Oraxen delivery uses the same inventory and refund path as other providers.
+            if (deliveryMethod.equalsIgnoreCase("oraxen")) {
+                String id = item.getNbt();
+                ItemStack customStack = OraxenWrapper.getItem(id);
+                if (customStack == null) {
+                    plugin.getLogger().warning("[DynamicShop] Oraxen item unavailable: " + id);
+                    player.sendMessage("§cError: Oraxen item unavailable. Please contact an administrator.");
+                    return false;
+                }
+                customStack.setAmount(Math.max(1, item.getAmount()));
+                return giveInventoryItem(player, customStack);
+            }
+
             // 7. VALHALLAMMO DELIVERY
             if (deliveryMethod.equalsIgnoreCase("valhallammo")) {
                 if (plugin.getServer().getPluginManager().getPlugin("ValhallaMMO") == null) {

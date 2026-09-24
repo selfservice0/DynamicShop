@@ -146,7 +146,7 @@ public class AdminCategoryGUI {
         int navStart = SIZE - 9;
 
         // Fill navigation row
-        ItemStack navFiller = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        ItemStack navFiller = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
         for (int i = navStart; i < SIZE; i++) {
             inventory.setItem(i, navFiller);
         }
@@ -220,7 +220,7 @@ public class AdminCategoryGUI {
     }
 
     private ItemStack createFiller() {
-        ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
         ItemMeta meta = filler.getItemMeta();
         if (meta != null) {
             if (heldCategory != null) {

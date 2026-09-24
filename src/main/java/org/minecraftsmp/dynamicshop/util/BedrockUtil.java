@@ -18,6 +18,8 @@ public class BedrockUtil {
      * Returns false if Floodgate is not installed or the player is a Java player.
      */
     public static boolean isBedrock(Player player) {
+        if (player == null) return false;
+        if (forcedBedrockPlayers.contains(player.getUniqueId())) return true;
         if (floodgateAvailable == null) {
             try {
                 Class<?> floodgateApi = Class.forName("org.geysermc.floodgate.api.FloodgateApi");
@@ -30,7 +32,7 @@ public class BedrockUtil {
         }
 
         if (!floodgateAvailable) {
-            return forcedBedrockPlayers.contains(player.getUniqueId());
+            return false;
         }
 
         try {

@@ -7,7 +7,7 @@
 
     <groupId>org.minecraftsmp</groupId>
     <artifactId>DynamicShop</artifactId>
-    <version>2.6.7</version>
+    <version>3.0.2</version>
     <packaging>jar</packaging>
 
     <name>DynamicShop</name>
@@ -21,6 +21,16 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <!-- Keep JavaScript ${...} expressions intact. -->
+                    <useDefaultDelimiters>false</useDefaultDelimiters>
+                    <delimiters><delimiter>@</delimiter></delimiters>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

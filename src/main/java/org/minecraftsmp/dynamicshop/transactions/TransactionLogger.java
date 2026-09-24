@@ -106,7 +106,8 @@ public class TransactionLogger {
     /**
      * Log a transaction to memory and queue for disk write
      */
-    public void log(Transaction tx) {
+    public synchronized void log(Transaction tx) {
+        if (plugin.getFeatureMetrics() != null) plugin.getFeatureMetrics().record(tx);
         // Add to in-memory buffer (instant)
         recent.addLast(tx);
 
@@ -117,6 +118,22 @@ public class TransactionLogger {
 
         // Queue for disk write (batched every 5 seconds)
         pendingWrites.offer(tx);
+
+        // Read the live config so /shopadmin reload also applies this setting.
+        if (plugin.getConfig().getBoolean("logging.console_transactions", false)) {
+            plugin.getLogger().info("[Transaction] type=" + tx.getType()
+                    + " player=" + consoleValue(tx.getPlayerName())
+                    + " item=" + consoleValue(tx.getItem())
+                    + " quantity=" + tx.getAmount()
+                    + " total=" + tx.getPrice()
+                    + " category=" + consoleValue(tx.getCategory())
+                    + (tx.getMetadata() == null || tx.getMetadata().isBlank()
+                            ? "" : " metadata=" + consoleValue(tx.getMetadata())));
+        }
+    }
+
+    private static String consoleValue(String value) {
+        return value == null ? "" : value.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ');
     }
 
     /**

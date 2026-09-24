@@ -129,7 +129,7 @@ public class ShopGUI {
         }
 
         // Fill border slots with filler (top row + side columns)
-        ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
         // Top row (slot 4 = home button aligned with the Spectra texture house icon)
         for (int col = 0; col < 9; col++) {
             if (col == 4 && !commandOpened) {
@@ -228,6 +228,8 @@ public class ShopGUI {
             item = ItemsAdderWrapper.getItem(specialItem.getNbt());
         } else if ("nexo".equalsIgnoreCase(specialItem.getDeliveryMethod()) && specialItem.getNbt() != null) {
             item = NexoWrapper.getItem(specialItem.getNbt());
+        } else if ("oraxen".equalsIgnoreCase(specialItem.getDeliveryMethod()) && specialItem.getNbt() != null) {
+            item = org.minecraftsmp.dynamicshop.managers.OraxenWrapper.getItem(specialItem.getNbt());
         } else if ("valhallammo".equalsIgnoreCase(specialItem.getDeliveryMethod()) && specialItem.getNbt() != null) {
             item = org.minecraftsmp.dynamicshop.managers.ValhallaMMOWrapper.getItem(specialItem.getNbt());
         } else if ("component".equalsIgnoreCase(specialItem.getDeliveryMethod()) || "stored_item".equalsIgnoreCase(specialItem.getDeliveryMethod())) {
@@ -592,7 +594,7 @@ public class ShopGUI {
     private void renderNavigation() {
         int navRow = size - 9; // Bottom row starts here
 
-        ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        ItemStack filler = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
 
         // Fill unused nav slots with filler first
         for (int i = 0; i < 9; i++) {
@@ -606,7 +608,7 @@ public class ShopGUI {
         if (prevLore == null) prevLore = page > 0 ? "§7Click to go back" : "§cNo previous page";
 
         // Left Arrow - Previous Page
-        ItemStack prevPage = ShopItemBuilder.navItemNexo(prevName, "shop_back_button", Material.ARROW, prevLore);
+        ItemStack prevPage = ShopItemBuilder.navItemNexo(player, prevName, "shop_back_button", Material.ARROW, prevLore);
         pm.sendSlot(inventory, navRow + 0, prevPage);
 
         String nextName = plugin.getMessageManager().getMessage("gui-nav-next");
@@ -615,7 +617,7 @@ public class ShopGUI {
         if (nextLore == null) nextLore = page < maxPage ? "§7Click to go forward" : "§cNo next page";
 
         // Right Arrow - Next Page
-        ItemStack nextPage = ShopItemBuilder.navItemNexo(nextName, "shop_next_button", Material.ARROW, nextLore);
+        ItemStack nextPage = ShopItemBuilder.navItemNexo(player, nextName, "shop_next_button", Material.ARROW, nextLore);
         pm.sendSlot(inventory, navRow + 8, nextPage);
 
         // X - Back to Categories (Red X) — hidden when opened via command
@@ -627,7 +629,7 @@ public class ShopGUI {
             String backLore = plugin.getMessageManager().getMessage("gui-nav-back-lore");
             if (backLore == null) backLore = "§7Return to category selection";
 
-            ItemStack backToCategories = ShopItemBuilder.navItemNexo(backName, "shop_categories_button", Material.BARRIER, backLore);
+            ItemStack backToCategories = ShopItemBuilder.navItemNexo(player, backName, "shop_categories_button", Material.BARRIER, backLore);
             pm.sendSlot(inventory, navRow + 4, backToCategories);
         }
 
@@ -638,7 +640,7 @@ public class ShopGUI {
             String searchLore = plugin.getMessageManager().getMessage("gui-nav-search-lore");
             if (searchLore == null) searchLore = "§7Open search menu";
 
-            ItemStack search = ShopItemBuilder.navItemNexo(searchName, "shop_search_button", Material.COMPASS, searchLore);
+            ItemStack search = ShopItemBuilder.navItemNexo(player, searchName, "shop_search_button", Material.COMPASS, searchLore);
             pm.sendSlot(inventory, navRow + 3, search);
         }
 
@@ -658,7 +660,7 @@ public class ShopGUI {
         String pageLoreStr = plugin.getMessageManager().getMessage("gui-nav-page-lore", pagePlaceholders);
         if (pageLoreStr == null) pageLoreStr = "§7Total items: §e" + totalItems;
 
-        ItemStack pageInfo = ShopItemBuilder.navItemNexo(pageName, "shop_page_button", Material.PAPER, pageLoreStr);
+        ItemStack pageInfo = ShopItemBuilder.navItemNexo(player, pageName, "shop_page_button", Material.PAPER, pageLoreStr);
         pm.sendSlot(inventory, navRow + 5, pageInfo);
 
         // Filter Toggle (Hopper)
@@ -674,7 +676,7 @@ public class ShopGUI {
             String filterLoreStr = plugin.getMessageManager().getMessage("gui-nav-filter-lore");
             if (filterLoreStr == null) filterLoreStr = "§7Click to toggle";
 
-            ItemStack filterItem = ShopItemBuilder.navItemNexo(filterName, "shop_filter_button", Material.HOPPER, filterState, filterLoreStr);
+            ItemStack filterItem = ShopItemBuilder.navItemNexo(player, filterName, "shop_filter_button", Material.HOPPER, filterState, filterLoreStr);
             pm.sendSlot(inventory, navRow + 2, filterItem);
         }
     }

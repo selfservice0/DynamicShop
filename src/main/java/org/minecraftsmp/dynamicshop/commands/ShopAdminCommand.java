@@ -77,6 +77,24 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase();
 
         switch (sub) {
+            case "webupdate" -> {
+                if (args.length > 2 || (args.length == 2 && !args[1].equalsIgnoreCase("check"))) {
+                    sender.sendMessage("§eUsage: /shopadmin webupdate [check]");
+                    return true;
+                }
+                var web=plugin.getWebServer();
+                if(web==null){sender.sendMessage("§cWebsite manager is not available.");return true;}
+                try {
+                    if(args.length>1&&args[1].equalsIgnoreCase("check")){
+                        var status=web.webFiles().status();
+                        sender.sendMessage(Boolean.TRUE.equals(status.get("needsUpdate"))?"§eWebsite update available. Run /shopadmin webupdate to back up and install the bundled files.":"§aWebsite files are up to date (v"+status.get("version")+").");
+                    }else{
+                        var result=web.webFiles().update();
+                        sender.sendMessage("§aWebsite files updated. Refresh your browser. Backup: "+result.get("backup"));
+                    }
+                }catch(Exception e){sender.sendMessage("§cWebsite update failed: "+e.getMessage());plugin.getLogger().warning("Website update failed: "+e.getMessage());}
+                return true;
+            }
             // --------------------------------------------------------------
             // /shopadmin resetshortage
             // --------------------------------------------------------------
@@ -517,22 +535,23 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                     if (Bukkit.getPluginManager().getPlugin("Nexo") != null) {
                         nexoId = NexoWrapper.getCustomItemId(held);
                     }
+                    String oraxenId = org.minecraftsmp.dynamicshop.managers.OraxenWrapper.getCustomItemId(held);
                     String valhallaId = null;
                     if (Bukkit.getPluginManager().getPlugin("ValhallaMMO") != null) {
                         valhallaId = org.minecraftsmp.dynamicshop.managers.ValhallaMMOWrapper.getCustomItemId(held);
                     }
 
-                    if (iaId != null || nexoId != null || valhallaId != null) {
-                        String id = iaId != null ? iaId : (nexoId != null ? nexoId : valhallaId);
+                    if (iaId != null || nexoId != null || oraxenId != null || valhallaId != null) {
+                        String id = iaId != null ? iaId : (nexoId != null ? nexoId : (oraxenId != null ? oraxenId : valhallaId));
                         id = id.replace(":", "_");
-                        String customId = iaId != null ? iaId : (nexoId != null ? nexoId : valhallaId);
+                        String customId = iaId != null ? iaId : (nexoId != null ? nexoId : (oraxenId != null ? oraxenId : valhallaId));
 
                         // Delegate to addServerShop logic
                         plugin.getSpecialShopManager().addServerShopItem(id, customId, price, id, mat, null, true);
                         
                         // Update the config delivery method correctly
                         String basePath = "special_items." + id;
-                        String deliveryMethod = iaId != null ? "itemsadder" : (nexoId != null ? "nexo" : "valhallammo");
+                        String deliveryMethod = iaId != null ? "itemsadder" : (nexoId != null ? "nexo" : (oraxenId != null ? "oraxen" : "valhallammo"));
                         plugin.getConfig().set(basePath + ".delivery_method", deliveryMethod);
                         plugin.getConfig().set(basePath + ".nbt", customId);
                         plugin.saveConfig();
@@ -1036,6 +1055,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
     // UTILITY
     // --------------------------------------------------------------------
     private void sendHelp(CommandSender sender) {
+        sender.sendMessage("§e/shopadmin webupdate [check] §7- Back up and update the website files, or check their version.");
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-header"));
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-reload"));
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-add-item"));
@@ -1096,10 +1116,16 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
             out.add("categories");
             out.add("open");
             out.add("webadmin");
+            out.add("webupdate");
             return out;
         }
 
         // /shopadmin open <player> <category>
+        if (args.length == 2 && args[0].equalsIgnoreCase("webupdate")) {
+            if ("check".startsWith(args[1].toLowerCase(java.util.Locale.ROOT))) out.add("check");
+            return out;
+        }
+
         if (args.length == 2 && args[0].equalsIgnoreCase("open")) {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 out.add(p.getName());

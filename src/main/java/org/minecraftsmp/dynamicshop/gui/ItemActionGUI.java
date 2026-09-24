@@ -58,7 +58,7 @@ public class ItemActionGUI {
         String title = plugin.getMessageManager().getMessage("item-action-title");
         if (title == null) title = "§8Buy / Sell";
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
-                MessageManager.parseComponent(title));
+                MessageManager.parseComponent(title, player));
     }
 
     public void open() {
@@ -208,7 +208,7 @@ public class ItemActionGUI {
     }
 
     private ItemStack createFiller() {
-        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
     }
 
     /**

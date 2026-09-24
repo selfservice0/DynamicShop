@@ -4,6 +4,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.io.File;
@@ -39,21 +40,21 @@ public class MessageManager {
 
         // Create messages.yml if it doesn't exist
         if (!messagesFile.exists()) {
-            // If Nexo is installed, use the Nexo-glyph template as the default
-            boolean nexoInstalled = plugin.getServer().getPluginManager().getPlugin("Nexo") != null;
-            if (nexoInstalled) {
+            // Existing messages are preserved; only fresh installs use a provider template.
+            String provider = CustomItemSupport.guiProvider();
+            if (!provider.equals("none")) {
                 try {
-                    // Save messages_nexo_example.yml content AS messages.yml
-                    InputStream nexoStream = plugin.getResource("messages_nexo_example.yml");
+                    // Save the selected provider's example as messages.yml.
+                    InputStream nexoStream = plugin.getResource("messages_" + provider + "_example.yml");
                     if (nexoStream != null) {
                         java.nio.file.Files.copy(nexoStream, messagesFile.toPath());
                         nexoStream.close();
-                        plugin.getLogger().info("Nexo detected! Generated messages.yml with glyph support.");
+                        plugin.getLogger().info(provider + " detected! Generated messages.yml with glyph support.");
                     } else {
                         plugin.saveResource("messages.yml", false);
                     }
                 } catch (Exception e) {
-                    plugin.getLogger().warning("Failed to generate Nexo messages template, using default.");
+                    plugin.getLogger().warning("Failed to generate custom GUI messages template, using default.");
                     plugin.saveResource("messages.yml", false);
                 }
             } else {
@@ -69,6 +70,10 @@ public class MessageManager {
             } catch (IllegalArgumentException e) {
                 plugin.getLogger().warning("Could not generate messages_nexo_example.yml template.");
             }
+        }
+
+        if (!new File(plugin.getDataFolder(), "messages_oraxen_example.yml").exists()) {
+            plugin.saveResource("messages_oraxen_example.yml", false);
         }
 
         messagesConfig = YamlConfiguration.loadConfiguration(messagesFile);
@@ -126,6 +131,18 @@ public class MessageManager {
         loadMessages();
     }
 
+    /** Configuration signal only; it cannot verify whether clients loaded a resource pack. */
+    public boolean hasCustomGuiTitles() {
+        for (String key : new String[] {"gui-category-title", "shop-gui-title", "admin-shop-gui-title",
+                "item-action-title", "player-shop-browser-title", "player-shop-view-title", "dialog-title"}) {
+            String title = messagesConfig.getString("messages." + key, "");
+            if (title.matches("(?is).*<(?:glyph|g|shift|s|font):[^>]+>.*")
+                    || title.codePoints().anyMatch(code -> Character.getType(code) == Character.PRIVATE_USE
+                        || (code >= 0xA413 && code <= 0xA418))) return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------
     // GET MESSAGE (with optional placeholders)
     // ------------------------------------------------------------
@@ -154,43 +171,55 @@ public class MessageManager {
 
     /**
      * Parses a string into a Component.
-     * If the string contains Nexo tags like &lt;glyph:...&gt; or &lt;shift:...&gt;, 
-     * uses MiniMessage so Nexo's registered TagResolvers can process them.
-     * Otherwise falls back to the legacy serializer for simple color-coded strings.
+     * Glyph and shift tags use the selected Nexo or Oraxen provider's native resolvers.
+     * Standard MiniMessage tags work without a custom item provider.
+     * Legacy-only strings retain the legacy serializer's formatting behavior.
      */
     public static Component parseComponent(String text) {
         return parseComponent(text, null);
     }
 
     /**
-     * Parses a string into a Component, with optional player context for Nexo permission-aware glyphs.
+     * Parses a string into a Component using the configured GUI provider.
      */
     public static Component parseComponent(String text, org.bukkit.entity.Player player) {
         if (text == null) return Component.empty();
+        if (org.minecraftsmp.dynamicshop.util.BedrockUtil.isBedrock(player)) {
+            // Strip pack-only markup before a provider turns it into Unicode glyphs.
+            text = text.replaceAll("(?i)</?(?:glyph|g|shift|s|font)(?::[^>]*)?>", "");
+            // Older message packs used raw characters instead of named glyph tags.
+            StringBuilder readable = new StringBuilder();
+            text.codePoints().filter(code -> Character.getType(code) != Character.PRIVATE_USE
+                    && (code < 0xA413 || code > 0xA418)).forEach(readable::appendCodePoint);
+            text = readable.toString();
+        }
         
-        // Check if the text contains Nexo/MiniMessage tags
-        if (text.contains("<glyph:") || text.contains("<shift:")) {
+        // Check if the text contains custom font tags.
+        if (text.contains("<glyph:") || text.contains("<shift:") || text.contains("<g:") || text.contains("<s:")) {
             // Convert legacy color codes (§ and &) to MiniMessage format for compatibility
             String mmText = text.replace('§', '&');
             // Convert &X color codes to MiniMessage <color> tags
             mmText = convertLegacyToMiniMessage(mmText);
-            // Use Nexo's MiniMessage instance which has GlyphTag and ShiftTag resolvers
+            // Providers remain optional; unavailable APIs fall back to a plain title.
             try {
-                Component result;
-                if (player != null) {
-                    result = NexoWrapper.parseMiniMessage(mmText, player);
-                } else {
-                    result = NexoWrapper.parseMiniMessage(mmText);
-                }
+                Component result = CustomItemSupport.parseMiniMessage(mmText, player);
                 if (result != null) return result;
             } catch (Throwable ignored) {}
-            // Fallback: strip Nexo-specific tags so vanilla MiniMessage doesn't render garbage
-            String stripped = mmText.replaceAll("<glyph:[^>]*>", "").replaceAll("<shift:[^>]*>", "");
-            org.bukkit.Bukkit.getLogger().warning("[DynamicShop] Nexo glyph tags could not be resolved — rendering without glyphs. Text: " + text);
+            // Strip custom font tags when no provider can resolve them.
+            String stripped = mmText.replaceAll("<(?:glyph|g|shift|s):[^>]*>", "");
+            org.bukkit.Bukkit.getLogger().warning("[DynamicShop] GUI glyph tags could not be resolved. Check gui.custom_item_provider and the selected plugin's glyph files. Text: " + text);
             return net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(stripped);
         }
         
-        // For simple strings without Nexo tags, use legacy serializer
+        // Dialog labels and other messages can contain standard tags without any glyphs.
+        // Let MiniMessage recognize its own tags; unknown command arguments such as
+        // <price> alone should continue through the legacy path unchanged.
+        MiniMessage miniMessage = MiniMessage.miniMessage();
+        if (text.indexOf('<') >= 0 && !miniMessage.stripTags(text).equals(text)) {
+            return miniMessage.deserialize(convertLegacyToMiniMessage(text.replace('§', '&')));
+        }
+
+        // Keep existing legacy messages and raw Unicode glyphs compatible.
         return LegacyComponentSerializer.legacyAmpersand().deserialize(text.replace('§', '&'));
     }
 

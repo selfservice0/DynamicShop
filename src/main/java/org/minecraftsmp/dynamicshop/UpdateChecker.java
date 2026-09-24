@@ -93,6 +93,14 @@ public class UpdateChecker implements Listener {
      */
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
+        Player operator=event.getPlayer();
+        if(operator.hasPermission("dynamicshop.admin") && plugin.getConfig().getBoolean("webserver.enabled", false)) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if(!operator.isOnline() || plugin.getWebServer()==null)return;
+                try {if(Boolean.TRUE.equals(plugin.getWebServer().webFiles().status().get("needsUpdate")))operator.sendMessage("§e[DynamicShop] §fYour website files need updating. Run §a/shopadmin webupdate §fto back them up and install the bundled website, or use Administration → Actions → Update website files.");}
+                catch(java.io.IOException e){plugin.getLogger().warning("Could not check installed website files: "+e.getMessage());}
+            }, 60L);
+        }
         if (!updateAvailable || latestVersion == null) return;
 
         Player player = event.getPlayer();

@@ -116,18 +116,24 @@ public class ConfigCacheManager {
      * Get the filler item stack based on config.
      */
     public static org.bukkit.inventory.ItemStack getFillerItem() {
-        if (fillerMaterialStr != null && fillerMaterialStr.toLowerCase().startsWith("nexo:")) {
-            String nexoId = fillerMaterialStr.substring(5);
-            if (plugin.getServer().getPluginManager().getPlugin("Nexo") != null) {
-                org.bukkit.inventory.ItemStack nexoItem = NexoWrapper.getItem(nexoId);
-                if (nexoItem != null) {
-                    org.bukkit.inventory.meta.ItemMeta meta = nexoItem.getItemMeta();
-                    if (meta != null) {
-                        org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(" "));
-                        nexoItem.setItemMeta(meta);
-                    }
-                    return nexoItem.clone();
+        return getFillerItem(null);
+    }
+
+    public static org.bukkit.inventory.ItemStack getFillerItem(org.bukkit.entity.Player viewer) {
+        if (org.minecraftsmp.dynamicshop.util.BedrockUtil.isBedrock(viewer)
+                && CustomItemSupport.isCustomItem(fillerMaterialStr)) {
+            return new org.bukkit.inventory.ItemStack(org.bukkit.Material.AIR);
+        }
+        if (CustomItemSupport.isCustomItem(fillerMaterialStr)) {
+            org.bukkit.inventory.ItemStack customItem = CustomItemSupport.getItem(fillerMaterialStr);
+            if (customItem != null) {
+                customItem = customItem.clone();
+                org.bukkit.inventory.meta.ItemMeta meta = customItem.getItemMeta();
+                if (meta != null) {
+                    org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(" "));
+                    customItem.setItemMeta(meta);
                 }
+                return customItem;
             }
         }
         try {

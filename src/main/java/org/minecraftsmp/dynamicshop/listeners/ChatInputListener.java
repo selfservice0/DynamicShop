@@ -165,7 +165,7 @@ public class ChatInputListener implements Listener {
             CategoryConfigManager.setDisplayName(pending.category, coloredName);
             player.sendMessage("§a[DynamicShop] §fName changed to: " + coloredName);
         } else if (pending.type == InputType.ICON) {
-            if (input.toLowerCase().startsWith("nexo:")) {
+            if (org.minecraftsmp.dynamicshop.managers.CustomItemSupport.isCustomItem(input)) {
                 CategoryConfigManager.setIcon(pending.category, input);
                 player.sendMessage("§a[DynamicShop] §fIcon changed to §e" + input);
             } else {

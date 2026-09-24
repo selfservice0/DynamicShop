@@ -1,273 +1,40 @@
-<!-- DS-WEB-VERSION: ${project.version} -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DynamicShop Dashboard</title>
-    <meta name="description" content="Real-time shop analytics and transaction monitoring for DynamicShop">
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-</head>
+<!-- DS-WEB-VERSION: @project.version@ -->
+<!doctype html>
+<html lang="en" data-appearance-pending><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DynamicShop</title>
+<style>
+#appearanceLoading{display:none}
+html[data-appearance-pending]{background:#171c1d;color:#e8edeb}
+html[data-appearance-pending] body{margin:0;background:#171c1d}
+html[data-appearance-pending] body>:not(#appearanceLoading){display:none!important}
+html[data-appearance-pending] #appearanceLoading{display:grid;place-content:center;min-height:100vh;text-align:center;gap:16px;padding:24px;font:16px system-ui,sans-serif}
+#appearanceLoading p{margin:0}#appearanceLoading a{color:inherit;text-decoration:underline}
+#appearanceLoading .loading-help{visibility:hidden;animation:loading-help 0s 15s forwards}
+@keyframes loading-help{to{visibility:visible}}
+</style>
+<link rel="stylesheet" href="style.css?v=246c61b35c88"></head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-brand">
-            <span class="brand-icon">💎</span>
-            <span class="brand-text">DynamicShop</span>
-        </div>
-        <div class="nav-links">
-            <a href="index.html" class="nav-link active">
-                <span class="nav-icon">📊</span> Dashboard
-            </a>
-            <a href="items.html" class="nav-link">
-                <span class="nav-icon">🛒</span> Item Catalog
-            </a>
-            <a href="admin.html" class="nav-link">
-                <span class="nav-icon">⚡</span> Admin
-            </a>
-        </div>
-        <div class="nav-actions">
-            <button class="refresh-btn" onclick="refreshData()">
-                <span class="refresh-icon">↻</span>
-            </button>
-            <span class="last-updated">Updated: <span id="lastUpdate">--</span></span>
-        </div>
-    </nav>
-
-    <!-- Hero Section -->
-    <header class="hero">
-        <div class="hero-content">
-            <h1 class="hero-title">Shop Analytics</h1>
-            <p class="hero-subtitle">Real-time economy monitoring and market insights</p>
-        </div>
-        <div class="hero-glow"></div>
-    </header>
-
-    <div class="container">
-        <!-- Stats Grid -->
-        <section class="stats-section">
-            <div class="stats-grid">
-                <div class="stat-card glass" data-type="total">
-                    <div class="stat-icon-wrap">
-                        <span class="stat-icon">📦</span>
-                    </div>
-                    <div class="stat-content">
-                        <span class="stat-label">Total Transactions</span>
-                        <span class="stat-value" id="totalTransactions">--</span>
-                    </div>
-                    <div class="stat-trend positive" id="txTrend">--</div>
-                </div>
-
-                <div class="stat-card glass" data-type="volume">
-                    <div class="stat-icon-wrap">
-                        <span class="stat-icon">💰</span>
-                    </div>
-                    <div class="stat-content">
-                        <span class="stat-label">Total Volume</span>
-                        <span class="stat-value" id="totalMoney">--</span>
-                    </div>
-                    <div class="stat-trend" id="volumeTrend">--</div>
-                </div>
-
-                <div class="stat-card glass" data-type="buy">
-                    <div class="stat-icon-wrap buy">
-                        <span class="stat-icon">📈</span>
-                    </div>
-                    <div class="stat-content">
-                        <span class="stat-label">Purchases</span>
-                        <span class="stat-value" id="totalBuys">--</span>
-                    </div>
-                </div>
-
-                <div class="stat-card glass" data-type="sell">
-                    <div class="stat-icon-wrap sell">
-                        <span class="stat-icon">📉</span>
-                    </div>
-                    <div class="stat-content">
-                        <span class="stat-label">Sales</span>
-                        <span class="stat-value" id="totalSells">--</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Economy Health -->
-        <section class="health-section glass">
-            <h2 class="section-title">
-                <span class="title-icon">💊</span> Economy Health
-            </h2>
-            <div class="health-grid">
-                <div class="health-card">
-                    <div class="health-label">Buy Ratio</div>
-                    <div class="health-value" id="buyRatio">--</div>
-                    <div class="health-bar">
-                        <div class="health-bar-fill" id="buyRatioBar" style="width: 50%"></div>
-                    </div>
-                </div>
-                <div class="health-card">
-                    <div class="health-label">Activity</div>
-                    <div class="health-value" id="velocity">--</div>
-                </div>
-                <div class="health-card">
-                    <div class="health-label">Net Flow</div>
-                    <div class="health-value" id="netFlow">--</div>
-                </div>
-                <div class="health-card">
-                    <div class="health-label">Avg Transaction</div>
-                    <div class="health-value" id="avgTransaction">--</div>
-                </div>
-                <div class="health-card">
-                    <div class="health-label">Unique Items</div>
-                    <div class="health-value" id="uniqueItems">--</div>
-                </div>
-                <div class="health-card">
-                    <div class="health-label">Active Traders</div>
-                    <div class="health-value" id="uniquePlayers">--</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Charts Section -->
-        <section class="charts-section">
-            <div class="chart-card glass">
-                <h3 class="chart-title">Transaction Activity</h3>
-                <div class="time-selector">
-                    <button class="time-btn" onclick="setTimeRange('1h')">1H</button>
-                    <button class="time-btn" onclick="setTimeRange('24h')">24H</button>
-                    <button class="time-btn" onclick="setTimeRange('7d')">7D</button>
-                    <button class="time-btn active" onclick="setTimeRange('all')">All</button>
-                </div>
-                <div class="chart-container">
-                    <canvas id="activityChart"></canvas>
-                </div>
-            </div>
-        </section>
-
-        <!-- Main Content Grid -->
-        <div class="content-grid">
-            <!-- Leaderboards -->
-            <section class="leaderboards-section glass">
-                <h2 class="section-title">
-                    <span class="title-icon">🏆</span> Leaderboards
-                </h2>
-                <div class="leaderboard-tabs">
-                    <button class="tab-btn active" onclick="switchLeaderboard('earners')">Top Earners</button>
-                    <button class="tab-btn" onclick="switchLeaderboard('spenders')">Top Spenders</button>
-                    <button class="tab-btn" onclick="switchLeaderboard('traders')">Most Active</button>
-                </div>
-                <div class="leaderboard-content" id="leaderboardContent">
-                    <div class="loading-spinner"></div>
-                </div>
-            </section>
-
-            <!-- Market Trends -->
-            <section class="trends-section glass">
-                <h2 class="section-title">
-                    <span class="title-icon">📊</span> Market Trends
-                </h2>
-                <div class="trends-tabs">
-                    <button class="tab-btn active" onclick="switchTrends('hot')">🔥 Hot</button>
-                    <button class="tab-btn" onclick="switchTrends('rising')">🚀 Rising</button>
-                    <button class="tab-btn" onclick="switchTrends('falling')">📉 Falling</button>
-                </div>
-                <div class="trends-content" id="trendsContent">
-                    <div class="loading-spinner"></div>
-                </div>
-            </section>
-        </div>
-
-        <!-- Top Items & Players -->
-        <section class="insights-section">
-            <div class="insight-card glass">
-                <h3 class="insight-title">
-                    <span class="title-icon">🔥</span> Top Items Traded
-                </h3>
-                <div class="insight-list" id="topItems">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-            <div class="insight-card glass">
-                <h3 class="insight-title">
-                    <span class="title-icon">👥</span> Most Active Players
-                </h3>
-                <div class="insight-list" id="topPlayers">
-                    <div class="loading-spinner"></div>
-                </div>
-            </div>
-            <div class="insight-card glass">
-                <h3 class="insight-title">
-                    <span class="title-icon">📊</span> Category Distribution
-                </h3>
-                <div class="chart-container-sm">
-                    <canvas id="categoryChart"></canvas>
-                </div>
-            </div>
-        </section>
-
-        <!-- Recent Transactions -->
-        <section class="transactions-section glass">
-            <div class="section-header">
-                <h2 class="section-title">
-                    <span class="title-icon">📋</span> Recent Transactions
-                </h2>
-                <div class="section-actions">
-                    <div class="search-box">
-                        <input type="text" id="txSearch" placeholder="Search transactions..." class="search-input">
-                    </div>
-                    <select id="typeFilter" class="filter-select">
-                        <option value="">All Types</option>
-                        <option value="BUY">Purchases</option>
-                        <option value="SELL">Sales</option>
-                    </select>
-                </div>
-            </div>
-            <div class="transactions-table-wrap">
-                <table class="transactions-table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Player</th>
-                            <th>Type</th>
-                            <th>Item</th>
-                            <th>Amount</th>
-                            <th>Price</th>
-                        </tr>
-                    </thead>
-                    <tbody id="transactionsBody">
-                        <tr><td colspan="6" class="loading">Loading...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="pagination">
-                <button class="page-btn" onclick="previousPage()" id="prevBtn" disabled>← Prev</button>
-                <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
-                <button class="page-btn" onclick="nextPage()" id="nextBtn">Next →</button>
-            </div>
-        </section>
-    </div>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <p>DynamicShop v2.0 • Made by selfservice0 • <a href="https://minecraftsmp.org" target="_blank">MinecraftSMP</a></p>
-    </footer>
-
-    <!-- Item Details Modal -->
-    <div id="itemModal" class="modal">
-        <div class="modal-content glass">
-            <div class="modal-header">
-                <h2 id="modalItemName">Item Details</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
-            </div>
-            <div id="modalBody" class="modal-body">
-                <div class="loading-spinner"></div>
-            </div>
-        </div>
-    </div>
-
-    <script src="dashboard.js"></script>
-</body>
-</html>
+<div id="appearanceLoading" role="status"><p>Loading marketplace…</p><p class="loading-help">Taking longer than expected. <a href="">Reload the page</a></p><noscript><p>Enable JavaScript to view the marketplace.</p></noscript></div>
+<aside class="sidebar">
+  <a class="brand" href="#catalog"><span>Dynamic<span class="brand-light">Shop</span><small>YOUR SERVER MARKETPLACE</small></span></a>
+  <div class="server"><span class="server-icon">D</span><div>Survival server<small><i></i> Market online</small></div><span class="server-chevron">⌄</span></div>
+  <div class="nav-label">MARKETPLACE</div>
+  <nav><a href="#catalog" data-nav="catalog"><span data-icon="grid"></span>Item catalog<span id="navItemCount" class="nav-count">12</span></a><a href="#activity" data-nav="activity"><span data-icon="activity"></span>Market activity</a><a href="#favorites" data-nav="favorites"><span data-icon="heart"></span>Watchlist<span id="watchCount" class="nav-count">0</span></a></nav>
+  <div class="nav-label manage-label" hidden>MANAGE</div><nav><a href="#settings" data-nav="settings" hidden><span data-icon="settings"></span>Shop settings</a></nav>
+  <div class="sidebar-bottom"><div class="preview-note"><span class="preview-dot"></span> LIVE SERVER MARKET<p>Browse the market.<br>Trade in game with /shop.</p></div><div class="profile"><span class="avatar">D</span><div>Visitor<small>Public marketplace</small></div><span data-icon="shield"></span></div></div>
+</aside>
+<div class="workspace"><header class="topbar"><div class="breadcrumb">Marketplace<span>/</span><strong id="pageCrumb">Item catalog</strong></div><div class="topbar-right"><span class="sample-label" id="connectionStatus" role="status">Connecting…</span><span class="version">v3.0.0</span><button class="icon-button" id="refresh" aria-label="Refresh market"><span data-icon="refresh"></span></button></div></header>
+<main>
+<section id="catalogView">
+  <div class="hero"><div class="hero-copy"><div class="eyebrow"><span></span> THE SERVER MARKETPLACE</div><h1>Good finds.<br><span>Better trades.</span></h1><p>From your first diamond to your next upgrade.<br> Find what you need. Make your inventory count.</p><a href="#browse" class="primary hero-button">Explore the catalog <span>↗</span></a></div><div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="hero-gem" id="heroGem"></div><div class="floating-tag"><span class="green-dot"></span> A market made for your world</div><div class="spark spark-one">✧</div><div class="spark spark-two">+</div></div><span class="hero-coordinate">EST. IN YOUR WORLD / 001</span></div>
+  <div class="market-strip"><div><span class="strip-icon" data-icon="cube"></span><span>Items to discover<strong><span id="heroItemCount">12</span> <small id="heroCategoryCount">across 4 categories</small></strong></span></div><div><span class="strip-icon" data-icon="activity"></span><span>Trading today<strong><span id="todayTrades">—</span> <small>recorded trades</small></strong></span></div><div><span class="strip-icon" data-icon="users"></span><span>Active traders<strong><span id="todayTraders">—</span> <small>in retained history</small></strong></span></div></div>
+  <div id="browse" class="section-heading"><div><div class="eyebrow muted">FIND YOUR NEXT UPGRADE</div><h2 id="catalogTitle">Browse the market<span id="resultCount">12 items</span></h2></div><label class="search"><span data-icon="search"></span><input id="search" placeholder="Search the catalog…" aria-label="Search the catalog"><kbd>/</kbd></label></div>
+  <div class="filter-row"><div class="category-tabs" id="categories"><button class="active" data-category="All">All items</button><button data-category="Materials">Materials</button><button data-category="Farming">Farming</button><button data-category="Equipment">Equipment</button><button data-category="Custom">Custom items <span>2</span></button></div><label class="stock-filter" title="Hide unavailable stock. Special purchases remain visible."><input id="hideOutOfStock" type="checkbox"><span>Hide out of stock</span></label><label class="sort">Sort by <select id="sort" aria-label="Sort items"><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option><option value="name">Name: A–Z</option></select></label></div>
+  <div class="item-grid" id="itemGrid"></div><div class="load-more-row"><span id="catalogProgress"></span><button id="loadMore" class="secondary">Load more items <span>↓</span></button></div><div class="empty-state" id="empty" hidden><span data-icon="search"></span><h3>No items here yet</h3><p id="emptyText">Try another name or category.</p><button id="clearFilters" class="secondary">Clear filters</button></div>
+  <div class="catalog-foot"><span><i class="green-dot"></i> Current server prices · trade in game with /shop</span><span>Browse here. Trade in game with <code>/shop</code></span></div>
+</section>
+<section id="activityView" hidden></section>
+<section id="settingsView" hidden></section>
+<footer><a href="admin.html" id="adminLoginLink">Admin sign in</a><span class="footer-brand">◈ DynamicShop</span><span>Built for the world you’re building.</span><span>Live server marketplace · v3.0.0</span></footer>
+</main></div>
+<dialog id="itemDialog" aria-labelledby="detailName"><div class="drawer"><div class="drawer-top"><span class="eyebrow">A CLOSER LOOK</span><button class="icon-button" id="closeDetails" aria-label="Close item details">✕</button></div><div id="detailArt" class="detail-art"></div><div class="detail-title"><span id="detailCategory" class="eyebrow"></span><h2 id="detailName"></h2><p id="detailDescription"></p></div><div class="detail-prices"><div><span>BUY PRICE</span><strong id="detailBuy"></strong></div><div><span>YOU SELL FOR</span><strong id="detailSell"></strong></div></div><section class="price-history" aria-labelledby="historyTitle"><div class="history-heading"><div><h3 id="historyTitle">Price history</h3><span class="history-caption">Recorded trades · average price per item</span></div><div class="history-ranges" role="group" aria-label="Price history range"><button data-history-range="24h" aria-pressed="false">24H</button><button data-history-range="7d" aria-pressed="true" class="active">7D</button><button data-history-range="30d" aria-pressed="false">30D</button></div></div><div class="history-legend"><span><i class="buy-dot"></i>Buy price</span><span><i class="sell-dot"></i>Sell price</span></div><div id="priceHistoryChart"></div><div id="historyReadout" class="history-readout" aria-live="polite"></div></section><section class="item-transactions" aria-labelledby="itemTransactionsTitle"><div class="history-heading"><div><h3 id="itemTransactionsTitle">Transaction history</h3><span class="history-caption">Recorded transactions · this item only</span></div><span id="itemTradeCount" class="item-trade-count"></span></div><div class="item-trade-filters" role="group" aria-label="Item transaction type"><button data-item-trade-type="All" class="active" aria-pressed="true">All</button><button data-item-trade-type="BUY" aria-pressed="false">Buys</button><button data-item-trade-type="SELL" aria-pressed="false">Sells</button></div><div id="itemTransactionList" aria-live="polite"></div><button id="moreItemTransactions" class="item-trades-more" hidden>Show more transactions ↓</button></section><div class="quantity-row"><span>Calculate a trade</span><div class="stepper"><button id="decrease" aria-label="Decrease quantity">−</button><input id="quantity" type="number" value="1" min="1" max="2304" aria-label="Quantity"><button id="increase" aria-label="Increase quantity">+</button></div></div><div class="trade-total"><span id="quantitySummary">Total for 1 item</span><strong id="tradeTotal"></strong></div><div class="stock-row"><span><i class="green-dot"></i> Available stock</span><strong id="detailStock"></strong></div><div class="ingame-note"><span data-icon="info"></span><p>Ready to trade? Open <strong>/shop</strong> in game.<small>This website is your window into the market.</small></p></div><button id="watchItem" class="primary full-width">Add to watchlist</button></div></dialog><div id="toast" class="toast" role="status"></div>
+<script src="app.js?v=67035ee81dee"></script></body></html>

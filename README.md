@@ -3,6 +3,14 @@ DynamicShop — Dynamic Global Trade Market
 
 A fully dynamic, supply-and-demand driven economy system for Minecraft servers.
 
+Current release: **3.0.2** · [Downloads](https://github.com/selfservice0/DynamicShop/releases) · [Wiki](https://github.com/selfservice0/DynamicShop/wiki) · [Interactive website demo](https://selfservice0.github.io/DynamicShop/) · [DSX Exchange preview](https://selfservice0.github.io/DynamicShop/?design=dsx#catalog)
+
+Version 3.0.2 includes six website designs, eight coordinated color palettes, twelve accent presets, and aggregate bStats charts for integrations, website/GUI usage, online player ranges, dynamic pricing, inflation, and transaction volume. Oraxen support and the Floodgate-based Bedrock GUI fallback are included.
+
+After replacing the plugin JAR and restarting, run `/shopadmin webupdate` to back up and update existing website files. Select **DSX Exchange** under **Administration → Appearance** and save. Website settings and shop data are retained.
+
+See [release notes](CHANGELOG.md), [bStats chart setup](BSTATS.md), [Oraxen integration](ORAXEN.md), and [website development and upgrades](web-src/README.md).
+
 ------------------------------------------------------------
 Project Information
 ------------------------------------------------------------

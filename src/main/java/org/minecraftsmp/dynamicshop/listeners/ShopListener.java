@@ -792,22 +792,26 @@ public class ShopListener implements Listener {
         }
 
         String currency = plugin.getEconomyManager().getCurrency(mat);
-        plugin.getEconomyManager().deposit(p, totalPayout, currency);
+        String itemName = ShopItemNames.getDisplayName(mat, variantTemplate);
+        String itemId = variantId != null ? "VARIANT:" + variantId : mat.name();
+        boolean paid = plugin.getEconomyManager().depositSale(p, totalPayout, currency,
+                actuallyRemoved + "x " + itemName + " [" + itemId + "]");
+        if (paid) {
+            Map<String, String> ph = new HashMap<>();
+            ph.put("amount", String.valueOf(actuallyRemoved));
+            ph.put("item", itemName);
+            ph.put("price", plugin.getEconomyManager().format(totalPayout, currency));
+            p.sendMessage(plugin.getMessageManager().getMessage("sold-item-success", ph));
 
-        Map<String, String> ph = new HashMap<>();
-        ph.put("amount", String.valueOf(actuallyRemoved));
-        ph.put("item", ShopItemNames.getDisplayName(mat, variantTemplate));
-        ph.put("price", plugin.getEconomyManager().format(totalPayout, currency));
-        p.sendMessage(plugin.getMessageManager().getMessage("sold-item-success", ph));
-
-        plugin.getTransactionLogger().log(Transaction.now(
-                p.getName(),
-                Transaction.TransactionType.SELL,
-                variantId != null ? "VARIANT:" + variantId : mat.name(),
-                actuallyRemoved,
-                totalPayout,
-                ShopDataManager.detectCategory(mat).name(),
-                ""));
+            plugin.getTransactionLogger().log(Transaction.now(
+                    p.getName(),
+                    Transaction.TransactionType.SELL,
+                    itemId,
+                    actuallyRemoved,
+                    totalPayout,
+                    ShopDataManager.detectCategory(mat).name(),
+                    ""));
+        }
 
         recordTransaction(p);
 

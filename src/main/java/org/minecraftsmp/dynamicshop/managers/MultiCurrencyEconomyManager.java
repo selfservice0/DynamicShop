@@ -280,6 +280,67 @@ public class MultiCurrencyEconomyManager {
     // ---------------------------------------------------------------
 
     /**
+     * Pay for items already removed by a server-shop sale. A failed or uncertain
+     * payment is logged for manual review, never retried or rolled back here.
+     */
+    public boolean depositSale(Player player, double amount, String currency, String items) {
+        String provider = useCoinEngine ? "CoinsEngine" : "Vault";
+        String outcome = "FAILED";
+        String error;
+        try {
+            if (!Double.isFinite(amount) || amount < 0) {
+                error = "Invalid sale payment amount";
+            } else if (amount == 0) {
+                return true;
+            } else if (useCoinEngine) {
+                Object curr = getCoinEngineCurrency(currency);
+                if (curr == null) {
+                    error = "Currency not found: " + currency;
+                } else {
+                    // Invoke directly so an exception is distinguishable from a
+                    // successful void-returning API call.
+                    Object result = coinEngineAddPlayerBalanceMethod.invoke(null, player, curr, amount);
+                    if (coinEngineAddPlayerBalanceMethod.getReturnType() == void.class
+                            || Boolean.TRUE.equals(result)) return true;
+                    outcome = Boolean.FALSE.equals(result) ? "FAILED" : "UNKNOWN";
+                    error = "CoinsEngine returned " + result;
+                }
+            } else if (vaultEconomy == null) {
+                error = "Vault economy provider is unavailable";
+            } else {
+                provider = "Vault/" + vaultEconomy.getName();
+                EconomyResponse response = vaultEconomy.depositPlayer(player, amount);
+                if (response != null && response.transactionSuccess()) return true;
+                outcome = response == null ? "UNKNOWN" : "FAILED";
+                error = response == null ? "Provider returned no response"
+                        : response.type + ": " + response.errorMessage;
+            }
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            // The provider might have changed the balance before throwing.
+            // Do not retry or compensate automatically when that is unknown.
+            Throwable cause = ex instanceof InvocationTargetException invocation && invocation.getCause() != null
+                    ? invocation.getCause() : ex;
+            outcome = "UNKNOWN";
+            error = cause.getClass().getSimpleName() + ": " + cause.getMessage();
+        }
+
+        plugin.getLogger().severe("[SalePayment] outcome=" + outcome
+                + " player=" + logValue(player.getName()) + " uuid=" + player.getUniqueId()
+                + " items=" + logValue(items) + " amount=" + amount
+                + " currency=" + logValue(currency == null ? "default" : currency)
+                + " provider=" + logValue(provider) + " error=" + logValue(error)
+                + "; items and stock were not restored; no payment retry."
+                + " Check the player's balance before manual compensation.");
+        player.sendMessage("§cYour sale payment could not be confirmed. Please contact an administrator;"
+                + " the details are in the server log.");
+        return false;
+    }
+
+    private static String logValue(String value) {
+        return String.valueOf(value).replaceAll("[\\r\\n\\t]", " ");
+    }
+
+    /**
      * Charge player with automatic currency detection based on material
      */
     public boolean charge(Player p, Material mat, double amount) {

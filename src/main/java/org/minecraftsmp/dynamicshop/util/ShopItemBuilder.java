@@ -84,19 +84,24 @@ public class ShopItemBuilder {
     }
 
     /**
-     * Create a nav item using a Nexo custom item if available, falling back to vanilla Material.
+     * Create a nav item using the configured custom-item provider, falling back to vanilla Material.
      * @param name Display name
      * @param nexoId Nexo item ID (e.g. "shop_back_button")
      * @param fallbackIcon Vanilla material to use if Nexo isn't available
      * @param loreLines Lore text lines
      */
     public static ItemStack navItemNexo(String name, String nexoId, Material fallbackIcon, String... loreLines) {
+        return navItemNexo(null, name, nexoId, fallbackIcon, loreLines);
+    }
+
+    /** Uses vanilla controls for Bedrock viewers without the Java GUI resource pack. */
+    public static ItemStack navItemNexo(org.bukkit.entity.Player viewer, String name, String nexoId,
+                                      Material fallbackIcon, String... loreLines) {
         ItemStack item = null;
 
-        // Try Nexo custom item first
-        if (nexoId != null && org.minecraftsmp.dynamicshop.DynamicShop.getInstance()
-                .getServer().getPluginManager().getPlugin("Nexo") != null) {
-            item = org.minecraftsmp.dynamicshop.managers.NexoWrapper.getItem(nexoId);
+        // Method name is retained for compatibility with existing callers.
+        if (nexoId != null) {
+            item = org.minecraftsmp.dynamicshop.managers.CustomItemSupport.getMenuItem(nexoId, viewer);
             if (item != null) {
                 item = item.clone();
             }
@@ -109,11 +114,11 @@ public class ShopItemBuilder {
 
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(name));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(name, viewer));
 
             List<Component> lore = new ArrayList<>();
             for (String line : loreLines) {
-                lore.add(MessageManager.parseComponent(line));
+                lore.add(MessageManager.parseComponent(line, viewer));
             }
 
             org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore);

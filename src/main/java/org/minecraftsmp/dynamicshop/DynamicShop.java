@@ -31,6 +31,7 @@ public class DynamicShop extends JavaPlugin {
     private ShopListener shopListener;
     private SpecialShopManager specialShopManager;
     private TransactionLogger transactionLogger;
+    private org.minecraftsmp.dynamicshop.metrics.FeatureMetrics featureMetrics;
     private PermissionsManager permissionsManager;
     private WebServer webServer;
     private MessageManager messageManager;
@@ -57,7 +58,8 @@ public class DynamicShop extends JavaPlugin {
         // --------------------------------------------------------------------
         // BSTATS METRICS
         // --------------------------------------------------------------------
-        new Metrics(this, BSTATS_PLUGIN_ID);
+        Metrics metrics = new Metrics(this, BSTATS_PLUGIN_ID);
+        featureMetrics = new org.minecraftsmp.dynamicshop.metrics.FeatureMetrics(this);
 
         // --------------------------------------------------------------------
         // CONFIG CACHE
@@ -220,6 +222,10 @@ public class DynamicShop extends JavaPlugin {
             getLogger().info("§aValhallaMMO found — custom item support enabled!");
         }
 
+        if (org.minecraftsmp.dynamicshop.managers.CustomItemSupport.enabled("Oraxen")) {
+            getLogger().info("Oraxen found — custom items and GUI glyph support enabled.");
+        }
+
         // Warm up Nexo resolver AFTER all plugins have finished enabling.
         // Nexo's GlyphTag/ShiftTag singletons may not be ready during onEnable.
         if (Bukkit.getPluginManager().getPlugin("Nexo") != null) {
@@ -234,6 +240,13 @@ public class DynamicShop extends JavaPlugin {
         // --------------------------------------------------------------------
         webServer = new WebServer(this);
         webServer.start();
+        for (String event : org.minecraftsmp.dynamicshop.web.WebUsageMetrics.EVENTS) {
+            metrics.addCustomChart(new org.bstats.charts.SingleLineChart("website_" + event,
+                    () -> webServer.usageMetrics().drain(event)));
+        }
+        metrics.addCustomChart(new org.bstats.charts.SimplePie("website_design",
+                () -> webServer.usageMetrics().isEnabled() ? webServer.websiteDesign() : null));
+        featureMetrics.register(metrics);
 
         // --------------------------------------------------------------------
         // LISTENERS
@@ -328,6 +341,7 @@ public class DynamicShop extends JavaPlugin {
         reloadConfig();
         populateMissingConfigDefaults();
         ConfigCacheManager.reload();
+        if (featureMetrics != null) featureMetrics.reload();
         ShopDataManager.reload();
         messageManager.reload();
         economyManager.reload();
@@ -364,6 +378,10 @@ public class DynamicShop extends JavaPlugin {
 
     public TransactionLogger getTransactionLogger() {
         return transactionLogger;
+    }
+
+    public org.minecraftsmp.dynamicshop.metrics.FeatureMetrics getFeatureMetrics() {
+        return featureMetrics;
     }
 
     public WebServer getWebServer() {

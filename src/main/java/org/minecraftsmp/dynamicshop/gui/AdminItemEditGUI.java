@@ -357,7 +357,7 @@ public class AdminItemEditGUI {
     }
 
     private ItemStack createFiller() {
-        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
     }
 
     /**

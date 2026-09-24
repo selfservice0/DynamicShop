@@ -49,7 +49,7 @@ public class AdminShopBrowseGUI {
         String title = plugin.getMessageManager().getMessage("admin-shop-gui-title");
         if (title == null) title = "§4§lAdmin Shop";
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
-                MessageManager.parseComponent(title));
+                MessageManager.parseComponent(title, player));
 
         loadItemsForCategory();
     }
@@ -132,6 +132,8 @@ public class AdminShopBrowseGUI {
             item = ItemsAdderWrapper.getItem(sItem.getNbt());
         } else if ("nexo".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
             item = NexoWrapper.getItem(sItem.getNbt());
+        } else if ("oraxen".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
+            item = org.minecraftsmp.dynamicshop.managers.OraxenWrapper.getItem(sItem.getNbt());
         } else if ("valhallammo".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
             item = org.minecraftsmp.dynamicshop.managers.ValhallaMMOWrapper.getItem(sItem.getNbt());
         } else if ("component".equalsIgnoreCase(sItem.getDeliveryMethod()) || "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
@@ -319,7 +321,7 @@ public class AdminShopBrowseGUI {
     }
 
     private ItemStack createFiller() {
-        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem();
+        return org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.getFillerItem(player);
     }
 
     /**

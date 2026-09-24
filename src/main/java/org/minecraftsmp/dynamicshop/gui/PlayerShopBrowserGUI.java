@@ -29,7 +29,7 @@ public class PlayerShopBrowserGUI {
         String title = plugin.getMessageManager().getMessage("player-shop-browser-title");
         if (title == null) title = "§6§lPlayer Shops";
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, GUI_SIZE,
-                MessageManager.parseComponent(title));
+                MessageManager.parseComponent(title, viewer));
 
         refreshPage();
     }
