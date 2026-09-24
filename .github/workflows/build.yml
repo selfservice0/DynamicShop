@@ -31,6 +31,23 @@ jobs:
       - name: Build with Maven
         run: mvn -B package --file pom.xml
 
+      - name: Check Java quality
+        run: |
+          curl --fail --location --silent --show-error https://github.com/checkstyle/checkstyle/releases/download/checkstyle-14.1.0/checkstyle-14.1.0-all.jar --output "$RUNNER_TEMP/checkstyle.jar"
+          echo "51e2bc7fed1bb56808aa39045f655a316194997acd24bac5195253dcf342b380  $RUNNER_TEMP/checkstyle.jar" | sha256sum --check
+          java -jar "$RUNNER_TEMP/checkstyle.jar" -c checkstyle.xml src
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify website tests and generated bundles
+        run: |
+          node --test web-src/checks/*.test.cjs
+          node web-src/build.cjs
+          git diff --exit-code -- src/main/resources/web
+
       - name: Upload final JAR
         uses: actions/upload-artifact@v4
         with:

@@ -144,7 +144,6 @@ messages:
   admin-usage-add-server-shop: "&cUsage: /shopadmin add server-shop <price> <identifier>"
 
   # Player Shop messages
-  player-shop-view-title: "&6&l{player}'s Shop"
   playershop-listed: "&a✓ &7Listed &f{item} &7x{amount} &7for &a${price}"
   playershop-listed-success: "&7Players can now buy this from your shop!"
   playershop-reclaimed: "&a✓ &7Reclaimed &f{item} &7x{amount}"

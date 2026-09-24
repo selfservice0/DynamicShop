@@ -45,17 +45,47 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     // ADD PERMISSION SHOP ITEM
     // ------------------------------------------------------------
-    public void addPermissionItem(String permission, String permissionWorld, double price, Material displayMaterial,
+    public void addPermissionItem(
+            String permission,
+            String permissionWorld,
+            double price,
+            Material displayMaterial,
             String requiredPermission) {
-        String id = permission.toLowerCase().replace(".", "_") + ((permissionWorld != null && !permissionWorld.isBlank()) ? "_" + permissionWorld.toLowerCase() : "");
+        String id =
+                permission.toLowerCase().replace(".", "_")
+                        + ((permissionWorld != null && !permissionWorld.isBlank())
+                                ? "_" + permissionWorld.toLowerCase()
+                                : "");
         String displayName = permission.replace(".", "_");
-        addPermissionItem(id, displayName, price, permission, permissionWorld, displayMaterial, requiredPermission, true);
+        addPermissionItem(
+                id,
+                displayName,
+                price,
+                permission,
+                permissionWorld,
+                displayMaterial,
+                requiredPermission,
+                true);
     }
 
-    private void addPermissionItem(String id, String displayName, double price, String permission, String permissionWorld,
-            Material displayMaterial, String requiredPermission, boolean save) {
-        SpecialShopItem item = SpecialShopItem.forPermission(id, displayName, price, permission, permissionWorld, displayMaterial,
-                requiredPermission);
+    private void addPermissionItem(
+            String id,
+            String displayName,
+            double price,
+            String permission,
+            String permissionWorld,
+            Material displayMaterial,
+            String requiredPermission,
+            boolean save) {
+        SpecialShopItem item =
+                SpecialShopItem.forPermission(
+                        id,
+                        displayName,
+                        price,
+                        permission,
+                        permissionWorld,
+                        displayMaterial,
+                        requiredPermission);
         registry.put(id, item);
 
         if (save) {
@@ -78,17 +108,48 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     // ADD GROUP SHOP ITEM
     // ------------------------------------------------------------
-    public void addGroupItem(String groupName, String groupWorld, double price, Material displayMaterial,
+    public void addGroupItem(
+            String groupName,
+            String groupWorld,
+            double price,
+            Material displayMaterial,
             String requiredPermission) {
-        String id = "group_" + groupName.toLowerCase().replace(" ", "_").replace(".", "_") + ((groupWorld != null && !groupWorld.isBlank()) ? "_" + groupWorld.toLowerCase() : "");
+        String id =
+                "group_"
+                        + groupName.toLowerCase().replace(" ", "_").replace(".", "_")
+                        + ((groupWorld != null && !groupWorld.isBlank())
+                                ? "_" + groupWorld.toLowerCase()
+                                : "");
         String displayName = groupName;
-        addGroupItem(id, displayName, price, groupName, groupWorld, displayMaterial, requiredPermission, true);
+        addGroupItem(
+                id,
+                displayName,
+                price,
+                groupName,
+                groupWorld,
+                displayMaterial,
+                requiredPermission,
+                true);
     }
 
-    private void addGroupItem(String id, String displayName, double price, String groupName, String groupWorld,
-            Material displayMaterial, String requiredPermission, boolean save) {
-        SpecialShopItem item = SpecialShopItem.forGroup(id, displayName, price, groupName, groupWorld, displayMaterial,
-                requiredPermission);
+    private void addGroupItem(
+            String id,
+            String displayName,
+            double price,
+            String groupName,
+            String groupWorld,
+            Material displayMaterial,
+            String requiredPermission,
+            boolean save) {
+        SpecialShopItem item =
+                SpecialShopItem.forGroup(
+                        id,
+                        displayName,
+                        price,
+                        groupName,
+                        groupWorld,
+                        displayMaterial,
+                        requiredPermission);
         registry.put(id, item);
 
         if (save) {
@@ -111,16 +172,27 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     // ADD COMMAND SHOP ITEM
     // ------------------------------------------------------------
-    public void addCommandItem(String displayName, double price, String command,
-            Material displayMaterial, String requiredPermission) {
+    public void addCommandItem(
+            String displayName,
+            double price,
+            String command,
+            Material displayMaterial,
+            String requiredPermission) {
         String id = "cmd_" + displayName.toLowerCase().replace(" ", "_").replace(".", "_");
         addCommandItem(id, displayName, price, command, displayMaterial, requiredPermission, true);
     }
 
-    private void addCommandItem(String id, String displayName, double price, String command,
-            Material displayMaterial, String requiredPermission, boolean save) {
-        SpecialShopItem item = SpecialShopItem.forCommand(id, displayName, price, command, displayMaterial,
-                requiredPermission);
+    private void addCommandItem(
+            String id,
+            String displayName,
+            double price,
+            String command,
+            Material displayMaterial,
+            String requiredPermission,
+            boolean save) {
+        SpecialShopItem item =
+                SpecialShopItem.forCommand(
+                        id, displayName, price, command, displayMaterial, requiredPermission);
         registry.put(id, item);
 
         if (save) {
@@ -140,19 +212,27 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     // ADD SERVER-SHOP ITEM
     // ------------------------------------------------------------
-    public void addServerShopItem(String identifier, double price, Material displayMaterial,
-            String requiredPermission) {
+    public void addServerShopItem(
+            String identifier, double price, Material displayMaterial, String requiredPermission) {
         String id = identifier.toLowerCase().replace(" ", "_");
         String displayName = identifier;
-        addServerShopItem(id, displayName, price, identifier, displayMaterial, requiredPermission, true);
+        addServerShopItem(
+                id, displayName, price, identifier, displayMaterial, requiredPermission, true);
     }
 
-    public void addServerShopItem(String id, String displayName, double price, String identifier,
-            Material displayMaterial, String requiredPermission, boolean save) {
+    public void addServerShopItem(
+            String id,
+            String displayName,
+            double price,
+            String identifier,
+            Material displayMaterial,
+            String requiredPermission,
+            boolean save) {
         String path = "special_items." + id;
 
-        SpecialShopItem item = SpecialShopItem.forServerShop(id, displayName, price, identifier, displayMaterial,
-                requiredPermission);
+        SpecialShopItem item =
+                SpecialShopItem.forServerShop(
+                        id, displayName, price, identifier, displayMaterial, requiredPermission);
 
         if (!save) {
             // Loading from config
@@ -166,8 +246,13 @@ public class SpecialShopManager {
                 try {
                     item.setMaterial(Material.valueOf(matName.toUpperCase()));
                 } catch (IllegalArgumentException e) {
-                    plugin.getLogger().warning("[DynamicShop] Invalid material '" + matName +
-                            "' for special item " + id + ", using display material instead.");
+                    plugin.getLogger()
+                            .warning(
+                                    "[DynamicShop] Invalid material '"
+                                            + matName
+                                            + "' for special item "
+                                            + id
+                                            + ", using display material instead.");
                     item.setMaterial(displayMaterial);
                 }
             } else {
@@ -215,10 +300,10 @@ public class SpecialShopManager {
     // LOAD FROM CONFIG
     // ------------------------------------------------------------
     private void loadFromConfig() {
-        if (!plugin.getConfig().isConfigurationSection("special_items"))
-            return;
+        if (!plugin.getConfig().isConfigurationSection("special_items")) return;
 
-        for (String id : plugin.getConfig().getConfigurationSection("special_items").getKeys(false)) {
+        for (String id :
+                plugin.getConfig().getConfigurationSection("special_items").getKeys(false)) {
             String basePath = "special_items." + id + ".";
             String type = plugin.getConfig().getString(basePath + "type");
             String name = plugin.getConfig().getString(basePath + "name");
@@ -231,44 +316,80 @@ public class SpecialShopManager {
                     displayMaterial = Material.valueOf(materialName);
                 } catch (IllegalArgumentException e) {
                     plugin.getLogger()
-                            .warning("Invalid display_material '" + materialName + "' for " + id + ", using CHEST");
+                            .warning(
+                                    "Invalid display_material '"
+                                            + materialName
+                                            + "' for "
+                                            + id
+                                            + ", using CHEST");
                 }
             }
 
             // Load required permission (optional)
-            String requiredPermission = plugin.getConfig().getString(basePath + "required_permission");
+            String requiredPermission =
+                    plugin.getConfig().getString(basePath + "required_permission");
 
-            if (type == null)
-                continue;
+            if (type == null) continue;
 
             switch (type.toLowerCase()) {
                 case "perm" -> {
                     String permission = plugin.getConfig().getString(basePath + "permission");
                     String permWorld = plugin.getConfig().getString(basePath + "permission_world");
-                    addPermissionItem(id, name, price, permission, permWorld, displayMaterial, requiredPermission, false);
+                    addPermissionItem(
+                            id,
+                            name,
+                            price,
+                            permission,
+                            permWorld,
+                            displayMaterial,
+                            requiredPermission,
+                            false);
                 }
                 case "group" -> {
                     String groupName = plugin.getConfig().getString(basePath + "group");
                     String groupWorld = plugin.getConfig().getString(basePath + "group_world");
-                    addGroupItem(id, name, price, groupName, groupWorld, displayMaterial, requiredPermission, false);
+                    addGroupItem(
+                            id,
+                            name,
+                            price,
+                            groupName,
+                            groupWorld,
+                            displayMaterial,
+                            requiredPermission,
+                            false);
                 }
                 case "command" -> {
                     String command = plugin.getConfig().getString(basePath + "command");
-                    addCommandItem(id, name, price, command, displayMaterial, requiredPermission, false);
+                    addCommandItem(
+                            id, name, price, command, displayMaterial, requiredPermission, false);
                 }
                 case "server-shop" -> {
                     String identifier = plugin.getConfig().getString(basePath + "identifier");
-                    addServerShopItem(id, name, price, identifier, displayMaterial, requiredPermission, false);
-                    // Override category if specified in config (allows placing server-shop items in regular categories)
+                    addServerShopItem(
+                            id,
+                            name,
+                            price,
+                            identifier,
+                            displayMaterial,
+                            requiredPermission,
+                            false);
+                    // Override category if specified in config (allows placing server-shop items in
+                    // regular categories)
                     String categoryOverride = plugin.getConfig().getString(basePath + "category");
                     if (categoryOverride != null && !categoryOverride.isEmpty()) {
                         try {
                             SpecialShopItem loaded = registry.get(id);
                             if (loaded != null) {
-                                loaded.setCategory(ItemCategory.valueOf(categoryOverride.toUpperCase()));
+                                loaded.setCategory(
+                                        ItemCategory.valueOf(categoryOverride.toUpperCase()));
                             }
                         } catch (IllegalArgumentException e) {
-                            plugin.getLogger().warning("[DynamicShop] Invalid category '" + categoryOverride + "' for special item " + id);
+                            plugin.getLogger()
+                                    .warning(
+                                            "[DynamicShop] Invalid category '"
+                                                    + categoryOverride
+                                                    + "' for special item "
+                                                    + id);
                         }
                     }
                 }
@@ -292,9 +413,8 @@ public class SpecialShopManager {
      * Returns null if index is out of bounds.
      */
     public SpecialShopItem getPermissionItemByIndex(int index) {
-        java.util.List<SpecialShopItem> permItems = registry.values().stream()
-                .filter(item -> item.isPermissionItem())
-                .toList();
+        java.util.List<SpecialShopItem> permItems =
+                registry.values().stream().filter(item -> item.isPermissionItem()).toList();
         if (index < 0 || index >= permItems.size()) {
             return null;
         }
@@ -305,18 +425,15 @@ public class SpecialShopManager {
      * Get the total count of permission items (individual nodes, not groups).
      */
     public int getPermissionItemCount() {
-        return (int) registry.values().stream()
-                .filter(SpecialShopItem::isPermissionItem)
-                .count();
+        return (int) registry.values().stream().filter(SpecialShopItem::isPermissionItem).count();
     }
 
     /**
      * Get a group item by its index (0-based) in the group items list.
      */
     public SpecialShopItem getGroupItemByIndex(int index) {
-        java.util.List<SpecialShopItem> groupItems = registry.values().stream()
-                .filter(SpecialShopItem::isGroupItem)
-                .toList();
+        java.util.List<SpecialShopItem> groupItems =
+                registry.values().stream().filter(SpecialShopItem::isGroupItem).toList();
         if (index < 0 || index >= groupItems.size()) {
             return null;
         }
@@ -327,9 +444,7 @@ public class SpecialShopManager {
      * Get the total count of group items.
      */
     public int getGroupItemCount() {
-        return (int) registry.values().stream()
-                .filter(SpecialShopItem::isGroupItem)
-                .count();
+        return (int) registry.values().stream().filter(SpecialShopItem::isGroupItem).count();
     }
 
     // ------------------------------------------------------------
@@ -337,7 +452,7 @@ public class SpecialShopManager {
     // ------------------------------------------------------------
     /**
      * Remove a special item by its ID.
-     * 
+     *
      * @param id The ID of the item to remove
      * @return true if removed, false if not found
      */
@@ -423,22 +538,28 @@ public class SpecialShopManager {
     public void purchase(Player p, SpecialShopItem requestedItem) {
         SpecialShopItem item = requestedItem == null ? null : registry.get(requestedItem.getId());
         if (item == null || item != requestedItem) {
-            p.sendMessage("§cThis shop item has changed. Reopen the shop to see its current price and requirements.");
+            p.sendMessage(
+                    "§cThis shop item has changed. Reopen the shop to see its current price and requirements.");
             return;
         }
         if (!Double.isFinite(item.getPrice()) || item.getPrice() < 0) {
-            p.sendMessage("§cThis shop item has an invalid price. Please contact an administrator.");
+            p.sendMessage(
+                    "§cThis shop item has an invalid price. Please contact an administrator.");
             return;
         }
         // Check required permission first
         if (item.hasRequiredPermission()) {
             if (!p.hasPermission(item.getRequiredPermission())) {
-                p.sendMessage("§c✗ §7You need permission §e" + item.getRequiredPermission() + " §7to purchase this!");
+                p.sendMessage(
+                        "§c✗ §7You need permission §e"
+                                + item.getRequiredPermission()
+                                + " §7to purchase this!");
                 return;
             }
         }
 
-        ItemCategory category = item.isServerShopItem() ? ItemCategory.SERVER_SHOP : item.getCategory();
+        ItemCategory category =
+                item.isServerShopItem() ? ItemCategory.SERVER_SHOP : item.getCategory();
 
         switch (category) {
             case PERMISSIONS -> {
@@ -446,8 +567,9 @@ public class SpecialShopManager {
                 if (item.isCommandItem()) {
                     double price = item.getPrice();
                     if (!plugin.getEconomyManager().charge(p, price)) {
-                        p.sendMessage(plugin.getMessageManager().notEnoughMoney(
-                                plugin.getEconomyManager().format(price)));
+                        p.sendMessage(
+                                plugin.getMessageManager()
+                                        .notEnoughMoney(plugin.getEconomyManager().format(price)));
                         return;
                     }
                     String cmd = item.getCommandOnPurchase();
@@ -456,14 +578,26 @@ public class SpecialShopManager {
                         p.sendMessage(plugin.getMessageManager().specialPermissionFailed());
                         return;
                     }
-                    cmd = cmd.replace("{player}", p.getName())
-                             .replace("{uuid}", p.getUniqueId().toString());
+                    cmd =
+                            cmd.replace("{player}", p.getName())
+                                    .replace("{uuid}", p.getUniqueId().toString());
                     final String finalCmd = cmd;
-                    Bukkit.getScheduler().runTask(plugin, () ->
-                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCmd));
+                    Bukkit.getScheduler()
+                            .runTask(
+                                    plugin,
+                                    () ->
+                                            Bukkit.dispatchCommand(
+                                                    Bukkit.getConsoleSender(), finalCmd));
                     p.sendMessage("§a✔ §7" + item.getName() + " §aapplied!");
-                    Transaction tx = Transaction.now(p.getName(), Transaction.TransactionType.BUY,
-                            "CMD:" + item.getId(), 1, price, "PERMISSIONS", "command=" + item.getCommandOnPurchase());
+                    Transaction tx =
+                            Transaction.now(
+                                    p.getName(),
+                                    Transaction.TransactionType.BUY,
+                                    "CMD:" + item.getId(),
+                                    1,
+                                    price,
+                                    "PERMISSIONS",
+                                    "command=" + item.getCommandOnPurchase());
                     plugin.getTransactionLogger().log(tx);
                     return;
                 }
@@ -493,8 +627,17 @@ public class SpecialShopManager {
 
                     if (success) {
                         p.sendMessage(plugin.getMessageManager().specialPermissionSuccess(group));
-                        Transaction tx = Transaction.now(p.getName(), Transaction.TransactionType.BUY,
-                                "GROUP:" + group, 1, price, "PERMISSIONS", "group=" + group + (world != null ? ",world=" + world : ""));
+                        Transaction tx =
+                                Transaction.now(
+                                        p.getName(),
+                                        Transaction.TransactionType.BUY,
+                                        "GROUP:" + group,
+                                        1,
+                                        price,
+                                        "PERMISSIONS",
+                                        "group="
+                                                + group
+                                                + (world != null ? ",world=" + world : ""));
                         plugin.getTransactionLogger().log(tx);
                     } else {
                         plugin.getEconomyManager().deposit(p, price);
@@ -527,8 +670,17 @@ public class SpecialShopManager {
 
                 if (success) {
                     p.sendMessage(plugin.getMessageManager().specialPermissionSuccess(perm));
-                    Transaction tx = Transaction.now(p.getName(), Transaction.TransactionType.BUY,
-                            "PERMISSION:" + perm, 1, price, "PERMISSIONS", "permission=" + perm + (world != null ? ",world=" + world : ""));
+                    Transaction tx =
+                            Transaction.now(
+                                    p.getName(),
+                                    Transaction.TransactionType.BUY,
+                                    "PERMISSION:" + perm,
+                                    1,
+                                    price,
+                                    "PERMISSIONS",
+                                    "permission="
+                                            + perm
+                                            + (world != null ? ",world=" + world : ""));
                     plugin.getTransactionLogger().log(tx);
                 } else {
                     plugin.getEconomyManager().deposit(p, price);
@@ -554,8 +706,15 @@ public class SpecialShopManager {
 
                 if (success) {
                     p.sendMessage(plugin.getMessageManager().specialServerItemSuccess(identifier));
-                    Transaction tx = Transaction.now(p.getName(), Transaction.TransactionType.BUY,
-                            "SERVER_SHOP:" + identifier, 1, price, "SERVER_SHOP", "identifier=" + identifier);
+                    Transaction tx =
+                            Transaction.now(
+                                    p.getName(),
+                                    Transaction.TransactionType.BUY,
+                                    "SERVER_SHOP:" + identifier,
+                                    1,
+                                    price,
+                                    "SERVER_SHOP",
+                                    "identifier=" + identifier);
                     plugin.getTransactionLogger().log(tx);
                 } else {
                     plugin.getEconomyManager().deposit(p, price);
@@ -579,233 +738,66 @@ public class SpecialShopManager {
 
             // 1. NORMAL MATERIAL ITEM
             if (deliveryMethod.equalsIgnoreCase("item")) {
-                Material m = item.getMaterial();
-                if (m == null) {
-                    plugin.getLogger().warning("[DynamicShop] Special item " + item.getId() +
-                            " has no material for 'item' delivery.");
-                    return false;
-                }
-
-                int amount = Math.max(1, item.getAmount());
-                ItemStack stack = new ItemStack(m, amount);
-                return giveInventoryItem(player, stack);
+                return giveMaterialItem(player, item);
             }
 
             // 2. PERMISSION DELIVERY
             if (deliveryMethod.equalsIgnoreCase("permission")) {
-                String perm = item.getPermission();
-                if (perm != null && !perm.isEmpty()) {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                            "lp user " + player.getName() + " permission set " + perm + " true");
-                    return true;
-                }
-                return false;
+                return givePermissionItem(player, item);
             }
 
             // 3. COMMAND DELIVERY
             if (deliveryMethod.equalsIgnoreCase("command")) {
-                String command = item.getNbt(); // Reuse NBT field for command
-                if (command == null || command.isEmpty()) {
-                    plugin.getLogger().warning("[DynamicShop] Special item " + item.getId() +
-                            " has no command for 'command' delivery.");
-                    return false;
-                }
-
-                // Replace {player} placeholder
-                command = command.replace("{player}", player.getName());
-
-                plugin.getLogger().info("[DynamicShop] Executing command: /" + command);
-
-                try {
-                    boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
-                    if (!success) {
-                        plugin.getLogger().warning("[DynamicShop] Command returned false: " + command);
-                    }
-                    return success;
-                } catch (Exception e) {
-                    plugin.getLogger().severe("[DynamicShop] Error executing command: " + e.getMessage());
-                    e.printStackTrace();
-                    return false;
-                }
+                return giveCommandItem(player, item);
             }
 
             // 4. NBT/COMPONENT DELIVERY (Minecraft 1.21+)
-            if (deliveryMethod.equalsIgnoreCase("nbt") || deliveryMethod.equalsIgnoreCase("component")) {
-                Material m = item.getMaterial();
-                if (m == null) {
-                    plugin.getLogger().warning("[DynamicShop] Special item " + item.getId() +
-                            " has no material for component delivery.");
-                    return false;
-                }
-
-                String componentData = item.getNbt(); // Using NBT field for component data
-                if (componentData == null)
-                    componentData = "";
-                componentData = componentData.trim();
-
-                // Minecraft 1.21+ syntax: /give player item[component=value]
-                String material = "minecraft:" + m.name().toLowerCase();
-                String cmd;
-
-                if (!componentData.isEmpty()) {
-                    // Component data exists - use bracket syntax
-                    // Remove outer braces if present (we'll add them back)
-                    if (componentData.startsWith("{") && componentData.endsWith("}")) {
-                        componentData = componentData.substring(1, componentData.length() - 1);
-                    }
-
-                    // For spawners, convert old NBT format to 1.21 component format
-                    if (m == Material.SPAWNER && componentData.contains("BlockEntityTag")) {
-                        // Old format: {BlockEntityTag:{SpawnData:{id:"minecraft:pig"}}}
-                        // New format:
-                        // block_entity_data={id:"minecraft:mob_spawner",SpawnData:{entity:{id:"minecraft:pig"}}}
-
-                        // Extract the mob ID from old format
-                        if (componentData.contains("\"minecraft:")) {
-                            int startIdx = componentData.indexOf("\"minecraft:") + 1;
-                            int endIdx = componentData.indexOf("\"", startIdx + 1);
-                            String mobId = componentData.substring(startIdx, endIdx);
-
-                            // Build new format
-                            componentData = "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\""
-                                    + mobId + "\"}}}";
-                        }
-                    } else if (m == Material.SPAWNER && !componentData.contains("block_entity_data")) {
-                        // Assume it's just the mob type like "pig"
-                        // Already in correct format, just wrap it
-                        if (!componentData.startsWith("block_entity_data=")) {
-                            componentData = "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"minecraft:"
-                                    + componentData + "\"}}}";
-                        }
-                    }
-
-                    cmd = "minecraft:give " + player.getName() + " " + material + "[" + componentData + "]";
-                } else {
-                    // No component data, just give regular item
-                    cmd = "minecraft:give " + player.getName() + " " + material;
-                }
-
-                plugin.getLogger().info("[DynamicShop] Executing: /" + cmd);
-
-                try {
-                    boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
-                    if (!success) {
-                        plugin.getLogger().warning("[DynamicShop] Give command returned false");
-                        player.sendMessage("§cWarning: Special item data could not be applied");
-                    }
-                    return success;
-                } catch (Exception e) {
-                    plugin.getLogger().severe("[DynamicShop] Error executing give command: " + e.getMessage());
-                    e.printStackTrace();
-                    player.sendMessage("§cWarning: Special item data could not be applied");
-                    return false;
-                }
+            if (deliveryMethod.equalsIgnoreCase("nbt")
+                    || deliveryMethod.equalsIgnoreCase("component")) {
+                return giveComponentItem(player, item);
             }
 
             // 5. ITEMSADDER DELIVERY
             if (deliveryMethod.equalsIgnoreCase("itemsadder")) {
-                String iaId = item.getNbt(); // NBT field holds the Id
-                if (iaId == null || iaId.isEmpty()) {
-                    plugin.getLogger().warning(
-                            "[DynamicShop] Special item " + item.getId() + " has no ID (nbt) for ItemsAdder delivery.");
-                    return false;
-                }
-
-                if (Bukkit.getPluginManager().getPlugin("ItemsAdder") == null) {
-                    player.sendMessage("§cError: ItemsAdder plugin is missing!");
-                    return false;
-                }
-
-                ItemStack customStack = ItemsAdderWrapper.getItem(iaId);
-                if (customStack == null) {
-                    plugin.getLogger().warning("[DynamicShop] Could not find ItemsAdder item: " + iaId);
-                    player.sendMessage("§cError: Custom item not found: " + iaId);
-                    return false;
-                }
-
-                customStack.setAmount(Math.max(1, item.getAmount()));
-                return giveInventoryItem(player, customStack);
+                return giveItemsAdderItem(player, item);
             }
 
             // 6. NEXO DELIVERY
             if (deliveryMethod.equalsIgnoreCase("nexo")) {
-                String nexoId = item.getNbt(); // NBT field holds the Id
-                if (nexoId == null || nexoId.isEmpty()) {
-                    plugin.getLogger().warning(
-                            "[DynamicShop] Special item " + item.getId() + " has no ID (nbt) for Nexo delivery.");
-                    return false;
-                }
-
-                if (Bukkit.getPluginManager().getPlugin("Nexo") == null) {
-                    player.sendMessage("§cError: Nexo plugin is missing!");
-                    return false;
-                }
-
-                ItemStack customStack = NexoWrapper.getItem(nexoId);
-                if (customStack == null) {
-                    plugin.getLogger().warning("[DynamicShop] Could not find Nexo item: " + nexoId);
-                    player.sendMessage("§cError: Custom item not found: " + nexoId);
-                    return false;
-                }
-
-                customStack.setAmount(Math.max(1, item.getAmount()));
-                return giveInventoryItem(player, customStack);
+                return giveNexoItem(player, item);
             }
 
             // Oraxen delivery uses the same inventory and refund path as other providers.
             if (deliveryMethod.equalsIgnoreCase("oraxen")) {
-                String id = item.getNbt();
-                ItemStack customStack = OraxenWrapper.getItem(id);
-                if (customStack == null) {
-                    plugin.getLogger().warning("[DynamicShop] Oraxen item unavailable: " + id);
-                    player.sendMessage("§cError: Oraxen item unavailable. Please contact an administrator.");
-                    return false;
-                }
-                customStack.setAmount(Math.max(1, item.getAmount()));
-                return giveInventoryItem(player, customStack);
+                return giveOraxenItem(player, item);
             }
 
             // 7. VALHALLAMMO DELIVERY
             if (deliveryMethod.equalsIgnoreCase("valhallammo")) {
-                if (plugin.getServer().getPluginManager().getPlugin("ValhallaMMO") == null) {
-                    plugin.getLogger().warning("[DynamicShop] Tried to give ValhallaMMO item " + item.getNbt()
-                            + " but plugin is not installed!");
-                    return false;
-                }
-
-                ItemStack valhallaItem = ValhallaMMOWrapper.getItem(item.getNbt());
-                if (valhallaItem == null) {
-                    plugin.getLogger()
-                            .warning("[DynamicShop] ValhallaMMO item " + item.getNbt() + " not found in registry.");
-                    return false;
-                }
-
-                valhallaItem.setAmount(Math.max(1, item.getAmount()));
-                return giveInventoryItem(player, valhallaItem);
+                return giveValhallaItem(player, item);
             }
 
             // 8. STORED ITEM DELIVERY (full ItemStack with all components)
             if (deliveryMethod.equalsIgnoreCase("stored_item")) {
-                String configPath = "special_items." + item.getId() + ".stored_item";
-                ItemStack storedItem = plugin.getConfig().getItemStack(configPath);
-                if (storedItem == null) {
-                    plugin.getLogger().warning(
-                            "[DynamicShop] Special item " + item.getId() + " has no stored ItemStack.");
-                    return false;
-                }
-
-                ItemStack toGive = storedItem.clone();
-                toGive.setAmount(Math.max(1, item.getAmount()));
-                return giveInventoryItem(player, toGive);
+                return giveStoredItem(player, item);
             }
 
-            plugin.getLogger().warning("Unknown delivery method '" + deliveryMethod +
-                    "' for special item " + item.getId());
+            plugin.getLogger()
+                    .warning(
+                            "Unknown delivery method '"
+                                    + deliveryMethod
+                                    + "' for special item "
+                                    + item.getId());
             return false;
 
         } catch (Exception e) {
-            plugin.getLogger().severe("Error giving server shop item to " + player.getName() +
-                    " (id=" + item.getId() + ")");
+            plugin.getLogger()
+                    .severe(
+                            "Error giving server shop item to "
+                                    + player.getName()
+                                    + " (id="
+                                    + item.getId()
+                                    + ")");
             e.printStackTrace();
             return false;
         }
@@ -837,5 +829,254 @@ public class SpecialShopManager {
         }
 
         return false;
+    }
+
+    private boolean giveMaterialItem(Player player, SpecialShopItem item) {
+        Material m = item.getMaterial();
+        if (m == null) {
+            plugin.getLogger()
+                    .warning(
+                            "[DynamicShop] Special item "
+                                    + item.getId()
+                                    + " has no material for 'item' delivery.");
+            return false;
+        }
+
+        int amount = Math.max(1, item.getAmount());
+        ItemStack stack = new ItemStack(m, amount);
+        return giveInventoryItem(player, stack);
+    }
+
+    private boolean givePermissionItem(Player player, SpecialShopItem item) {
+        String perm = item.getPermission();
+        if (perm != null && !perm.isEmpty()) {
+            Bukkit.dispatchCommand(
+                    Bukkit.getConsoleSender(),
+                    "lp user " + player.getName() + " permission set " + perm + " true");
+            return true;
+        }
+        return false;
+    }
+
+    private boolean giveCommandItem(Player player, SpecialShopItem item) {
+        String command = item.getNbt(); // Reuse NBT field for command
+        if (command == null || command.isEmpty()) {
+            plugin.getLogger()
+                    .warning(
+                            "[DynamicShop] Special item "
+                                    + item.getId()
+                                    + " has no command for 'command' delivery.");
+            return false;
+        }
+
+        // Replace {player} placeholder
+        command = command.replace("{player}", player.getName());
+
+        plugin.getLogger().info("[DynamicShop] Executing command: /" + command);
+
+        try {
+            boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+            if (!success) {
+                plugin.getLogger().warning("[DynamicShop] Command returned false: " + command);
+            }
+            return success;
+        } catch (Exception e) {
+            plugin.getLogger().severe("[DynamicShop] Error executing command: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean giveComponentItem(Player player, SpecialShopItem item) {
+        Material m = item.getMaterial();
+        if (m == null) {
+            plugin.getLogger()
+                    .warning(
+                            "[DynamicShop] Special item "
+                                    + item.getId()
+                                    + " has no material for component delivery.");
+            return false;
+        }
+
+        String componentData = item.getNbt(); // Using NBT field for component data
+        if (componentData == null) componentData = "";
+        componentData = componentData.trim();
+
+        // Minecraft 1.21+ syntax: /give player item[component=value]
+        String material = "minecraft:" + m.name().toLowerCase();
+        String cmd;
+
+        if (!componentData.isEmpty()) {
+            // Component data exists - use bracket syntax
+            // Remove outer braces if present (we'll add them back)
+            if (componentData.startsWith("{") && componentData.endsWith("}")) {
+                componentData = componentData.substring(1, componentData.length() - 1);
+            }
+
+            componentData = normalizeSpawnerComponents(m, componentData);
+
+            cmd = "minecraft:give " + player.getName() + " " + material + "[" + componentData + "]";
+        } else {
+            // No component data, just give regular item
+            cmd = "minecraft:give " + player.getName() + " " + material;
+        }
+
+        plugin.getLogger().info("[DynamicShop] Executing: /" + cmd);
+
+        try {
+            boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
+            if (!success) {
+                plugin.getLogger().warning("[DynamicShop] Give command returned false");
+                player.sendMessage("§cWarning: Special item data could not be applied");
+            }
+            return success;
+        } catch (Exception e) {
+            plugin.getLogger()
+                    .severe("[DynamicShop] Error executing give command: " + e.getMessage());
+            e.printStackTrace();
+            player.sendMessage("§cWarning: Special item data could not be applied");
+            return false;
+        }
+    }
+
+    private boolean giveItemsAdderItem(Player player, SpecialShopItem item) {
+        String iaId = item.getNbt(); // NBT field holds the Id
+        if (iaId == null || iaId.isEmpty()) {
+            plugin.getLogger()
+                    .warning(
+                            "[DynamicShop] Special item "
+                                    + item.getId()
+                                    + " has no ID (nbt) for ItemsAdder delivery.");
+            return false;
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("ItemsAdder") == null) {
+            player.sendMessage("§cError: ItemsAdder plugin is missing!");
+            return false;
+        }
+
+        ItemStack customStack = ItemsAdderWrapper.getItem(iaId);
+        if (customStack == null) {
+            plugin.getLogger().warning("[DynamicShop] Could not find ItemsAdder item: " + iaId);
+            player.sendMessage("§cError: Custom item not found: " + iaId);
+            return false;
+        }
+
+        customStack.setAmount(Math.max(1, item.getAmount()));
+        return giveInventoryItem(player, customStack);
+    }
+
+    private boolean giveNexoItem(Player player, SpecialShopItem item) {
+        String nexoId = item.getNbt(); // NBT field holds the Id
+        if (nexoId == null || nexoId.isEmpty()) {
+            plugin.getLogger()
+                    .warning(
+                            "[DynamicShop] Special item "
+                                    + item.getId()
+                                    + " has no ID (nbt) for Nexo delivery.");
+            return false;
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("Nexo") == null) {
+            player.sendMessage("§cError: Nexo plugin is missing!");
+            return false;
+        }
+
+        ItemStack customStack = NexoWrapper.getItem(nexoId);
+        if (customStack == null) {
+            plugin.getLogger().warning("[DynamicShop] Could not find Nexo item: " + nexoId);
+            player.sendMessage("§cError: Custom item not found: " + nexoId);
+            return false;
+        }
+
+        customStack.setAmount(Math.max(1, item.getAmount()));
+        return giveInventoryItem(player, customStack);
+    }
+
+    private boolean giveOraxenItem(Player player, SpecialShopItem item) {
+        String id = item.getNbt();
+        ItemStack customStack = OraxenWrapper.getItem(id);
+        if (customStack == null) {
+            plugin.getLogger().warning("[DynamicShop] Oraxen item unavailable: " + id);
+            player.sendMessage(
+                    "§cError: Oraxen item unavailable. Please contact an administrator.");
+            return false;
+        }
+        customStack.setAmount(Math.max(1, item.getAmount()));
+        return giveInventoryItem(player, customStack);
+    }
+
+    private boolean giveValhallaItem(Player player, SpecialShopItem item) {
+        if (plugin.getServer().getPluginManager().getPlugin("ValhallaMMO") == null) {
+            plugin.getLogger()
+                    .warning(
+                            "[DynamicShop] Tried to give ValhallaMMO item "
+                                    + item.getNbt()
+                                    + " but plugin is not installed!");
+            return false;
+        }
+
+        ItemStack valhallaItem = ValhallaMMOWrapper.getItem(item.getNbt());
+        if (valhallaItem == null) {
+            plugin.getLogger()
+                    .warning(
+                            "[DynamicShop] ValhallaMMO item "
+                                    + item.getNbt()
+                                    + " not found in registry.");
+            return false;
+        }
+
+        valhallaItem.setAmount(Math.max(1, item.getAmount()));
+        return giveInventoryItem(player, valhallaItem);
+    }
+
+    private boolean giveStoredItem(Player player, SpecialShopItem item) {
+        String configPath = "special_items." + item.getId() + ".stored_item";
+        ItemStack storedItem = plugin.getConfig().getItemStack(configPath);
+        if (storedItem == null) {
+            plugin.getLogger()
+                    .warning(
+                            "[DynamicShop] Special item "
+                                    + item.getId()
+                                    + " has no stored ItemStack.");
+            return false;
+        }
+
+        ItemStack toGive = storedItem.clone();
+        toGive.setAmount(Math.max(1, item.getAmount()));
+        return giveInventoryItem(player, toGive);
+    }
+
+    private String normalizeSpawnerComponents(Material m, String componentData) {
+        // For spawners, convert old NBT format to 1.21 component format
+        if (m == Material.SPAWNER && componentData.contains("BlockEntityTag")) {
+            // Old format: {BlockEntityTag:{SpawnData:{id:"minecraft:pig"}}}
+            // New format:
+            // block_entity_data={id:"minecraft:mob_spawner",SpawnData:{entity:{id:"minecraft:pig"}}}
+
+            // Extract the mob ID from old format
+            if (componentData.contains("\"minecraft:")) {
+                int startIdx = componentData.indexOf("\"minecraft:") + 1;
+                int endIdx = componentData.indexOf("\"", startIdx + 1);
+                String mobId = componentData.substring(startIdx, endIdx);
+
+                // Build new format
+                componentData =
+                        "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\""
+                                + mobId
+                                + "\"}}}";
+            }
+        } else if (m == Material.SPAWNER && !componentData.contains("block_entity_data")) {
+            // Assume it's just the mob type like "pig"
+            // Already in correct format, just wrap it
+            if (!componentData.startsWith("block_entity_data=")) {
+                componentData =
+                        "block_entity_data={id:\"minecraft:mob_spawner\",SpawnData:{entity:{id:\"minecraft:"
+                                + componentData
+                                + "\"}}}";
+            }
+        }
+
+        return componentData;
     }
 }

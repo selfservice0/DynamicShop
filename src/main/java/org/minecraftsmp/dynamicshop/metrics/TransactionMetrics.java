@@ -7,7 +7,12 @@ import java.util.function.LongSupplier;
 
 /** Anonymous, bounded minute buckets. No transaction objects or identifiers are retained. */
 public final class TransactionMetrics {
-    public enum Kind { SERVER_BUY, SERVER_SELL, PLAYER_SHOP }
+    public enum Kind {
+        SERVER_BUY,
+        SERVER_SELL,
+        PLAYER_SHOP
+    }
+
     private final BooleanSupplier enabled;
     private final LongSupplier clock;
     private final Deque<Bucket> buckets = new ArrayDeque<>();
@@ -15,11 +20,14 @@ public final class TransactionMetrics {
     private static final class Bucket {
         final long minute;
         int total, buys, sells, playerShops, dynamic, inflationEnabled;
-        Bucket(long minute) { this.minute = minute; }
+
+        Bucket(long minute) {
+            this.minute = minute;
+        }
     }
 
-    public record Snapshot(int total, int buys, int sells, int playerShops,
-                           int dynamic, int inflationEnabled) {
+    public record Snapshot(
+            int total, int buys, int sells, int playerShops, int dynamic, int inflationEnabled) {
         public String volumeBand() {
             if (total == 0) return "0";
             if (total < 10) return "1-9";
@@ -29,17 +37,24 @@ public final class TransactionMetrics {
         }
     }
 
-    public TransactionMetrics(BooleanSupplier enabled) { this(enabled, System::currentTimeMillis); }
+    public TransactionMetrics(BooleanSupplier enabled) {
+        this(enabled, System::currentTimeMillis);
+    }
+
     TransactionMetrics(BooleanSupplier enabled, LongSupplier clock) {
         this.enabled = enabled;
         this.clock = clock;
     }
 
     public synchronized void record(Kind kind, boolean dynamic, boolean inflationEnabled) {
-        if (!enabled.getAsBoolean()) { buckets.clear(); return; }
+        if (!enabled.getAsBoolean()) {
+            buckets.clear();
+            return;
+        }
         long minute = clock.getAsLong() / 60_000;
         expire(minute);
-        if (buckets.isEmpty() || buckets.getLast().minute != minute) buckets.addLast(new Bucket(minute));
+        if (buckets.isEmpty() || buckets.getLast().minute != minute)
+            buckets.addLast(new Bucket(minute));
         Bucket bucket = buckets.getLast();
         bucket.total = add(bucket.total, 1);
         switch (kind) {
@@ -58,20 +73,28 @@ public final class TransactionMetrics {
         expire(clock.getAsLong() / 60_000);
         int total = 0, buys = 0, sells = 0, playerShops = 0, dynamic = 0, inflation = 0;
         for (Bucket b : buckets) {
-            total = add(total, b.total); buys = add(buys, b.buys); sells = add(sells, b.sells);
-            playerShops = add(playerShops, b.playerShops); dynamic = add(dynamic, b.dynamic);
+            total = add(total, b.total);
+            buys = add(buys, b.buys);
+            sells = add(sells, b.sells);
+            playerShops = add(playerShops, b.playerShops);
+            dynamic = add(dynamic, b.dynamic);
             inflation = add(inflation, b.inflationEnabled);
         }
         return new Snapshot(total, buys, sells, playerShops, dynamic, inflation);
     }
 
-    public synchronized void clear() { buckets.clear(); }
+    public synchronized void clear() {
+        buckets.clear();
+    }
 
     private void expire(long minute) {
         // Reset on a clock rollback rather than retaining future buckets indefinitely.
         if (!buckets.isEmpty() && buckets.getLast().minute > minute) buckets.clear();
-        while (!buckets.isEmpty() && buckets.getFirst().minute <= minute - 30) buckets.removeFirst();
+        while (!buckets.isEmpty() && buckets.getFirst().minute <= minute - 30)
+            buckets.removeFirst();
     }
 
-    private static int add(int a, int b) { return (int) Math.min(Integer.MAX_VALUE, (long) a + b); }
+    private static int add(int a, int b) {
+        return (int) Math.min(Integer.MAX_VALUE, (long) a + b);
+    }
 }

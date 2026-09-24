@@ -48,20 +48,22 @@ public class AdminShopBrowseGUI {
         this.currentCategory = startCategory;
         String title = plugin.getMessageManager().getMessage("admin-shop-gui-title");
         if (title == null) title = "§4§lAdmin Shop";
-        this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
-                MessageManager.parseComponent(title, player));
+        this.inventory =
+                org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(
+                        null, SIZE, MessageManager.parseComponent(title, player));
 
         loadItemsForCategory();
     }
 
     public void loadItemsForCategory() {
         // Special categories use special items
-        if (currentCategory == ItemCategory.PERMISSIONS ||
-                currentCategory == ItemCategory.SERVER_SHOP) {
+        if (currentCategory == ItemCategory.PERMISSIONS
+                || currentCategory == ItemCategory.SERVER_SHOP) {
             this.items = List.of();
-            this.specialItems = plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
-                    .filter(item -> item.getCategory() == currentCategory)
-                    .toList();
+            this.specialItems =
+                    plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
+                            .filter(item -> item.getCategory() == currentCategory)
+                            .toList();
             this.page = 0;
             this.maxPage = specialItems.isEmpty() ? 0 : (specialItems.size() - 1) / ITEMS_PER_PAGE;
         } else if (currentCategory == ItemCategory.PLAYER_SHOPS) {
@@ -73,11 +75,11 @@ public class AdminShopBrowseGUI {
         } else {
             // Regular category — also load any special items assigned here
             this.items = ShopDataManager.getItemsInCategoryIncludeDisabled(currentCategory);
-            if (items == null)
-                items = List.of();
-            this.specialItems = plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
-                    .filter(item -> item.getCategory() == currentCategory)
-                    .toList();
+            if (items == null) items = List.of();
+            this.specialItems =
+                    plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
+                            .filter(item -> item.getCategory() == currentCategory)
+                            .toList();
             this.page = 0;
             int totalCombined = items.size() + specialItems.size();
             this.maxPage = totalCombined <= 0 ? 0 : (totalCombined - 1) / ITEMS_PER_PAGE;
@@ -93,7 +95,8 @@ public class AdminShopBrowseGUI {
         inventory.clear();
 
         // Check if we're in a special category
-        if (currentCategory == ItemCategory.PERMISSIONS || currentCategory == ItemCategory.SERVER_SHOP) {
+        if (currentCategory == ItemCategory.PERMISSIONS
+                || currentCategory == ItemCategory.SERVER_SHOP) {
             // Render special items
             int start = page * ITEMS_PER_PAGE;
             int end = Math.min(start + ITEMS_PER_PAGE, specialItems.size());
@@ -127,21 +130,7 @@ public class AdminShopBrowseGUI {
     }
 
     private ItemStack buildSpecialItem(SpecialShopItem sItem) {
-        ItemStack item = null;
-        if ("itemsadder".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
-            item = ItemsAdderWrapper.getItem(sItem.getNbt());
-        } else if ("nexo".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
-            item = NexoWrapper.getItem(sItem.getNbt());
-        } else if ("oraxen".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
-            item = org.minecraftsmp.dynamicshop.managers.OraxenWrapper.getItem(sItem.getNbt());
-        } else if ("valhallammo".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
-            item = org.minecraftsmp.dynamicshop.managers.ValhallaMMOWrapper.getItem(sItem.getNbt());
-        } else if ("component".equalsIgnoreCase(sItem.getDeliveryMethod()) || "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
-            String configPath = "special_items." + sItem.getId() + ".stored_item";
-            if (plugin.getConfig().contains(configPath)) {
-                item = plugin.getConfig().getItemStack(configPath);
-            }
-        }
+        ItemStack item = resolveSpecialItem(sItem);
 
         if (item == null) {
             item = new ItemStack(sItem.getDisplayMaterial());
@@ -151,7 +140,8 @@ public class AdminShopBrowseGUI {
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§l" + sItem.getName()));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(
+                    meta, MessageManager.parseComponent("§e§l" + sItem.getName()));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
@@ -174,7 +164,8 @@ public class AdminShopBrowseGUI {
             lore.add("");
             lore.add("§e§lRight-click to EDIT");
 
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(
+                    meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -200,7 +191,8 @@ public class AdminShopBrowseGUI {
             item = new ItemStack(Material.BARRIER);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§c§lINVALID: " + mat.name()));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(
+                        meta, MessageManager.parseComponent("§c§lINVALID: " + mat.name()));
                 item.setItemMeta(meta);
             }
             return item;
@@ -211,10 +203,12 @@ public class AdminShopBrowseGUI {
             // Show disabled status in name
             String displayName = mat.name().replace("_", " ");
             if (disabled) {
-                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(
+                        meta,
                         MessageManager.parseComponent("§c§m" + displayName + " §7(DISABLED)"));
             } else {
-                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§a§l" + displayName));
+                org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(
+                        meta, MessageManager.parseComponent("§a§l" + displayName));
             }
 
             List<String> lore = new ArrayList<>();
@@ -230,7 +224,8 @@ public class AdminShopBrowseGUI {
             lore.add("");
             lore.add("§e§lRight-click to EDIT");
 
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(
+                    meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
 
@@ -248,18 +243,22 @@ public class AdminShopBrowseGUI {
 
         // Previous Page (slot 0)
         if (page > 0) {
-            inventory.setItem(navRow, ShopItemBuilder.navItem(
-                    "§e◀ Previous Page",
-                    Material.ARROW,
-                    "§7Page " + page + " of " + (maxPage + 1)));
+            inventory.setItem(
+                    navRow,
+                    ShopItemBuilder.navItem(
+                            "§e◀ Previous Page",
+                            Material.ARROW,
+                            "§7Page " + page + " of " + (maxPage + 1)));
         }
 
         // Next Page (slot 8)
         if (page < maxPage) {
-            inventory.setItem(navRow + 8, ShopItemBuilder.navItem(
-                    "§eNext Page ▶",
-                    Material.ARROW,
-                    "§7Page " + (page + 2) + " of " + (maxPage + 1)));
+            inventory.setItem(
+                    navRow + 8,
+                    ShopItemBuilder.navItem(
+                            "§eNext Page ▶",
+                            Material.ARROW,
+                            "§7Page " + (page + 2) + " of " + (maxPage + 1)));
         }
 
         // Category selector (slot 3)
@@ -269,31 +268,35 @@ public class AdminShopBrowseGUI {
         ItemStack pageItem = new ItemStack(Material.PAPER);
         ItemMeta pageMeta = pageItem.getItemMeta();
         if (pageMeta != null) {
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(pageMeta, MessageManager.parseComponent(
-                    "§7Page §f" + (page + 1) + " §7/ §f" + (maxPage + 1)));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(
+                    pageMeta,
+                    MessageManager.parseComponent(
+                            "§7Page §f" + (page + 1) + " §7/ §f" + (maxPage + 1)));
             List<String> pageLore = new ArrayList<>();
             pageLore.add("§7Items: §e" + items.size());
             pageLore.add("");
             pageLore.add("§e§lClick to edit Config");
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(pageMeta,
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(
+                    pageMeta,
                     pageLore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             pageItem.setItemMeta(pageMeta);
         }
         inventory.setItem(navRow + 4, pageItem);
 
         // Close button (slot 5)
-        inventory.setItem(navRow + 5, ShopItemBuilder.navItem(
-                "§c§lClose",
-                Material.BARRIER,
-                "§7Close this menu"));
+        inventory.setItem(
+                navRow + 5,
+                ShopItemBuilder.navItem("§c§lClose", Material.BARRIER, "§7Close this menu"));
     }
 
     private ItemStack createCategorySelector() {
         ItemStack item = new ItemStack(currentCategory.getIcon());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(
-                    "§b§lCategory: " + currentCategory.getDisplayName()));
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(
+                    meta,
+                    MessageManager.parseComponent(
+                            "§b§lCategory: " + currentCategory.getDisplayName()));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7───────────────────");
@@ -314,7 +317,8 @@ public class AdminShopBrowseGUI {
             lore.add("§7───────────────────");
             lore.add("§eClick to cycle category");
 
-            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+            org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(
+                    meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -343,14 +347,14 @@ public class AdminShopBrowseGUI {
         }
 
         // Item slot - only handle right-click
-        if (!isRightClick)
-            return;
+        if (!isRightClick) return;
 
         // Try special item first (works for both pure-special and mixed categories)
         SpecialShopItem sItem = getSpecialItemFromSlot(slot);
         if (sItem != null) {
             plugin.getShopListener().unregisterAdminBrowse(player);
-            AdminSpecialItemEditGUI editGUI = new AdminSpecialItemEditGUI(plugin, player, sItem, this);
+            AdminSpecialItemEditGUI editGUI =
+                    new AdminSpecialItemEditGUI(plugin, player, sItem, this);
             plugin.getShopListener().registerAdminSpecialEdit(player, editGUI);
             editGUI.open();
             return;
@@ -358,8 +362,7 @@ public class AdminShopBrowseGUI {
 
         // Regular item
         Material mat = getItemFromSlot(slot);
-        if (mat == null)
-            return;
+        if (mat == null) return;
 
         // Open the item editor GUI
         plugin.getShopListener().unregisterAdminBrowse(player);
@@ -404,13 +407,13 @@ public class AdminShopBrowseGUI {
     }
 
     public SpecialShopItem getSpecialItemFromSlot(int slot) {
-        if (slot >= ITEMS_PER_PAGE)
-            return null;
+        if (slot >= ITEMS_PER_PAGE) return null;
 
         int index = (page * ITEMS_PER_PAGE) + slot;
         if (index < 0) return null;
 
-        if (currentCategory == ItemCategory.PERMISSIONS || currentCategory == ItemCategory.SERVER_SHOP) {
+        if (currentCategory == ItemCategory.PERMISSIONS
+                || currentCategory == ItemCategory.SERVER_SHOP) {
             // Pure special category
             if (index >= specialItems.size()) return null;
             return specialItems.get(index);
@@ -423,12 +426,10 @@ public class AdminShopBrowseGUI {
     }
 
     public Material getItemFromSlot(int slot) {
-        if (slot >= ITEMS_PER_PAGE)
-            return null;
+        if (slot >= ITEMS_PER_PAGE) return null;
 
         int index = (page * ITEMS_PER_PAGE) + slot;
-        if (index < 0 || index >= items.size())
-            return null;
+        if (index < 0 || index >= items.size()) return null;
 
         return items.get(index);
     }
@@ -439,5 +440,27 @@ public class AdminShopBrowseGUI {
 
     public Player getPlayer() {
         return player;
+    }
+
+    private ItemStack resolveSpecialItem(SpecialShopItem sItem) {
+        ItemStack item = null;
+        if ("itemsadder".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
+            item = ItemsAdderWrapper.getItem(sItem.getNbt());
+        } else if ("nexo".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
+            item = NexoWrapper.getItem(sItem.getNbt());
+        } else if ("oraxen".equalsIgnoreCase(sItem.getDeliveryMethod()) && sItem.getNbt() != null) {
+            item = org.minecraftsmp.dynamicshop.managers.OraxenWrapper.getItem(sItem.getNbt());
+        } else if ("valhallammo".equalsIgnoreCase(sItem.getDeliveryMethod())
+                && sItem.getNbt() != null) {
+            item = org.minecraftsmp.dynamicshop.managers.ValhallaMMOWrapper.getItem(sItem.getNbt());
+        } else if ("component".equalsIgnoreCase(sItem.getDeliveryMethod())
+                || "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
+            String configPath = "special_items." + sItem.getId() + ".stored_item";
+            if (plugin.getConfig().contains(configPath)) {
+                item = plugin.getConfig().getItemStack(configPath);
+            }
+        }
+
+        return item;
     }
 }
