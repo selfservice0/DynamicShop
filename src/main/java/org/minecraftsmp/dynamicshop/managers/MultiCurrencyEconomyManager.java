@@ -59,7 +59,8 @@ public class MultiCurrencyEconomyManager {
 
         if (system.equalsIgnoreCase("coinengine")) {
             if (!setupCoinEngine()) {
-                plugin.getLogger().warning("[MultiCurrency] CoinEngine not found, falling back to Vault");
+                plugin.getLogger()
+                        .warning("[MultiCurrency] CoinEngine not found, falling back to Vault");
                 system = "vault";
             } else {
                 plugin.getLogger().info("[MultiCurrency] Using CoinEngine (multi-currency mode)");
@@ -68,7 +69,8 @@ public class MultiCurrencyEconomyManager {
 
         if (system.equalsIgnoreCase("vault")) {
             if (!setupVault()) {
-                plugin.getLogger().severe("[MultiCurrency] Vault economy not found! Disabling plugin.");
+                plugin.getLogger()
+                        .severe("[MultiCurrency] Vault economy not found! Disabling plugin.");
                 plugin.getServer().getPluginManager().disablePlugin(plugin);
                 return false;
             } else {
@@ -85,8 +87,7 @@ public class MultiCurrencyEconomyManager {
         if (plugin.getServer().getPluginManager().getPlugin("Vault") == null) {
             return false;
         }
-        var rsp = plugin.getServer().getServicesManager()
-                .getRegistration(Economy.class);
+        var rsp = plugin.getServer().getServicesManager().getRegistration(Economy.class);
         if (rsp == null) return false;
         vaultEconomy = rsp.getProvider();
         useCoinEngine = false;
@@ -109,8 +110,11 @@ public class MultiCurrencyEconomyManager {
         // Verify default currency exists
         Object defaultCurr = getCoinEngineCurrency(defaultCurrency);
         if (defaultCurr == null) {
-            plugin.getLogger().warning("[MultiCurrency] Default currency '" + defaultCurrency +
-                    "' not found in CoinsEngine! Check your config.");
+            plugin.getLogger()
+                    .warning(
+                            "[MultiCurrency] Default currency '"
+                                    + defaultCurrency
+                                    + "' not found in CoinsEngine! Check your config.");
             useCoinEngine = false;
             return false;
         }
@@ -122,17 +126,31 @@ public class MultiCurrencyEconomyManager {
     private boolean loadCoinEngineApi(Plugin coinsEnginePlugin) {
         try {
             ClassLoader classLoader = coinsEnginePlugin.getClass().getClassLoader();
-            coinEngineApiClass = Class.forName("su.nightexpress.coinsengine.api.CoinsEngineAPI", true, classLoader);
-            coinEngineCurrencyClass = Class.forName("su.nightexpress.coinsengine.api.currency.Currency", true, classLoader);
+            coinEngineApiClass =
+                    Class.forName(
+                            "su.nightexpress.coinsengine.api.CoinsEngineAPI", true, classLoader);
+            coinEngineCurrencyClass =
+                    Class.forName(
+                            "su.nightexpress.coinsengine.api.currency.Currency", true, classLoader);
             coinEngineGetCurrencyMethod = coinEngineApiClass.getMethod("getCurrency", String.class);
-            coinEngineRemoveBalanceMethod = coinEngineApiClass.getMethod("removeBalance", UUID.class, coinEngineCurrencyClass, double.class);
-            coinEngineAddPlayerBalanceMethod = coinEngineApiClass.getMethod("addBalance", Player.class, coinEngineCurrencyClass, double.class);
-            coinEngineAddUuidBalanceMethod = coinEngineApiClass.getMethod("addBalance", UUID.class, coinEngineCurrencyClass, double.class);
-            coinEngineGetPlayerBalanceMethod = coinEngineApiClass.getMethod("getBalance", Player.class, coinEngineCurrencyClass);
+            coinEngineRemoveBalanceMethod =
+                    coinEngineApiClass.getMethod(
+                            "removeBalance", UUID.class, coinEngineCurrencyClass, double.class);
+            coinEngineAddPlayerBalanceMethod =
+                    coinEngineApiClass.getMethod(
+                            "addBalance", Player.class, coinEngineCurrencyClass, double.class);
+            coinEngineAddUuidBalanceMethod =
+                    coinEngineApiClass.getMethod(
+                            "addBalance", UUID.class, coinEngineCurrencyClass, double.class);
+            coinEngineGetPlayerBalanceMethod =
+                    coinEngineApiClass.getMethod(
+                            "getBalance", Player.class, coinEngineCurrencyClass);
             coinEngineFormatMethod = coinEngineCurrencyClass.getMethod("format", double.class);
             return true;
         } catch (ReflectiveOperationException e) {
-            plugin.getLogger().warning("[MultiCurrency] CoinsEngine API is not compatible: " + e.getMessage());
+            plugin.getLogger()
+                    .warning(
+                            "[MultiCurrency] CoinsEngine API is not compatible: " + e.getMessage());
             clearCoinEngineApi();
             return false;
         }
@@ -154,10 +172,13 @@ public class MultiCurrencyEconomyManager {
         try {
             return method.invoke(target, args);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            Throwable cause = e instanceof InvocationTargetException invocation && invocation.getCause() != null
-                    ? invocation.getCause()
-                    : e;
-            plugin.getLogger().warning("[MultiCurrency] CoinsEngine API call failed: " + cause.getMessage());
+            Throwable cause =
+                    e instanceof InvocationTargetException invocation
+                                    && invocation.getCause() != null
+                            ? invocation.getCause()
+                            : e;
+            plugin.getLogger()
+                    .warning("[MultiCurrency] CoinsEngine API call failed: " + cause.getMessage());
             return null;
         }
     }
@@ -181,7 +202,12 @@ public class MultiCurrencyEconomyManager {
                     try {
                         Material mat = Material.valueOf(key.toUpperCase());
                         itemCurrencyCache.put(mat, currencyStr);
-                        plugin.getLogger().info("[MultiCurrency] Item " + key + " uses currency: " + currencyStr);
+                        plugin.getLogger()
+                                .info(
+                                        "[MultiCurrency] Item "
+                                                + key
+                                                + " uses currency: "
+                                                + currencyStr);
                     } catch (IllegalArgumentException e) {
                         plugin.getLogger().warning("[MultiCurrency] Invalid material: " + key);
                     }
@@ -191,13 +217,20 @@ public class MultiCurrencyEconomyManager {
 
         // Cache category currencies
         if (plugin.getConfig().isConfigurationSection("categories")) {
-            for (String key : plugin.getConfig().getConfigurationSection("categories").getKeys(false)) {
-                String currencyStr = plugin.getConfig().getString("categories." + key + ".currency");
+            for (String key :
+                    plugin.getConfig().getConfigurationSection("categories").getKeys(false)) {
+                String currencyStr =
+                        plugin.getConfig().getString("categories." + key + ".currency");
                 if (currencyStr != null && !currencyStr.isEmpty()) {
                     try {
                         ItemCategory category = ItemCategory.valueOf(key.toUpperCase());
                         categoryCurrencyCache.put(category, currencyStr);
-                        plugin.getLogger().info("[MultiCurrency] Category " + key + " uses currency: " + currencyStr);
+                        plugin.getLogger()
+                                .info(
+                                        "[MultiCurrency] Category "
+                                                + key
+                                                + " uses currency: "
+                                                + currencyStr);
                     } catch (IllegalArgumentException e) {
                         plugin.getLogger().warning("[MultiCurrency] Invalid category: " + key);
                     }
@@ -205,8 +238,13 @@ public class MultiCurrencyEconomyManager {
             }
         }
 
-        plugin.getLogger().info("[MultiCurrency] Loaded " + itemCurrencyCache.size() + " item currencies, " +
-                categoryCurrencyCache.size() + " category currencies");
+        plugin.getLogger()
+                .info(
+                        "[MultiCurrency] Loaded "
+                                + itemCurrencyCache.size()
+                                + " item currencies, "
+                                + categoryCurrencyCache.size()
+                                + " category currencies");
     }
 
     // ---------------------------------------------------------------
@@ -293,18 +331,10 @@ public class MultiCurrencyEconomyManager {
             } else if (amount == 0) {
                 return true;
             } else if (useCoinEngine) {
-                Object curr = getCoinEngineCurrency(currency);
-                if (curr == null) {
-                    error = "Currency not found: " + currency;
-                } else {
-                    // Invoke directly so an exception is distinguishable from a
-                    // successful void-returning API call.
-                    Object result = coinEngineAddPlayerBalanceMethod.invoke(null, player, curr, amount);
-                    if (coinEngineAddPlayerBalanceMethod.getReturnType() == void.class
-                            || Boolean.TRUE.equals(result)) return true;
-                    outcome = Boolean.FALSE.equals(result) ? "FAILED" : "UNKNOWN";
-                    error = "CoinsEngine returned " + result;
-                }
+                SalePaymentFailure failure = depositCoinEngineSale(player, amount, currency);
+                if (failure == null) return true;
+                outcome = failure.outcome;
+                error = failure.error;
             } else if (vaultEconomy == null) {
                 error = "Vault economy provider is unavailable";
             } else {
@@ -312,27 +342,46 @@ public class MultiCurrencyEconomyManager {
                 EconomyResponse response = vaultEconomy.depositPlayer(player, amount);
                 if (response != null && response.transactionSuccess()) return true;
                 outcome = response == null ? "UNKNOWN" : "FAILED";
-                error = response == null ? "Provider returned no response"
-                        : response.type + ": " + response.errorMessage;
+                error =
+                        response == null
+                                ? "Provider returned no response"
+                                : response.type + ": " + response.errorMessage;
             }
         } catch (ReflectiveOperationException | RuntimeException ex) {
             // The provider might have changed the balance before throwing.
             // Do not retry or compensate automatically when that is unknown.
-            Throwable cause = ex instanceof InvocationTargetException invocation && invocation.getCause() != null
-                    ? invocation.getCause() : ex;
+            Throwable cause =
+                    ex instanceof InvocationTargetException invocation
+                                    && invocation.getCause() != null
+                            ? invocation.getCause()
+                            : ex;
             outcome = "UNKNOWN";
             error = cause.getClass().getSimpleName() + ": " + cause.getMessage();
         }
 
-        plugin.getLogger().severe("[SalePayment] outcome=" + outcome
-                + " player=" + logValue(player.getName()) + " uuid=" + player.getUniqueId()
-                + " items=" + logValue(items) + " amount=" + amount
-                + " currency=" + logValue(currency == null ? "default" : currency)
-                + " provider=" + logValue(provider) + " error=" + logValue(error)
-                + "; items and stock were not restored; no payment retry."
-                + " Check the player's balance before manual compensation.");
-        player.sendMessage("§cYour sale payment could not be confirmed. Please contact an administrator;"
-                + " the details are in the server log.");
+        plugin.getLogger()
+                .severe(
+                        "[SalePayment] outcome="
+                                + outcome
+                                + " player="
+                                + logValue(player.getName())
+                                + " uuid="
+                                + player.getUniqueId()
+                                + " items="
+                                + logValue(items)
+                                + " amount="
+                                + amount
+                                + " currency="
+                                + logValue(currency == null ? "default" : currency)
+                                + " provider="
+                                + logValue(provider)
+                                + " error="
+                                + logValue(error)
+                                + "; items and stock were not restored; no payment retry."
+                                + " Check the player's balance before manual compensation.");
+        player.sendMessage(
+                "§cYour sale payment could not be confirmed. Please contact an administrator;"
+                        + " the details are in the server log.");
         return false;
     }
 
@@ -370,11 +419,19 @@ public class MultiCurrencyEconomyManager {
                 return false;
             }
             if (!hasEnough(p, amount, currency)) return false;
-            Object result = invokeCoinEngine(coinEngineRemoveBalanceMethod, null, p.getUniqueId(), curr, amount);
+            Object result =
+                    invokeCoinEngine(
+                            coinEngineRemoveBalanceMethod, null, p.getUniqueId(), curr, amount);
             boolean success = result instanceof Boolean bool && bool;
             if (!success) {
-                plugin.getLogger().warning("[MultiCurrency] CoinsEngine withdrawal failed for "
-                        + p.getName() + ": " + amount + " " + currency);
+                plugin.getLogger()
+                        .warning(
+                                "[MultiCurrency] CoinsEngine withdrawal failed for "
+                                        + p.getName()
+                                        + ": "
+                                        + amount
+                                        + " "
+                                        + currency);
             }
             return success;
         } else {
@@ -384,9 +441,15 @@ public class MultiCurrencyEconomyManager {
             EconomyResponse response = vaultEconomy.withdrawPlayer(p, amount);
             boolean success = response != null && response.transactionSuccess();
             if (!success) {
-                plugin.getLogger().warning("[MultiCurrency] Vault withdrawal failed for "
-                        + p.getName() + ": " + amount
-                        + (response != null && response.errorMessage != null ? " (" + response.errorMessage + ")" : ""));
+                plugin.getLogger()
+                        .warning(
+                                "[MultiCurrency] Vault withdrawal failed for "
+                                        + p.getName()
+                                        + ": "
+                                        + amount
+                                        + (response != null && response.errorMessage != null
+                                                ? " (" + response.errorMessage + ")"
+                                                : ""));
             }
             return success;
         }
@@ -448,6 +511,7 @@ public class MultiCurrencyEconomyManager {
             vaultEconomy.depositPlayer(p, amount);
         }
     }
+
     // ------------------------------------------------------------------
     // OFFLINE DEPOSIT SUPPORT
     // ------------------------------------------------------------------
@@ -462,7 +526,6 @@ public class MultiCurrencyEconomyManager {
             vaultEconomy.depositPlayer(offline, amount);
         }
     }
-
 
     /**
      * Check if player has enough money (explicit currency)
@@ -538,7 +601,9 @@ public class MultiCurrencyEconomyManager {
                 return String.format("%.2f %s", value, currency != null ? currency : "");
             }
             Object result = invokeCoinEngine(coinEngineFormatMethod, curr, value);
-            return result instanceof String formatted ? formatted : String.format("%.2f %s", value, currency != null ? currency : "");
+            return result instanceof String formatted
+                    ? formatted
+                    : String.format("%.2f %s", value, currency != null ? currency : "");
         } else {
             if (vaultEconomy != null) {
                 return vaultEconomy.format(value);
@@ -566,4 +631,22 @@ public class MultiCurrencyEconomyManager {
         }
     }
 
+    private record SalePaymentFailure(String outcome, String error) {}
+
+    private SalePaymentFailure depositCoinEngineSale(Player player, double amount, String currency)
+            throws ReflectiveOperationException {
+        Object curr = getCoinEngineCurrency(currency);
+        if (curr == null) {
+            return new SalePaymentFailure("FAILED", "Currency not found: " + currency);
+        } else {
+            // Invoke directly so an exception is distinguishable from a
+            // successful void-returning API call.
+            Object result = coinEngineAddPlayerBalanceMethod.invoke(null, player, curr, amount);
+            if (coinEngineAddPlayerBalanceMethod.getReturnType() == void.class
+                    || Boolean.TRUE.equals(result)) return null;
+            return new SalePaymentFailure(
+                    Boolean.FALSE.equals(result) ? "FAILED" : "UNKNOWN",
+                    "CoinsEngine returned " + result);
+        }
+    }
 }

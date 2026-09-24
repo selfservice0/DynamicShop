@@ -1,6 +1,6 @@
   function renderAppearance(){
     themeFontOptions.forEach(([key])=>ensureThemeFont(key));
-    const draft={...appearance,layoutStyles:{...(appearance.layoutStyles||{})}};
+    const draft={...appearance,layoutStyles:{...appearance.layoutStyles}};
     const choices=(key,label,options)=>`<fieldset class="appearance-choices"><legend>${label}</legend><div>${options.map(([value,name])=>`<button type="button" data-choice="${key}" data-value="${value}" aria-pressed="${String(draft[key])===String(value)}">${name}</button>`).join('')}</div></fieldset>`;
     const colorField=(key,label)=>`<div class="appearance-color-field"><label for="theme_${key}">${label}</label><div><input type="color" data-color-picker="${key}" value="${draft[key]}" aria-label="${label} picker"><input id="theme_${key}" data-color-text="${key}" value="${draft[key]}" aria-label="${label} hex" pattern="#[0-9a-fA-F]{6}" maxlength="7" spellcheck="false" required></div></div>`;
     currentContent().innerHTML=`<div class="admin-section-intro"><div><h2>Make this market yours</h2><p>Set the colors, typography, and layout players see throughout your shop.</p></div></div>

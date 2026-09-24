@@ -145,6 +145,13 @@
     </repositories>
 
     <dependencies>
+        <!-- Isolated plugin fixtures without a dependency on JDK internal APIs. -->
+        <dependency>
+            <groupId>org.objenesis</groupId>
+            <artifactId>objenesis</artifactId>
+            <version>3.5</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Unit tests -->
         <dependency>
             <groupId>junit</groupId>

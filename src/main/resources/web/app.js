@@ -46,9 +46,13 @@ try{adminSession=localStorage.getItem('ds_admin_session')||''}catch{}
 if(registrationToken){const clean=new URL(location.href);clean.searchParams.delete('token');history.replaceState(null,'',clean.pathname+clean.search+clean.hash)}
 async function api(path,{method='GET',body,auth=false,signal}={}){
   const headers={'Accept':'application/json'};
-  if(body!==undefined)headers['Content-Type']='application/json';
+  const request={method,headers,cache:'no-store',signal};
+  if(body!==undefined&&method!=='GET'&&method!=='HEAD'){
+    headers['Content-Type']='application/json';
+    request.body=JSON.stringify(body);
+  }
   if(auth&&adminSession)headers['X-Session-Token']=adminSession;
-  const response=await fetch(path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),cache:'no-store',signal});
+  const response=await fetch(path,request);
   const result=await response.json().catch(()=>({error:'The server returned an invalid response.'}));
   if(!response.ok){const error=new Error(result.error||result.message||'Request failed ('+response.status+')');error.status=response.status;if(auth&&response.status===401)window.dispatchEvent(new Event('admin-expired'));throw error}
   return result;
@@ -438,16 +442,26 @@ const cfgSchema={
     setTheme(document.documentElement,value);
     if(value.design==='chest')ensureThemeFont('chestHeading');
     document.documentElement.dataset.design=value.design;
-    const heading=document.querySelector('.hero h1');
+    applyHeroCopy(value.design);
+    document.documentElement.dataset.themeMotion=String(value.motion);document.documentElement.dataset.themeHero=String(value.hero);
+    applyBranding(value);
+    applyHomeLink(value);
+    window.dispatchEvent(new Event('appearance-updated'));
+  }
+  function applyHeroCopy(design){
+    const value={design},heading=document.querySelector('.hero h1');
     document.querySelector('.hero-copy>p').innerHTML=value.design==='nova'?'From your first diamond to your next upgrade. Find what you need. Make your inventory count.':'From your first diamond to your next upgrade.<br>Find what you need. Make your inventory count.';
     heading.innerHTML=value.design==='nova'?'Find your next<br><span>main character item.</span>':value.design==='market'?'A little trading.<br><span>A world of possibilities.</span>':value.design==='inventory'?'Your next upgrade.<br><span>One slot away.</span>':'Good finds.<br><span>Better trades.</span>';
     document.querySelector('.hero .eyebrow').innerHTML='<span></span> '+(value.design==='nova'?'YOUR WORLD. YOUR NEXT DISCOVERY.':value.design==='market'?'THE MARKET HALL · OPEN TO EVERY ADVENTURER':value.design==='inventory'?'SERVER INVENTORY / READY TO BROWSE':'THE SERVER MARKETPLACE');
-    document.documentElement.dataset.themeMotion=String(value.motion);document.documentElement.dataset.themeHero=String(value.hero);
+  }
+  function applyBranding(value){
     const brand=document.querySelector('.brand');brand.replaceChildren();
     const wrap=document.createElement('span'),title=document.createElement('span'),subtitle=document.createElement('small');
     title.textContent=value.title;subtitle.textContent=value.subtitle;subtitle.hidden=!value.subtitle;wrap.append(title,subtitle);brand.append(wrap);
     document.querySelector('.footer-brand').textContent=value.title;
     document.title=value.title+' · Marketplace';
+  }
+  function applyHomeLink(value){
     let home=$('marketHomeLink');
     if(!home){home=document.createElement('a');home.id='marketHomeLink';home.className='market-home-link';home.innerHTML=icon('home')+'<span></span>';document.querySelector('.topbar-right').prepend(home)}
     const homeReady=value.homeEnabled&&validHomeDestination(value.homeUrl);
@@ -455,7 +469,6 @@ const cfgSchema={
     home.querySelector('span').textContent=value.homeLabel||'Home';
     home.target=value.homeNewTab?'_blank':'_self';home.rel='noopener noreferrer';
     home.title=(value.homeLabel||'Home')+(value.homeNewTab?' (opens in a new tab)':'');
-    window.dispatchEvent(new Event('appearance-updated'));
   }
   applyAppearance(appearance);
   // Reveal only after both the layout attributes and its colors/branding are applied.
@@ -574,7 +587,7 @@ const cfgSchema={
   }
     function renderAppearance(){
     themeFontOptions.forEach(([key])=>ensureThemeFont(key));
-    const draft={...appearance,layoutStyles:{...(appearance.layoutStyles||{})}};
+    const draft={...appearance,layoutStyles:{...appearance.layoutStyles}};
     const choices=(key,label,options)=>`<fieldset class="appearance-choices"><legend>${label}</legend><div>${options.map(([value,name])=>`<button type="button" data-choice="${key}" data-value="${value}" aria-pressed="${String(draft[key])===String(value)}">${name}</button>`).join('')}</div></fieldset>`;
     const colorField=(key,label)=>`<div class="appearance-color-field"><label for="theme_${key}">${label}</label><div><input type="color" data-color-picker="${key}" value="${draft[key]}" aria-label="${label} picker"><input id="theme_${key}" data-color-text="${key}" value="${draft[key]}" aria-label="${label} hex" pattern="#[0-9a-fA-F]{6}" maxlength="7" spellcheck="false" required></div></div>`;
     currentContent().innerHTML=`<div class="admin-section-intro"><div><h2>Make this market yours</h2><p>Set the colors, typography, and layout players see throughout your shop.</p></div></div>
@@ -670,6 +683,7 @@ const cfgSchema={
   const materialList=document.createElement('datalist');materialList.id='adminMaterials';materialList.innerHTML=items.map(i=>`<option value="${i.material.toUpperCase()}"></option>`).join('');document.body.append(materialList);
   function fixBreadcrumb(){if(location.hash==='#settings')$('pageCrumb').textContent='Administration'}window.addEventListener('hashchange',fixBreadcrumb);
     function setAccess(on){
+    logout.hidden=!on;
     authenticated=on;navigation.hidden=!on;root.querySelector('.admin-nav').hidden=!on;root.querySelector('.admin-access').hidden=!on;document.querySelector('.manage-label').hidden=!on;
     document.querySelector('.profile>div').innerHTML=on?esc(username)+'<small>Server administrator</small>':'Visitor<small>Public marketplace</small>';
     $('adminLoginLink').textContent=on?'Administration':'Admin sign in';
@@ -692,7 +706,6 @@ const cfgSchema={
   }
   const logout=document.createElement('button');logout.className='secondary';logout.textContent='Sign out';logout.hidden=true;root.querySelector('.admin-heading').append(logout);
   logout.onclick=async()=>{try{await api('/api/auth/logout',{auth:true,method:'POST',body:{}})}catch(error){notify(error.message);return}adminSession='';try{localStorage.removeItem('ds_admin_session')}catch{}logout.hidden=true;showLogin();notify('Signed out')};
-  const originalSetAccess=setAccess;setAccess=on=>{originalSetAccess(on);logout.hidden=!on};
   window.addEventListener('admin-expired',()=>{adminSession='';try{localStorage.removeItem('ds_admin_session')}catch{}if(dialog.open)dialog.close();showLogin('Your session expired. Please sign in again.')});
   $('adminLoginLink').href='#settings';
   setAccess(false);
