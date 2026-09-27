@@ -777,7 +777,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         RegisteredItem registered = registeredItem(held);
 
         if (registered != null) {
-            return addRegisteredItem(sender, mat, price, registered);
+            return addRegisteredItem(sender, mat, price, category, registered);
         }
         // Check if the held item has custom components (enchantments, name, lore, etc.)
         ItemStack plainCheck = new ItemStack(mat);
@@ -1201,7 +1201,11 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
     private record RegisteredItem(String id, String deliveryMethod) {}
 
     private boolean addRegisteredItem(
-            CommandSender sender, Material mat, double price, RegisteredItem registered) {
+            CommandSender sender,
+            Material mat,
+            double price,
+            ItemCategory category,
+            RegisteredItem registered) {
 
         String customId = registered.id;
         String id = customId.replace(":", "_");
@@ -1214,13 +1218,15 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         String deliveryMethod = registered.deliveryMethod;
         plugin.getConfig().set(basePath + ".delivery_method", deliveryMethod);
         plugin.getConfig().set(basePath + ".nbt", customId);
+        plugin.getConfig().set(basePath + ".category", category.name());
         plugin.saveConfig();
-        plugin.getSpecialShopManager().reload(); // Reload to apply delivery method
+        plugin.getSpecialShopManager().reload(); // Apply delivery method and display category
 
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("item", id);
+        placeholders.put("identifier", customId);
         placeholders.put("price", String.valueOf(price));
-        placeholders.put("category", "Server items");
+        placeholders.put("category", CategoryConfigManager.getDisplayName(category));
 
         sender.sendMessage(
                 plugin.getMessageManager()

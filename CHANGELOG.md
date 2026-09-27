@@ -1,7 +1,8 @@
 # Release notes
 
-## Unreleased
+## 3.0.3
 
+- Fixed `/shopadmin add item <price> [category]` ignoring the category for Oraxen, Nexo, ItemsAdder, and ValhallaMMO items. These entries now use the requested category (or the normal material category when omitted), persist it across reloads, and retain their custom delivery method. Existing entries can be moved by setting `special_items.<id>.category` and running `/shopadmin reload`.
 - Resolved Java formatting and compatibility findings and simplified command, transaction, GUI, pricing-data, and web-admin code without changing their intended behavior.
 - Removed duplicate configuration and message keys while retaining their effective values, and consolidated repeated stock, inflation, and trading-instruction lore.
 - Corrected website request options and admin access handling. Web bundles now use consistent line endings so Windows and Linux produce identical cache hashes.
