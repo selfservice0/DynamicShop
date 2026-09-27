@@ -35,8 +35,10 @@ public class CustomItemSearchTest {
             originals.put(field, new HashMap<>(map));
             map.clear();
         }
-        ShopDataManager.itemConfigs.put(BASE,
-                new ShopDataManager.ShopItemConfig(100, null, null, null, null, false, false, null, null));
+        ShopDataManager.itemConfigs.put(
+                BASE,
+                new ShopDataManager.ShopItemConfig(
+                        100, null, null, null, null, false, false, null, null));
         plugin = PluginTestFixture.plugin(directory.getRoot());
         PluginTestFixture.set(plugin, DynamicShop.class, "shopListener", new ShopListener(plugin));
     }
@@ -55,17 +57,26 @@ public class CustomItemSearchTest {
     public void itemNameTemplateMatchesVisibleNameButNeverBaseMaterial() throws Exception {
         template(null, Component.text("Iridium Watering Can", NamedTextColor.LIGHT_PURPLE), false);
         assertEquals("Iridium Watering Can", ShopItemNames.getDisplayName(BASE));
-        for (String query : List.of("iridium", "watering can", "IRIDIUM_WATERING_CAN", "  iridium   watering  can ")) {
+        for (String query :
+                List.of(
+                        "iridium",
+                        "watering can",
+                        "IRIDIUM_WATERING_CAN",
+                        "  iridium   watering  can ")) {
             assertEquals(List.of(BASE), search(query));
         }
-        for (String query : List.of("golden horse armor", "GOLDEN_HORSE_ARMOR", "horse", "armor", "copper")) {
+        for (String query :
+                List.of("golden horse armor", "GOLDEN_HORSE_ARMOR", "horse", "armor", "copper")) {
             assertTrue(search(query).isEmpty());
         }
     }
 
     @Test
     public void legacyDisplayNameTakesPriorityOverItemName() throws Exception {
-        template(Component.text("Copper Watering Can"), Component.text("Iridium Watering Can"), false);
+        template(
+                Component.text("Copper Watering Can"),
+                Component.text("Iridium Watering Can"),
+                false);
         assertEquals(List.of(BASE), search("copper watering can"));
         assertTrue(search("iridium").isEmpty());
         assertTrue(search("golden horse armor").isEmpty());
@@ -83,7 +94,8 @@ public class CustomItemSearchTest {
     }
 
     @Test
-    public void unnamedVanillaItemsStillMatchMaterialNamesWithSpacesOrUnderscores() throws Exception {
+    public void unnamedVanillaItemsStillMatchMaterialNamesWithSpacesOrUnderscores()
+            throws Exception {
         for (String query : List.of("golden horse armor", "golden_horse_armor", "horse")) {
             assertEquals(List.of(BASE), search(query));
         }
@@ -109,26 +121,39 @@ public class CustomItemSearchTest {
         assertEquals("Base Shop Rename", ShopItemNames.getDisplayName(BASE, null));
     }
 
-    private void template(Component displayName, Component itemName, boolean legacyOnly) throws Exception {
-        ItemMeta meta = PluginTestFixture.proxy(ItemMeta.class, (object, method, args) -> switch (method.getName()) {
-            case "hasDisplayName" -> displayName != null;
-            case "hasItemName" -> itemName != null;
-            case "displayName" -> displayName;
-            case "itemName" -> {
-                if (legacyOnly) throw new UnsupportedOperationException("Spigot fallback");
-                yield itemName;
-            }
-            case "getItemName" -> "§dIridium Watering Can";
-            default -> throw new AssertionError("Unexpected metadata access: " + method.getName());
-        });
+    private void template(Component displayName, Component itemName, boolean legacyOnly)
+            throws Exception {
+        ItemMeta meta =
+                PluginTestFixture.proxy(
+                        ItemMeta.class,
+                        (object, method, args) ->
+                                switch (method.getName()) {
+                                    case "hasDisplayName" -> displayName != null;
+                                    case "hasItemName" -> itemName != null;
+                                    case "displayName" -> displayName;
+                                    case "itemName" -> {
+                                        if (legacyOnly)
+                                            throw new UnsupportedOperationException(
+                                                    "Spigot fallback");
+                                        yield itemName;
+                                    }
+                                    case "getItemName" -> "§dIridium Watering Can";
+                                    default ->
+                                            throw new AssertionError(
+                                                    "Unexpected metadata access: "
+                                                            + method.getName());
+                                });
         map("itemTemplates").put(BASE, new NamedStack(meta));
     }
 
     @SuppressWarnings("unchecked")
     private List<Material> search(String query) throws Exception {
-        SearchResultsGUI gui = new SearchResultsGUI(plugin, null, query, ItemCategory.MISC) {
-            @Override public void open() {} // Exercise real filtering without opening a server inventory.
-        };
+        SearchResultsGUI gui =
+                new SearchResultsGUI(plugin, null, query, ItemCategory.MISC) {
+                    @Override
+                    public void
+                            open() {} // Exercise real filtering without opening a server inventory.
+                };
         Field field = SearchResultsGUI.class.getDeclaredField("results");
         field.setAccessible(true);
         return (List<Material>) field.get(gui);
@@ -143,10 +168,30 @@ public class CustomItemSearchTest {
 
     private static final class NamedStack extends ItemStack {
         private final ItemMeta meta;
-        NamedStack(ItemMeta meta) { super(); this.meta = meta; }
-        @Override public Material getType() { return BASE; }
-        @Override public boolean hasItemMeta() { return true; }
-        @Override public ItemMeta getItemMeta() { return meta; }
-        @Override public NamedStack clone() { return new NamedStack(meta); }
+
+        NamedStack(ItemMeta meta) {
+            super();
+            this.meta = meta;
+        }
+
+        @Override
+        public Material getType() {
+            return BASE;
+        }
+
+        @Override
+        public boolean hasItemMeta() {
+            return true;
+        }
+
+        @Override
+        public ItemMeta getItemMeta() {
+            return meta;
+        }
+
+        @Override
+        public NamedStack clone() {
+            return new NamedStack(meta);
+        }
     }
 }

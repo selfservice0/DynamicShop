@@ -8,15 +8,22 @@ import java.util.function.LongSupplier;
 
 /** Bounded aggregate counters only: no visitor IDs, addresses, URLs, or event log. */
 public final class WebUsageMetrics {
-    public static final Set<String> EVENTS = Set.of("page_view", "item_open", "search", "watchlist_change");
+    public static final Set<String> EVENTS =
+            Set.of("page_view", "item_open", "search", "watchlist_change");
     private final BooleanSupplier enabled;
     private final LongSupplier clock;
     private final Map<String, Integer> counts = new HashMap<>();
     private long window;
     private int accepted;
 
-    public WebUsageMetrics(BooleanSupplier enabled) { this(enabled, System::currentTimeMillis); }
-    WebUsageMetrics(BooleanSupplier enabled, LongSupplier clock) { this.enabled = enabled; this.clock = clock; }
+    public WebUsageMetrics(BooleanSupplier enabled) {
+        this(enabled, System::currentTimeMillis);
+    }
+
+    WebUsageMetrics(BooleanSupplier enabled, LongSupplier clock) {
+        this.enabled = enabled;
+        this.clock = clock;
+    }
 
     public synchronized boolean isEnabled() {
         boolean on = enabled.getAsBoolean();
@@ -27,7 +34,10 @@ public final class WebUsageMetrics {
     public synchronized boolean record(String event) {
         if (!isEnabled() || !EVENTS.contains(event)) return false;
         long minute = clock.getAsLong() / 60_000;
-        if (minute != window) { window = minute; accepted = 0; }
+        if (minute != window) {
+            window = minute;
+            accepted = 0;
+        }
         // Bound untrusted public events without identifying or retaining visitors.
         if (accepted >= 1000) return false;
         accepted++;
@@ -41,5 +51,7 @@ public final class WebUsageMetrics {
         return value == null ? 0 : value;
     }
 
-    public synchronized void clear() { counts.clear(); }
+    public synchronized void clear() {
+        counts.clear();
+    }
 }

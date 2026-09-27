@@ -128,16 +128,26 @@ const cfgSchema={
     setTheme(document.documentElement,value);
     if(value.design==='chest')ensureThemeFont('chestHeading');
     document.documentElement.dataset.design=value.design;
-    const heading=document.querySelector('.hero h1');
+    applyHeroCopy(value.design);
+    document.documentElement.dataset.themeMotion=String(value.motion);document.documentElement.dataset.themeHero=String(value.hero);
+    applyBranding(value);
+    applyHomeLink(value);
+    window.dispatchEvent(new Event('appearance-updated'));
+  }
+  function applyHeroCopy(design){
+    const value={design},heading=document.querySelector('.hero h1');
     document.querySelector('.hero-copy>p').innerHTML=value.design==='nova'?'From your first diamond to your next upgrade. Find what you need. Make your inventory count.':'From your first diamond to your next upgrade.<br>Find what you need. Make your inventory count.';
     heading.innerHTML=value.design==='nova'?'Find your next<br><span>main character item.</span>':value.design==='market'?'A little trading.<br><span>A world of possibilities.</span>':value.design==='inventory'?'Your next upgrade.<br><span>One slot away.</span>':'Good finds.<br><span>Better trades.</span>';
     document.querySelector('.hero .eyebrow').innerHTML='<span></span> '+(value.design==='nova'?'YOUR WORLD. YOUR NEXT DISCOVERY.':value.design==='market'?'THE MARKET HALL · OPEN TO EVERY ADVENTURER':value.design==='inventory'?'SERVER INVENTORY / READY TO BROWSE':'THE SERVER MARKETPLACE');
-    document.documentElement.dataset.themeMotion=String(value.motion);document.documentElement.dataset.themeHero=String(value.hero);
+  }
+  function applyBranding(value){
     const brand=document.querySelector('.brand');brand.replaceChildren();
     const wrap=document.createElement('span'),title=document.createElement('span'),subtitle=document.createElement('small');
     title.textContent=value.title;subtitle.textContent=value.subtitle;subtitle.hidden=!value.subtitle;wrap.append(title,subtitle);brand.append(wrap);
     document.querySelector('.footer-brand').textContent=value.title;
     document.title=value.title+' · Marketplace';
+  }
+  function applyHomeLink(value){
     let home=$('marketHomeLink');
     if(!home){home=document.createElement('a');home.id='marketHomeLink';home.className='market-home-link';home.innerHTML=icon('home')+'<span></span>';document.querySelector('.topbar-right').prepend(home)}
     const homeReady=value.homeEnabled&&validHomeDestination(value.homeUrl);
@@ -145,7 +155,6 @@ const cfgSchema={
     home.querySelector('span').textContent=value.homeLabel||'Home';
     home.target=value.homeNewTab?'_blank':'_self';home.rel='noopener noreferrer';
     home.title=(value.homeLabel||'Home')+(value.homeNewTab?' (opens in a new tab)':'');
-    window.dispatchEvent(new Event('appearance-updated'));
   }
   applyAppearance(appearance);
   // Reveal only after both the layout attributes and its colors/branding are applied.

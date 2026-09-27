@@ -1,4 +1,5 @@
   function setAccess(on){
+    logout.hidden=!on;
     authenticated=on;navigation.hidden=!on;root.querySelector('.admin-nav').hidden=!on;root.querySelector('.admin-access').hidden=!on;document.querySelector('.manage-label').hidden=!on;
     document.querySelector('.profile>div').innerHTML=on?esc(username)+'<small>Server administrator</small>':'Visitor<small>Public marketplace</small>';
     $('adminLoginLink').textContent=on?'Administration':'Admin sign in';
@@ -21,7 +22,6 @@
   }
   const logout=document.createElement('button');logout.className='secondary';logout.textContent='Sign out';logout.hidden=true;root.querySelector('.admin-heading').append(logout);
   logout.onclick=async()=>{try{await api('/api/auth/logout',{auth:true,method:'POST',body:{}})}catch(error){notify(error.message);return}adminSession='';try{localStorage.removeItem('ds_admin_session')}catch{}logout.hidden=true;showLogin();notify('Signed out')};
-  const originalSetAccess=setAccess;setAccess=on=>{originalSetAccess(on);logout.hidden=!on};
   window.addEventListener('admin-expired',()=>{adminSession='';try{localStorage.removeItem('ds_admin_session')}catch{}if(dialog.open)dialog.close();showLogin('Your session expired. Please sign in again.')});
   $('adminLoginLink').href='#settings';
   setAccess(false);

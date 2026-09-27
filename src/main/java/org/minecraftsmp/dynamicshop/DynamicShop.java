@@ -110,107 +110,16 @@ public class DynamicShop extends JavaPlugin {
         if (!getConfig().isSet("dynamic-pricing.shortage-decay-percent-per-hour")) {
             getConfig().set("dynamic-pricing.shortage-decay-percent-per-hour", 2.0);
             saveConfig();
-            getLogger().info("[DynamicPricing] Added default shortage-decay-percent-per-hour (2.0) to config.");
+            getLogger()
+                    .info(
+                            "[DynamicPricing] Added default shortage-decay-percent-per-hour (2.0) to config.");
         }
 
         // ──────────────────────────────────────────────────────────────
         // AUTO-POPULATE MISSING CONFIG KEYS for existing servers
         // This ensures all config options exist even on upgrades.
         // ──────────────────────────────────────────────────────────────
-        boolean configChanged = false;
-
-        // Dynamic Pricing
-        if (!getConfig().isSet("dynamic-pricing.log-dynamic-pricing")) {
-            getConfig().set("dynamic-pricing.log-dynamic-pricing", false);
-            configChanged = true;
-        }
-        if (!getConfig().isSet("dynamic-pricing.restrict-buying-at-zero-stock")) {
-            getConfig().set("dynamic-pricing.restrict-buying-at-zero-stock", true);
-            configChanged = true;
-        }
-        if (!getConfig().isSet("dynamic-pricing.negative-stock-percent-per-item")) {
-            getConfig().set("dynamic-pricing.negative-stock-percent-per-item", 5.0);
-            configChanged = true;
-        }
-
-        // Economy
-        if (!getConfig().isSet("economy.sell_tax_percent")) {
-            getConfig().set("economy.sell_tax_percent", 30);
-            configChanged = true;
-        }
-        if (!getConfig().isSet("economy.transaction_cooldown_ms")) {
-            getConfig().set("economy.transaction_cooldown_ms", 0);
-            configChanged = true;
-        }
-
-        // GUI
-        if (!getConfig().isSet("gui.shop_menu_size")) {
-            getConfig().set("gui.shop_menu_size", 54);
-            configChanged = true;
-        }
-        if (!getConfig().isSet("gui.use_dialog_gui")) {
-            getConfig().set("gui.use_dialog_gui", false);
-            configChanged = true;
-        }
-
-        // Logging
-        if (!getConfig().isSet("logging.max_recent_transactions")) {
-            getConfig().set("logging.max_recent_transactions", 10000);
-            configChanged = true;
-        }
-
-        // Player Shops
-        if (!getConfig().isSet("player-shops.enabled")) {
-            getConfig().set("player-shops.enabled", true);
-            configChanged = true;
-        }
-        if (!getConfig().isSet("player-shops.max-listings-per-player")) {
-            getConfig().set("player-shops.max-listings-per-player", 27);
-            configChanged = true;
-        }
-
-        // Webserver
-        if (!getConfig().isSet("webserver.enabled")) {
-            getConfig().set("webserver.enabled", true);
-            configChanged = true;
-        }
-        if (!getConfig().isSet("webserver.port")) {
-            getConfig().set("webserver.port", 7713);
-            configChanged = true;
-        }
-        if (!getConfig().isSet("webserver.bind")) {
-            getConfig().set("webserver.bind", "127.0.0.1");
-            configChanged = true;
-        }
-        if (!getConfig().isSet("webserver.cors.enabled")) {
-            getConfig().set("webserver.cors.enabled", false);
-            configChanged = true;
-        }
-        if (!getConfig().isSet("webserver.force-update-files")) {
-            getConfig().set("webserver.force-update-files", false);
-            configChanged = true;
-        }
-        // Web Admin Panel toggle — allows disabling admin panel while keeping the public dashboard
-        if (!getConfig().isSet("webserver.admin-enabled")) {
-            getConfig().set("webserver.admin-enabled", true);
-            configChanged = true;
-        }
-        // Hostname for generated admin links (empty = auto-detect)
-        if (!getConfig().isSet("webserver.hostname")) {
-            getConfig().set("webserver.hostname", "");
-            configChanged = true;
-        }
-
-        // Cross-server
-        if (!getConfig().isSet("cross-server.enabled")) {
-            getConfig().set("cross-server.enabled", false);
-            configChanged = true;
-        }
-
-        if (configChanged) {
-            saveConfig();
-            getLogger().info("[Config] Auto-populated missing config defaults.");
-        }
+        populateLegacyDefaults();
         // Initialize player shops
         this.playerShopManager = new PlayerShopManager(this);
         getLogger().info("Player shops enabled!");
@@ -229,10 +138,15 @@ public class DynamicShop extends JavaPlugin {
         // Warm up Nexo resolver AFTER all plugins have finished enabling.
         // Nexo's GlyphTag/ShiftTag singletons may not be ready during onEnable.
         if (Bukkit.getPluginManager().getPlugin("Nexo") != null) {
-            getServer().getScheduler().runTaskLater(this, () -> {
-                NexoWrapper.invalidateCache();  // Force re-init
-                getLogger().info("§aNexo glyph resolver cache warmed up.");
-            }, 1L);  // 1 tick after all plugins are done
+            getServer()
+                    .getScheduler()
+                    .runTaskLater(
+                            this,
+                            () -> {
+                                NexoWrapper.invalidateCache(); // Force re-init
+                                getLogger().info("§aNexo glyph resolver cache warmed up.");
+                            },
+                            1L); // 1 tick after all plugins are done
         }
 
         // --------------------------------------------------------------------
@@ -241,11 +155,17 @@ public class DynamicShop extends JavaPlugin {
         webServer = new WebServer(this);
         webServer.start();
         for (String event : org.minecraftsmp.dynamicshop.web.WebUsageMetrics.EVENTS) {
-            metrics.addCustomChart(new org.bstats.charts.SingleLineChart("website_" + event,
-                    () -> webServer.usageMetrics().drain(event)));
+            metrics.addCustomChart(
+                    new org.bstats.charts.SingleLineChart(
+                            "website_" + event, () -> webServer.usageMetrics().drain(event)));
         }
-        metrics.addCustomChart(new org.bstats.charts.SimplePie("website_design",
-                () -> webServer.usageMetrics().isEnabled() ? webServer.websiteDesign() : null));
+        metrics.addCustomChart(
+                new org.bstats.charts.SimplePie(
+                        "website_design",
+                        () ->
+                                webServer.usageMetrics().isEnabled()
+                                        ? webServer.websiteDesign()
+                                        : null));
         featureMetrics.register(metrics);
 
         // --------------------------------------------------------------------
@@ -306,7 +226,10 @@ public class DynamicShop extends JavaPlugin {
             try {
                 ShopDataManager.flushQueue();
             } catch (Exception e) {
-                getLogger().severe("[DynamicShop] Failed to flush shop queue on disable: " + e.getMessage());
+                getLogger()
+                        .severe(
+                                "[DynamicShop] Failed to flush shop queue on disable: "
+                                        + e.getMessage());
             }
         }
 
@@ -437,9 +360,10 @@ public class DynamicShop extends JavaPlugin {
         if (!isShopDialogApiAvailable()) {
             ConfigCacheManager.useDialogGui = false;
             this.shopDialogManager = null;
-            getLogger().warning(
-                    "gui.use_dialog_gui is enabled, but this server does not provide Paper's Dialog API. "
-                            + "Disabling dialog shop GUI for this runtime. Use Paper 1.21.7+ to enable it.");
+            getLogger()
+                    .warning(
+                            "gui.use_dialog_gui is enabled, but this server does not provide Paper's Dialog API. "
+                                    + "Disabling dialog shop GUI for this runtime. Use Paper 1.21.7+ to enable it.");
             return;
         }
 
@@ -466,8 +390,9 @@ public class DynamicShop extends JavaPlugin {
                 return;
             }
 
-            YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
-                    new InputStreamReader(stream, StandardCharsets.UTF_8));
+            YamlConfiguration defaults =
+                    YamlConfiguration.loadConfiguration(
+                            new InputStreamReader(stream, StandardCharsets.UTF_8));
             java.io.File configFile = new java.io.File(getDataFolder(), "config.yml");
             YamlConfiguration existing = YamlConfiguration.loadConfiguration(configFile);
             int added = copyMissingDefaults(defaults, existing, "");
@@ -481,7 +406,8 @@ public class DynamicShop extends JavaPlugin {
         }
     }
 
-    private int copyMissingDefaults(ConfigurationSection defaults, ConfigurationSection target, String path) {
+    private int copyMissingDefaults(
+            ConfigurationSection defaults, ConfigurationSection target, String path) {
         int added = 0;
 
         for (String key : defaults.getKeys(false)) {
@@ -522,6 +448,40 @@ public class DynamicShop extends JavaPlugin {
             getLogger().info("§aPlaceholderAPI found and hooked successfully!");
         } else {
             getLogger().info("§ePlaceholderAPI not found – placeholders will be disabled.");
+        }
+    }
+
+    private void populateLegacyDefaults() {
+        java.util.Map<String, Object> defaults =
+                java.util.Map.ofEntries(
+                        java.util.Map.entry("dynamic-pricing.log-dynamic-pricing", false),
+                        java.util.Map.entry("dynamic-pricing.restrict-buying-at-zero-stock", true),
+                        java.util.Map.entry("dynamic-pricing.negative-stock-percent-per-item", 5.0),
+                        java.util.Map.entry("economy.sell_tax_percent", 30),
+                        java.util.Map.entry("economy.transaction_cooldown_ms", 0),
+                        java.util.Map.entry("gui.shop_menu_size", 54),
+                        java.util.Map.entry("gui.use_dialog_gui", false),
+                        java.util.Map.entry("logging.max_recent_transactions", 10000),
+                        java.util.Map.entry("player-shops.enabled", true),
+                        java.util.Map.entry("player-shops.max-listings-per-player", 27),
+                        java.util.Map.entry("webserver.enabled", true),
+                        java.util.Map.entry("webserver.port", 7713),
+                        java.util.Map.entry("webserver.bind", "127.0.0.1"),
+                        java.util.Map.entry("webserver.cors.enabled", false),
+                        java.util.Map.entry("webserver.force-update-files", false),
+                        java.util.Map.entry("webserver.admin-enabled", true),
+                        java.util.Map.entry("webserver.hostname", ""),
+                        java.util.Map.entry("cross-server.enabled", false));
+        boolean changed = false;
+        for (var entry : defaults.entrySet()) {
+            if (!getConfig().isSet(entry.getKey())) {
+                getConfig().set(entry.getKey(), entry.getValue());
+                changed = true;
+            }
+        }
+        if (changed) {
+            saveConfig();
+            getLogger().info("[Config] Auto-populated missing config defaults.");
         }
     }
 }

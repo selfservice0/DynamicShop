@@ -85,39 +85,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // /shop <category>
-        ItemCategory cat = matchCategory(args[0]);
-        if (cat == null) {
-            Map<String, String> placeholders = new HashMap<>();
-            placeholders.put("category", args[0]);
-            p.sendMessage(plugin.getMessageManager().getMessage("unknown-category", placeholders));
-            p.sendMessage(plugin.getMessageManager().getMessage("list-categories"));
-            for (ItemCategory c : ItemCategory.values()) {
-                // Don't show special categories
-                if (c == ItemCategory.PERMISSIONS || c == ItemCategory.SERVER_SHOP || c == ItemCategory.PLAYER_SHOPS) {
-                    continue;
-                }
-                p.sendMessage("  §e" + c.name().toLowerCase());
-            }
-            return true;
-        }
-
-        // Don't allow direct access to special categories
-        if (cat == ItemCategory.PERMISSIONS || cat == ItemCategory.SERVER_SHOP || cat == ItemCategory.PLAYER_SHOPS) {
-            p.sendMessage(plugin.getMessageManager().getMessage("cannot-access-special-category"));
-            return true;
-        }
-
-        // Don't allow access to hidden categories
-        if (CategoryConfigManager.getSlot(cat) < 0) {
-            Map<String, String> placeholders = new HashMap<>();
-            placeholders.put("category", args[0]);
-            p.sendMessage(plugin.getMessageManager().getMessage("unknown-category", placeholders));
-            return true;
-        }
-
-        openCategoryDirect(p, cat);
-        return true;
+        return openNamedCategory(p, args[0]);
     }
 
     // --------------------------------------------------------------------
@@ -132,9 +100,10 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     private void openCategoryDirect(Player p, ItemCategory cat) {
         // Check if category has items
         List<org.bukkit.Material> items = ShopDataManager.getItemsInCategory(cat);
-        boolean hasSpecialItems = plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
-                .anyMatch(item -> item.getCategory() == cat);
-                
+        boolean hasSpecialItems =
+                plugin.getSpecialShopManager().getAllSpecialItems().values().stream()
+                        .anyMatch(item -> item.getCategory() == cat);
+
         if (items.isEmpty() && !hasSpecialItems) {
             p.sendMessage(plugin.getMessageManager().categoryEmpty());
             return;
@@ -151,8 +120,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     private ItemCategory matchCategory(String raw) {
         raw = raw.trim().toUpperCase();
         for (ItemCategory c : ItemCategory.values()) {
-            if (c.name().equalsIgnoreCase(raw))
-                return c;
+            if (c.name().equalsIgnoreCase(raw)) return c;
         }
         return null;
     }
@@ -179,7 +147,9 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
 
             for (ItemCategory c : ItemCategory.values()) {
                 // Don't suggest special or hidden categories
-                if (c == ItemCategory.PERMISSIONS || c == ItemCategory.SERVER_SHOP || c == ItemCategory.PLAYER_SHOPS) {
+                if (c == ItemCategory.PERMISSIONS
+                        || c == ItemCategory.SERVER_SHOP
+                        || c == ItemCategory.PLAYER_SHOPS) {
                     continue;
                 }
                 // Don't suggest hidden categories
@@ -257,8 +227,10 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         String currency = plugin.getEconomyManager().getCurrency(mat);
         plugin.getShopListener().recordTransaction(p);
         String itemName = ShopItemNames.getDisplayName(mat);
-        if (!plugin.getEconomyManager().depositSale(p, payout, currency,
-                amount + "x " + itemName + " [" + mat.name() + "]")) return true;
+        if (!plugin.getEconomyManager()
+                .depositSale(
+                        p, payout, currency, amount + "x " + itemName + " [" + mat.name() + "]"))
+            return true;
 
         Map<String, String> ph = new HashMap<>();
         ph.put("amount", String.valueOf(amount));
@@ -266,14 +238,16 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         ph.put("price", plugin.getEconomyManager().format(payout, currency));
         p.sendMessage(plugin.getMessageManager().getMessage("sold-item-success", ph));
 
-        plugin.getTransactionLogger().log(Transaction.now(
-                p.getName(),
-                Transaction.TransactionType.SELL,
-                mat.name(),
-                amount,
-                payout,
-                ShopDataManager.detectCategory(mat).name(),
-                ""));
+        plugin.getTransactionLogger()
+                .log(
+                        Transaction.now(
+                                p.getName(),
+                                Transaction.TransactionType.SELL,
+                                mat.name(),
+                                amount,
+                                payout,
+                                ShopDataManager.detectCategory(mat).name(),
+                                ""));
 
         return true;
     }
@@ -283,20 +257,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     // --------------------------------------------------------------------
     private boolean handleSellAll(Player p) {
         if (!plugin.getShopListener().checkTransactionCooldown(p)) return true;
-        // Gather sellable materials and counts
-        Map<Material, Integer> sellable = new java.util.LinkedHashMap<>();
-
-        for (ItemStack item : p.getInventory().getContents()) {
-            if (item == null || item.getType() == Material.AIR) continue;
-            if (isDamaged(item)) continue;
-
-            Material mat = item.getType();
-            if (ShopDataManager.getBasePrice(mat) < 0) continue;
-            if (ShopDataManager.isSellDisabled(mat)) continue;
-            if (!isShopSellMatch(item, mat)) continue;
-
-            sellable.merge(mat, item.getAmount(), Integer::sum);
-        }
+        Map<Material, Integer> sellable = findSellableItems(p);
 
         if (sellable.isEmpty()) {
             p.sendMessage("§c✗ §7You don't have any items to sell!");
@@ -308,63 +269,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         int totalItems = 0;
 
         for (Map.Entry<Material, Integer> entry : sellable.entrySet()) {
-            Material mat = entry.getKey();
-            int amount = entry.getValue();
-
-            // Check stock limits
-            if (!ShopDataManager.canSell(mat, amount)) {
-                int limit = ShopDataManager.getSellLimit(mat);
-                if (limit <= 0) continue;
-                amount = Math.min(amount, limit);
-            }
-
-            if (amount <= 0) continue;
-            double quote = ShopDataManager.getTotalSellValue(mat, amount);
-            String currency = plugin.getEconomyManager().getCurrency(mat);
-            if (!Double.isFinite(quote) || quote < 0
-                    || !Double.isFinite(payoutsByCurrency.getOrDefault(currency, 0.0) + quote)) continue;
-            Map<Integer, ItemStack> originalSlots = new HashMap<>();
-            // Remove items from inventory
-            int toRemove = amount;
-            for (int i = 0; i < p.getInventory().getSize(); i++) {
-                ItemStack item = p.getInventory().getItem(i);
-                if (isShopSellMatch(item, mat) && !isDamaged(item) && toRemove > 0) {
-                    originalSlots.put(i, item.clone());
-                    int take = Math.min(item.getAmount(), toRemove);
-                    int newAmt = item.getAmount() - take;
-                    if (newAmt <= 0) {
-                        p.getInventory().setItem(i, null);
-                    } else {
-                        item.setAmount(newAmt);
-                    }
-                    toRemove -= take;
-                }
-            }
-
-            int actuallySold = amount - toRemove;
-            if (actuallySold <= 0) {
-                continue;
-            }
-
-            double payout = ShopDataManager.getTotalSellValue(mat, actuallySold);
-            if (!Double.isFinite(payout) || payout < 0
-                    || !Double.isFinite(payoutsByCurrency.getOrDefault(currency, 0.0) + payout)) {
-                originalSlots.forEach((slot, original) -> p.getInventory().setItem(slot, original));
-                continue;
-            }
-
-            ShopDataManager.updateStock(mat, actuallySold);
-            payoutsByCurrency.merge(currency, payout, Double::sum);
-            totalItems += actuallySold;
-
-            salesByCurrency.computeIfAbsent(currency, key -> new ArrayList<>()).add(Transaction.now(
-                    p.getName(),
-                    Transaction.TransactionType.SELL,
-                    mat.name(),
-                    actuallySold,
-                    payout,
-                    ShopDataManager.detectCategory(mat).name(),
-                    ""));
+            totalItems += sellMaterial(p, entry, payoutsByCurrency, salesByCurrency);
         }
 
         if (totalItems == 0) {
@@ -380,11 +285,17 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             List<Transaction> sales = salesByCurrency.get(payoutEntry.getKey());
             java.util.StringJoiner items = new java.util.StringJoiner(", ");
             for (Transaction sale : sales) {
-                items.add(sale.getAmount() + "x " + ShopItemNames.getDisplayName(Material.valueOf(sale.getItem()))
-                        + " [" + sale.getItem() + "]");
+                items.add(
+                        sale.getAmount()
+                                + "x "
+                                + ShopItemNames.getDisplayName(Material.valueOf(sale.getItem()))
+                                + " ["
+                                + sale.getItem()
+                                + "]");
             }
-            if (!plugin.getEconomyManager().depositSale(p, payoutEntry.getValue(), payoutEntry.getKey(),
-                    items.toString())) continue;
+            if (!plugin.getEconomyManager()
+                    .depositSale(p, payoutEntry.getValue(), payoutEntry.getKey(), items.toString()))
+                continue;
             for (Transaction sale : sales) {
                 plugin.getTransactionLogger().log(sale);
                 paidItems += sale.getAmount();
@@ -393,13 +304,19 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
             if (payoutSummary.length() > 0) {
                 payoutSummary.append(", ");
             }
-            payoutSummary.append(plugin.getEconomyManager().format(
-                    payoutEntry.getValue(), payoutEntry.getKey()));
+            payoutSummary.append(
+                    plugin.getEconomyManager()
+                            .format(payoutEntry.getValue(), payoutEntry.getKey()));
         }
 
         if (paidTypes == 0) return true;
-        p.sendMessage("§a✓ §7Sold §f" + paidItems + " items §7(§e" + paidTypes + " types§7) for §a" +
-                payoutSummary);
+        p.sendMessage(
+                "§a✓ §7Sold §f"
+                        + paidItems
+                        + " items §7(§e"
+                        + paidTypes
+                        + " types§7) for §a"
+                        + payoutSummary);
 
         return true;
     }
@@ -411,7 +328,8 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
         // Check permission
         if (!player.hasPermission("dynamicshop.playershop.sell")) {
-            player.sendMessage(plugin.getMessageManager().getMessage("playershop-no-permission-sell"));
+            player.sendMessage(
+                    plugin.getMessageManager().getMessage("playershop-no-permission-sell"));
             return true;
         }
 
@@ -426,7 +344,8 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!Double.isFinite(price) || price <= 0) {
-            player.sendMessage(plugin.getMessageManager().getMessage("playershop-price-must-be-positive"));
+            player.sendMessage(
+                    plugin.getMessageManager().getMessage("playershop-price-must-be-positive"));
             return true;
         }
 
@@ -450,8 +369,10 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         if (currentListings >= maxListings) {
             Map<String, String> ph1 = new HashMap<>();
             ph1.put("max", String.valueOf(maxListings));
-            player.sendMessage(plugin.getMessageManager().getMessage("playershop-max-listings", ph1));
-            player.sendMessage(plugin.getMessageManager().getMessage("playershop-remove-items-first"));
+            player.sendMessage(
+                    plugin.getMessageManager().getMessage("playershop-max-listings", ph1));
+            player.sendMessage(
+                    plugin.getMessageManager().getMessage("playershop-remove-items-first"));
             return true;
         }
 
@@ -480,8 +401,7 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean isDamaged(ItemStack item) {
-        if (item == null || !item.hasItemMeta())
-            return false;
+        if (item == null || !item.hasItemMeta()) return false;
         org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
         if (meta instanceof org.bukkit.inventory.meta.Damageable damageable) {
             return damageable.hasDamage();
@@ -504,5 +424,139 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         ItemStack oneTemplate = template.clone();
         oneTemplate.setAmount(1);
         return oneItem.isSimilar(oneTemplate);
+    }
+
+    private boolean openNamedCategory(Player p, String categoryName) {
+        // /shop <category>
+        ItemCategory cat = matchCategory(categoryName);
+        if (cat == null) {
+            Map<String, String> placeholders = new HashMap<>();
+            placeholders.put("category", categoryName);
+            p.sendMessage(plugin.getMessageManager().getMessage("unknown-category", placeholders));
+            p.sendMessage(plugin.getMessageManager().getMessage("list-categories"));
+            for (ItemCategory c : ItemCategory.values()) {
+                // Don't show special categories
+                if (c == ItemCategory.PERMISSIONS
+                        || c == ItemCategory.SERVER_SHOP
+                        || c == ItemCategory.PLAYER_SHOPS) {
+                    continue;
+                }
+                p.sendMessage("  §e" + c.name().toLowerCase());
+            }
+            return true;
+        }
+
+        // Don't allow direct access to special categories
+        if (cat == ItemCategory.PERMISSIONS
+                || cat == ItemCategory.SERVER_SHOP
+                || cat == ItemCategory.PLAYER_SHOPS) {
+            p.sendMessage(plugin.getMessageManager().getMessage("cannot-access-special-category"));
+            return true;
+        }
+
+        // Don't allow access to hidden categories
+        if (CategoryConfigManager.getSlot(cat) < 0) {
+            Map<String, String> placeholders = new HashMap<>();
+            placeholders.put("category", categoryName);
+            p.sendMessage(plugin.getMessageManager().getMessage("unknown-category", placeholders));
+            return true;
+        }
+
+        openCategoryDirect(p, cat);
+        return true;
+    }
+
+    private Map<Material, Integer> findSellableItems(Player p) {
+        // Gather sellable materials and counts
+        Map<Material, Integer> sellable = new java.util.LinkedHashMap<>();
+
+        for (ItemStack item : p.getInventory().getContents()) {
+            if (item == null || item.getType() == Material.AIR) continue;
+            if (isDamaged(item)) continue;
+
+            Material mat = item.getType();
+            if (ShopDataManager.getBasePrice(mat) < 0) continue;
+            if (ShopDataManager.isSellDisabled(mat)) continue;
+            if (!isShopSellMatch(item, mat)) continue;
+
+            sellable.merge(mat, item.getAmount(), Integer::sum);
+        }
+
+        return sellable;
+    }
+
+    private int sellMaterial(
+            Player p,
+            Map.Entry<Material, Integer> entry,
+            Map<String, Double> payoutsByCurrency,
+            Map<String, List<Transaction>> salesByCurrency) {
+        Material mat = entry.getKey();
+        int amount = entry.getValue();
+
+        // Check stock limits
+        if (!ShopDataManager.canSell(mat, amount)) {
+            int limit = ShopDataManager.getSellLimit(mat);
+            if (limit <= 0) return 0;
+            amount = Math.min(amount, limit);
+        }
+
+        if (amount <= 0) return 0;
+        double quote = ShopDataManager.getTotalSellValue(mat, amount);
+        String currency = plugin.getEconomyManager().getCurrency(mat);
+        if (!Double.isFinite(quote)
+                || quote < 0
+                || !Double.isFinite(payoutsByCurrency.getOrDefault(currency, 0.0) + quote))
+            return 0;
+        Map<Integer, ItemStack> originalSlots = new HashMap<>();
+        // Remove items from inventory
+        int actuallySold = removeSellableItems(p, mat, amount, originalSlots);
+        if (actuallySold <= 0) {
+            return 0;
+        }
+
+        double payout = ShopDataManager.getTotalSellValue(mat, actuallySold);
+        if (!Double.isFinite(payout)
+                || payout < 0
+                || !Double.isFinite(payoutsByCurrency.getOrDefault(currency, 0.0) + payout)) {
+            originalSlots.forEach((slot, original) -> p.getInventory().setItem(slot, original));
+            return 0;
+        }
+
+        ShopDataManager.updateStock(mat, actuallySold);
+        payoutsByCurrency.merge(currency, payout, Double::sum);
+
+        salesByCurrency
+                .computeIfAbsent(currency, key -> new ArrayList<>())
+                .add(
+                        Transaction.now(
+                                p.getName(),
+                                Transaction.TransactionType.SELL,
+                                mat.name(),
+                                actuallySold,
+                                payout,
+                                ShopDataManager.detectCategory(mat).name(),
+                                ""));
+        return actuallySold;
+    }
+
+    private int removeSellableItems(
+            Player p, Material mat, int amount, Map<Integer, ItemStack> originalSlots) {
+        int toRemove = amount;
+        for (int i = 0; i < p.getInventory().getSize(); i++) {
+            ItemStack item = p.getInventory().getItem(i);
+            if (isShopSellMatch(item, mat) && !isDamaged(item) && toRemove > 0) {
+                originalSlots.put(i, item.clone());
+                int take = Math.min(item.getAmount(), toRemove);
+                int newAmt = item.getAmount() - take;
+                if (newAmt <= 0) {
+                    p.getInventory().setItem(i, null);
+                } else {
+                    item.setAmount(newAmt);
+                }
+                toRemove -= take;
+            }
+        }
+
+        return amount - toRemove;
     }
 }

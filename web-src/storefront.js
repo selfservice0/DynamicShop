@@ -4,9 +4,13 @@ try{adminSession=localStorage.getItem('ds_admin_session')||''}catch{}
 if(registrationToken){const clean=new URL(location.href);clean.searchParams.delete('token');history.replaceState(null,'',clean.pathname+clean.search+clean.hash)}
 async function api(path,{method='GET',body,auth=false,signal}={}){
   const headers={'Accept':'application/json'};
-  if(body!==undefined)headers['Content-Type']='application/json';
+  const request={method,headers,cache:'no-store',signal};
+  if(body!==undefined&&method!=='GET'&&method!=='HEAD'){
+    headers['Content-Type']='application/json';
+    request.body=JSON.stringify(body);
+  }
   if(auth&&adminSession)headers['X-Session-Token']=adminSession;
-  const response=await fetch(path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),cache:'no-store',signal});
+  const response=await fetch(path,request);
   const result=await response.json().catch(()=>({error:'The server returned an invalid response.'}));
   if(!response.ok){const error=new Error(result.error||result.message||'Request failed ('+response.status+')');error.status=response.status;if(auth&&response.status===401)window.dispatchEvent(new Event('admin-expired'));throw error}
   return result;

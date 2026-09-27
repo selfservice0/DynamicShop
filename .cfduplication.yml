@@ -1,0 +1,21 @@
+# duplication threshold [20 - 100]
+MinLineCount: 20
+
+# files/patterns to exclude
+IgnorePatterns:
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/unittests/**"
+  - "**/*.unittest*/**"
+  - "**/spec/**"
+  - "**/*.spec.*"
+  - "**/__tests__/**"
+  - "**/mocks/**"
+  - "**/schema.*"
+  - "**/migrations/**"
+  - "**/migration/**"
+  - "**/migrate/**"
+  - "**/dist/**"
+  # Generated bundles repeat web-src; other analysis still checks both files.
+  - "src/main/resources/web/app.js"
+  - "src/main/resources/web/style.css"

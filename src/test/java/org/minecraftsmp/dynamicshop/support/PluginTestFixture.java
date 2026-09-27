@@ -10,16 +10,14 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.managers.MessageManager;
-import sun.misc.Unsafe;
+import org.objenesis.ObjenesisStd;
 
 /** Provides only the Bukkit-owned plugin fields needed by isolated transaction tests. */
 public final class PluginTestFixture {
     private PluginTestFixture() {}
 
     public static DynamicShop plugin(File directory) throws Exception {
-        Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
-        unsafeField.setAccessible(true);
-        DynamicShop plugin = (DynamicShop) ((Unsafe) unsafeField.get(null)).allocateInstance(DynamicShop.class);
+        DynamicShop plugin = new ObjenesisStd().newInstance(DynamicShop.class);
         Logger logger = Logger.getAnonymousLogger();
         logger.setLevel(Level.OFF);
         set(plugin, JavaPlugin.class, "logger", logger);
@@ -33,23 +31,27 @@ public final class PluginTestFixture {
         return plugin;
     }
 
-    public static void set(Object object, Class<?> owner, String name, Object value) throws Exception {
+    public static void set(Object object, Class<?> owner, String name, Object value)
+            throws Exception {
         Field field = owner.getDeclaredField(name);
         field.setAccessible(true);
         field.set(object, value);
     }
 
     public static <T> T proxy(Class<T> type, InvocationHandler handler) {
-        return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] { type },
-                (object, method, args) -> {
-                    if (method.getDeclaringClass() == Object.class) {
-                        return switch (method.getName()) {
-                            case "hashCode" -> System.identityHashCode(object);
-                            case "equals" -> object == args[0];
-                            default -> "Test " + type.getSimpleName();
-                        };
-                    }
-                    return handler.invoke(object, method, args);
-                }));
+        return type.cast(
+                Proxy.newProxyInstance(
+                        type.getClassLoader(),
+                        new Class<?>[] {type},
+                        (object, method, args) -> {
+                            if (method.getDeclaringClass() == Object.class) {
+                                return switch (method.getName()) {
+                                    case "hashCode" -> System.identityHashCode(object);
+                                    case "equals" -> object == args[0];
+                                    default -> "Test " + type.getSimpleName();
+                                };
+                            }
+                            return handler.invoke(object, method, args);
+                        }));
     }
 }

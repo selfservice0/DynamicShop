@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const src=__dirname,out=path.join(src,'../src/main/resources/web');
-const read=name=>fs.readFileSync(path.join(src,name),'utf8').replace(/^\uFEFF/,'');
+const read=name=>fs.readFileSync(path.join(src,name),'utf8').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
 let admin=read('admin.js').replace('/* APPEARANCE_UI */',()=>read('appearance.js')).replace('/* LIVE_ACTIONS */',()=>read('admin-actions.js')).replace('/* LIVE_AUTH */',()=>read('admin-auth.js'));
 const script=['// DS-WEB-VERSION: @project.version@',read('catalog.js'),read('storefront.js'),read('activity.js'),read('nova.js'),read('usage.js'),read('dsx.js'),admin].join('\n');
 const css=read('style.css')+'\n'+read('dsx.css'),digest=text=>crypto.createHash('sha256').update(text).digest('hex').slice(0,12);

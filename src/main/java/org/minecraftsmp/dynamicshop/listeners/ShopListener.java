@@ -57,14 +57,20 @@ public class ShopListener implements Listener {
     }
 
     public boolean checkTransactionCooldown(Player player) {
-        if (ConfigCacheManager.transactionCooldownMs <= 0 || player.hasPermission("dynamicshop.bypass.cooldown")) {
+        if (ConfigCacheManager.transactionCooldownMs <= 0
+                || player.hasPermission("dynamicshop.bypass.cooldown")) {
             return true;
         }
-        long elapsed = System.currentTimeMillis() - lastTransaction.getOrDefault(player.getUniqueId(), 0L);
+        long elapsed =
+                System.currentTimeMillis() - lastTransaction.getOrDefault(player.getUniqueId(), 0L);
         if (elapsed >= ConfigCacheManager.transactionCooldownMs) return true;
         Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("time", String.format("%.1f", (ConfigCacheManager.transactionCooldownMs - elapsed) / 1000.0));
-        player.sendMessage(plugin.getMessageManager().getMessage("transaction-cooldown", placeholders));
+        placeholders.put(
+                "time",
+                String.format(
+                        "%.1f", (ConfigCacheManager.transactionCooldownMs - elapsed) / 1000.0));
+        player.sendMessage(
+                plugin.getMessageManager().getMessage("transaction-cooldown", placeholders));
         return false;
     }
 
@@ -186,8 +192,7 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     @EventHandler
     public void onClick(InventoryClickEvent e) {
-        if (!(e.getWhoClicked() instanceof Player p))
-            return;
+        if (!(e.getWhoClicked() instanceof Player p)) return;
 
         if (hasOpenManagedGui(p)) {
             e.setCancelled(true);
@@ -209,59 +214,7 @@ public class ShopListener implements Listener {
             return;
         }
 
-        // -------------------------
-        // ADMIN CATEGORY EDIT GUI
-        // -------------------------
-        if (openAdminCategoryEdit.containsKey(p)) {
-            e.setCancelled(true);
-            openAdminCategoryEdit.get(p).handleClick(e.getRawSlot(), e.isRightClick());
-            return;
-        }
-
-        // -------------------------
-        // ADMIN CATEGORY GUI
-        // -------------------------
-        if (openAdminCategory.containsKey(p)) {
-            e.setCancelled(true);
-            openAdminCategory.get(p).handleClick(e.getRawSlot(), e.isRightClick(), e.isShiftClick());
-            return;
-        }
-
-        // -------------------------
-        // ADMIN SPECIAL EDIT GUI
-        // -------------------------
-        if (openAdminSpecialEdit.containsKey(p)) {
-            e.setCancelled(true);
-            openAdminSpecialEdit.get(p).handleClick(e.getRawSlot(), e.isShiftClick());
-            return;
-        }
-
-        // -------------------------
-        // ADMIN EDIT GUI
-        // -------------------------
-        if (openAdminEdit.containsKey(p)) {
-            e.setCancelled(true);
-            openAdminEdit.get(p).handleClick(e.getRawSlot(), e.isRightClick());
-            return;
-        }
-
-        // -------------------------
-        // ADMIN CONFIG GUI
-        // -------------------------
-        if (openAdminConfig.containsKey(p)) {
-            e.setCancelled(true);
-            openAdminConfig.get(p).handleClick(e.getRawSlot());
-            return;
-        }
-
-        // -------------------------
-        // ADMIN BROWSE GUI
-        // -------------------------
-        if (openAdminBrowse.containsKey(p)) {
-            e.setCancelled(true);
-            openAdminBrowse.get(p).handleClick(e.getRawSlot(), e.isRightClick());
-            return;
-        }
+        if (handleAdminClick(p, e)) return;
 
         // -------------------------
         // SEARCH GUI
@@ -313,14 +266,12 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     // SELLING FROM PLAYER INVENTORY (Right-click)
     // ------------------------------------------------------------------
-    private void handlePlayerInventoryClick(Player p, ItemStack clicked, boolean isRightClick, boolean isShift) {
-        if (clicked == null || clicked.getType() == Material.AIR)
-            return;
-
+    private void handlePlayerInventoryClick(
+            Player p, ItemStack clicked, boolean isRightClick, boolean isShift) {
+        if (clicked == null || clicked.getType() == Material.AIR) return;
 
         // Only sell on RIGHT-click
-        if (!isRightClick)
-            return;
+        if (!isRightClick) return;
 
         if (isDamaged(clicked)) {
             p.sendMessage(plugin.getMessageManager().cannotSellDamaged());
@@ -344,8 +295,10 @@ public class ShopListener implements Listener {
             if (currentCategory != ItemCategory.MISC) {
                 ItemCategory itemCategory = ShopDataManager.detectCategory(mat);
                 if (itemCategory != currentCategory) {
-                    p.sendMessage("§c✗ §7You can only sell §e" + currentCategory.getDisplayName() +
-                            " §7items in this category!");
+                    p.sendMessage(
+                            "§c✗ §7You can only sell §e"
+                                    + currentCategory.getDisplayName()
+                                    + " §7items in this category!");
                     return;
                 }
             }
@@ -401,8 +354,7 @@ public class ShopListener implements Listener {
         // SPECIAL SHOP ITEMS
         if (cat == ItemCategory.PERMISSIONS || cat == ItemCategory.SERVER_SHOP) {
             SpecialShopItem sItem = gui.getSpecialItemFromSlot(slot);
-            if (sItem == null)
-                return;
+            if (sItem == null) return;
 
             if (right) {
                 p.sendMessage(plugin.getMessageManager().getMessage("cannot-sell-special-item"));
@@ -413,86 +365,7 @@ public class ShopListener implements Listener {
             return;
         }
 
-        // REGULAR ITEM
-        Material mat = gui.getItemFromSlot(slot);
-        ItemStack deliveryOverride = null; // For stored_item variants
-        double variantBasePrice = -1; // -1 means use normal pricing
-        String variantId = null;
-
-        SpecialShopItem mixedSpecialItem = gui.getSpecialItemFromSlot(slot);
-        if (mixedSpecialItem != null && mixedSpecialItem.isServerShopItem()) {
-            if (right) {
-                p.sendMessage(plugin.getMessageManager().getMessage("cannot-sell-special-item"));
-                return;
-            }
-
-            plugin.getSpecialShopManager().purchase(p, mixedSpecialItem);
-            gui.render();
-            return;
-        }
-
-        // If no regular item found, check for non-server stored_item variants in this category.
-        if (mat == null) {
-            SpecialShopItem sItem = mixedSpecialItem;
-            if (sItem != null && sItem.getDisplayMaterial() != null
-                    && "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
-                mat = sItem.getDisplayMaterial();
-                variantBasePrice = sItem.getPrice();
-                variantId = sItem.getId();
-                ShopDataManager.initializeVariantData(variantId, mat);
-                // Load the specific stored ItemStack so the correct variant is delivered
-                String configPath = "special_items." + sItem.getId() + ".stored_item";
-                deliveryOverride = plugin.getConfig().getItemStack(configPath);
-            }
-        }
-
-        if (mat == null)
-            return;
-
-        // Bedrock players: open ItemActionGUI instead of direct buy/sell
-        if (BedrockUtil.isBedrock(p)) {
-            p.closeInventory();
-            ItemActionGUI actionGUI = new ItemActionGUI(plugin, p, mat, gui,
-                    deliveryOverride, variantBasePrice, variantId);
-            registerItemAction(p, actionGUI);
-            actionGUI.open();
-            return;
-        }
-
-        // Dialog-based buy/sell (configurable, Java edition only)
-        if (ConfigCacheManager.useDialogGui) {
-            p.closeInventory();
-            plugin.getShopDialogManager().openDialog(p, mat, gui, deliveryOverride, variantBasePrice, variantId);
-            return;
-        }
-
-        int amount = shift ? 64 : 1;
-
-        if (right) {
-            // SELL
-            int has = 0;
-            if (shift) {
-                for (ItemStack item : p.getInventory().getContents()) {
-                    if (isSellMatch(item, mat, deliveryOverride) && !isDamaged(item)) {
-                        has += item.getAmount();
-                    }
-                }
-                amount = Math.min(has, 64);
-            }
-
-            if (amount <= 0) {
-                Map<String, String> ph = new HashMap<>();
-                ph.put("item", mat.name().replace("_", " ").toLowerCase());
-                p.sendMessage(plugin.getMessageManager().getMessage("not-enough-items", ph));
-                return;
-            }
-
-            sellItem(p, mat, amount, gui, deliveryOverride, variantBasePrice, variantId);
-
-        } else {
-            // BUY — pass delivery override for stored_item variants
-            buyItem(p, mat, amount, gui, deliveryOverride, variantBasePrice, variantId);
-        }
+        handleRegularShopClick(p, gui, slot, right, shift);
     }
 
     // ------------------------------------------------------------------
@@ -512,8 +385,7 @@ public class ShopListener implements Listener {
         }
 
         if (local == 4) {
-            if (gui.isCommandOpened())
-                return; // Block return to categories when opened via command
+            if (gui.isCommandOpened()) return; // Block return to categories when opened via command
             unregisterShop(p);
             CategorySelectionGUI cg = new CategorySelectionGUI(plugin, p);
             cg.open();
@@ -527,26 +399,32 @@ public class ShopListener implements Listener {
         }
 
         if (local == 3) {
-            if (gui.isCommandOpened())
-                return; // Block search when opened via command
+            if (gui.isCommandOpened()) return; // Block search when opened via command
             p.closeInventory();
             unregisterShop(p);
 
             // Capture category for use in callback
-            final org.minecraftsmp.dynamicshop.category.ItemCategory searchCategory = gui.getCategory();
+            final org.minecraftsmp.dynamicshop.category.ItemCategory searchCategory =
+                    gui.getCategory();
 
-            plugin.getInputManager().requestText(p,
-                    "Search Items",
-                    "",
-                    text -> {
-                        if (text == null || text.trim().isEmpty()) {
-                            p.sendMessage(plugin.getMessageManager().getMessage("search-enter-term"));
-                        } else {
-                            // Search within current category
-                            SearchResultsGUI s = new SearchResultsGUI(plugin, p, text.trim(), searchCategory);
-                            registerSearch(p, s);
-                        }
-                    });
+            plugin.getInputManager()
+                    .requestText(
+                            p,
+                            "Search Items",
+                            "",
+                            text -> {
+                                if (text == null || text.trim().isEmpty()) {
+                                    p.sendMessage(
+                                            plugin.getMessageManager()
+                                                    .getMessage("search-enter-term"));
+                                } else {
+                                    // Search within current category
+                                    SearchResultsGUI s =
+                                            new SearchResultsGUI(
+                                                    plugin, p, text.trim(), searchCategory);
+                                    registerSearch(p, s);
+                                }
+                            });
         }
     }
 
@@ -557,61 +435,47 @@ public class ShopListener implements Listener {
         buyItem(p, mat, amount, gui, null, -1, null);
     }
 
-    public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride) {
+    public void buyItem(
+            Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride) {
         buyItem(p, mat, amount, gui, deliveryOverride, -1, null);
     }
 
-    public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride, double variantBasePrice) {
+    public void buyItem(
+            Player p,
+            Material mat,
+            int amount,
+            Object gui,
+            ItemStack deliveryOverride,
+            double variantBasePrice) {
         buyItem(p, mat, amount, gui, deliveryOverride, variantBasePrice, null);
     }
 
-    public void buyItem(Player p, Material mat, int amount, Object gui, ItemStack deliveryOverride, double variantBasePrice, String variantId) {
-        if (amount <= 0) {
-            p.sendMessage("§cChoose a positive item quantity.");
-            return;
-        }
-        if (!checkTransactionCooldown(p)) return;
+    public void buyItem(
+            Player p,
+            Material mat,
+            int amount,
+            Object gui,
+            ItemStack deliveryOverride,
+            double variantBasePrice,
+            String variantId) {
+        if (!validatePurchase(p, mat, amount, variantId)) return;
 
-        if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
-            p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
-            return;
-        }
-
-        if (ShopDataManager.isBuyDisabled(mat)) {
-            p.sendMessage("§cBuying this item is disabled.");
-            return;
-        }
-
-        if (!p.hasPermission("dynamicshop.bypass.stock")) {
-            boolean canBuy = variantId != null
-                    ? ShopDataManager.canBuyVariant(variantId, mat, amount)
-                    : ShopDataManager.canBuy(mat, amount);
-            if (!canBuy) {
-                int limit = variantId != null
-                        ? ShopDataManager.getVariantBuyLimit(variantId, mat)
-                        : ShopDataManager.getBuyLimit(mat);
-                if (limit <= 0) {
-                    p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
-                    return;
-                } else {
-                    // Partial buy
-                    amount = limit;
-                    Map<String, String> ph = new HashMap<>();
-                    ph.put("stock", String.valueOf(limit));
-                    p.sendMessage(plugin.getMessageManager().getMessage("shop-stock-limited", ph));
-                }
-            }
-        }
+        amount = limitBuyAmount(p, mat, amount, variantId);
+        if (amount <= 0) return;
 
         double totalCost;
         if (variantId != null && variantBasePrice > 0) {
-            totalCost = ShopDataManager.getTotalVariantBuyCost(variantId, mat, variantBasePrice, amount);
+            totalCost =
+                    ShopDataManager.getTotalVariantBuyCost(
+                            variantId, mat, variantBasePrice, amount);
         } else {
             totalCost = ShopDataManager.getTotalBuyCost(mat, amount);
         }
 
         String currency = plugin.getEconomyManager().getCurrency(mat);
-        if (!Double.isFinite(totalCost) || totalCost < 0 || !plugin.getEconomyManager().hasEnough(p, totalCost, currency)) {
+        if (!Double.isFinite(totalCost)
+                || totalCost < 0
+                || !plugin.getEconomyManager().hasEnough(p, totalCost, currency)) {
             Map<String, String> ph = new HashMap<>();
             ph.put("price", plugin.getEconomyManager().format(totalCost, currency));
             p.sendMessage(plugin.getMessageManager().getMessage("not-enough-money-need", ph));
@@ -631,31 +495,7 @@ public class ShopListener implements Listener {
             return;
         }
 
-        // Deliver item: use deliveryOverride (stored_item variant), template, or plain
-        if (deliveryOverride != null) {
-            // stored_item variant — deliver the specific stored ItemStack
-            for (int i = 0; i < amount; i++) {
-                ItemStack clone = deliveryOverride.clone();
-                clone.setAmount(1);
-                p.getInventory().addItem(clone);
-            }
-        } else {
-            ItemStack template = ShopDataManager.getTemplate(mat);
-            if (template != null) {
-                // Template item — clone with all components preserved
-                for (int i = 0; i < amount; i++) {
-                    ItemStack clone = template.clone();
-                    clone.setAmount(1);
-                    p.getInventory().addItem(clone);
-                }
-            } else if (mat == Material.ENCHANTED_BOOK) {
-                for (int i = 0; i < amount; i++) {
-                    p.getInventory().addItem(createRandomEnchantedBook());
-                }
-            } else {
-                p.getInventory().addItem(new ItemStack(mat, amount));
-            }
-        }
+        deliverPurchasedItems(p, mat, amount, deliveryOverride);
 
         if (variantId != null) {
             ShopDataManager.updateVariantStock(variantId, -amount);
@@ -669,21 +509,21 @@ public class ShopListener implements Listener {
         ph.put("price", plugin.getEconomyManager().format(totalCost, currency));
         p.sendMessage(plugin.getMessageManager().getMessage("bought-item", ph));
 
-        plugin.getTransactionLogger().log(Transaction.now(
-                p.getName(),
-                Transaction.TransactionType.BUY,
-                variantId != null ? "VARIANT:" + variantId : mat.name(),
-                amount,
-                totalCost,
-                ShopDataManager.detectCategory(mat).name(),
-                ""));
+        plugin.getTransactionLogger()
+                .log(
+                        Transaction.now(
+                                p.getName(),
+                                Transaction.TransactionType.BUY,
+                                variantId != null ? "VARIANT:" + variantId : mat.name(),
+                                amount,
+                                totalCost,
+                                ShopDataManager.detectCategory(mat).name(),
+                                ""));
 
         recordTransaction(p);
 
-        if (gui instanceof ShopGUI)
-            ((ShopGUI) gui).render();
-        if (gui instanceof SearchResultsGUI)
-            ((SearchResultsGUI) gui).render();
+        if (gui instanceof ShopGUI) ((ShopGUI) gui).render();
+        if (gui instanceof SearchResultsGUI) ((SearchResultsGUI) gui).render();
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
     }
@@ -695,29 +535,17 @@ public class ShopListener implements Listener {
         sellItem(p, mat, amount, gui, null, -1, null);
     }
 
-    public void sellItem(Player p, Material mat, int amount, Object gui, ItemStack variantTemplate, double variantBasePrice, String variantId) {
-        if (amount <= 0) {
-            p.sendMessage("§cChoose a positive item quantity.");
-            return;
-        }
-        if (!checkTransactionCooldown(p)) return;
+    public void sellItem(
+            Player p,
+            Material mat,
+            int amount,
+            Object gui,
+            ItemStack variantTemplate,
+            double variantBasePrice,
+            String variantId) {
+        if (!validateSale(p, mat, amount, variantId)) return;
 
-        if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
-            p.sendMessage(plugin.getMessageManager().cannotSell());
-            return;
-        }
-
-        if (ShopDataManager.isSellDisabled(mat)) {
-            p.sendMessage("§cSelling this item is disabled.");
-            return;
-        }
-
-        int removed = 0;
-        for (ItemStack item : p.getInventory().getContents()) {
-            if (isSellMatch(item, mat, variantTemplate) && removed < amount && !isDamaged(item)) {
-                removed += Math.min(item.getAmount(), amount - removed);
-            }
-        }
+        int removed = countSaleItems(p, mat, variantTemplate, amount);
 
         if (removed == 0) {
             Map<String, String> ph = new HashMap<>();
@@ -726,59 +554,24 @@ public class ShopListener implements Listener {
             return;
         }
 
-        if (!p.hasPermission("dynamicshop.bypass.stock")) {
-            boolean canSell = variantId != null
-                    ? ShopDataManager.canSellVariant(variantId, mat, removed)
-                    : ShopDataManager.canSell(mat, removed);
-            if (!canSell) {
-                int limit = variantId != null
-                        ? ShopDataManager.getVariantSellLimit(variantId, mat)
-                        : ShopDataManager.getSellLimit(mat);
-                if (limit <= 0) {
-                    p.sendMessage("§cShop storage is full for this item.");
-                    return;
-                } else {
-                    // Partial sell
-                    // We need to reclamp 'removed' to 'limit'
-                    removed = Math.min(removed, limit);
-                    p.sendMessage("§eShop storage limited. selling " + removed + " items.");
-                }
-            }
-        }
+        removed = limitSellAmount(p, mat, removed, variantId);
+        if (removed <= 0) return;
 
-        double quotedPayout = variantId != null && variantBasePrice > 0
-                ? ShopDataManager.getTotalVariantSellValue(variantId, mat, variantBasePrice, removed)
-                : ShopDataManager.getTotalSellValue(mat, removed);
+        double quotedPayout = saleValue(mat, variantId, variantBasePrice, removed);
         if (!Double.isFinite(quotedPayout) || quotedPayout < 0) {
             p.sendMessage(plugin.getMessageManager().cannotSell());
             return;
         }
 
         Map<Integer, ItemStack> originalSlots = new HashMap<>();
-        int actuallyRemoved = 0;
-        for (int i = 0; i < p.getInventory().getSize(); i++) {
-            ItemStack item = p.getInventory().getItem(i);
-            if (isSellMatch(item, mat, variantTemplate) && actuallyRemoved < removed && !isDamaged(item)) {
-                originalSlots.put(i, item.clone());
-                int take = Math.min(item.getAmount(), removed - actuallyRemoved);
-                int newAmt = item.getAmount() - take;
-                if (newAmt <= 0) {
-                    p.getInventory().setItem(i, null);
-                } else {
-                    item.setAmount(newAmt);
-                }
-                actuallyRemoved += take;
-            }
-        }
+        int actuallyRemoved = removeSaleItems(p, mat, variantTemplate, removed, originalSlots);
 
         if (actuallyRemoved <= 0) {
             p.sendMessage(plugin.getMessageManager().cannotSell());
             return;
         }
 
-        double totalPayout = variantId != null && variantBasePrice > 0
-                ? ShopDataManager.getTotalVariantSellValue(variantId, mat, variantBasePrice, actuallyRemoved)
-                : ShopDataManager.getTotalSellValue(mat, actuallyRemoved);
+        double totalPayout = saleValue(mat, variantId, variantBasePrice, actuallyRemoved);
         if (!Double.isFinite(totalPayout) || totalPayout < 0) {
             originalSlots.forEach((slot, original) -> p.getInventory().setItem(slot, original));
             p.sendMessage(plugin.getMessageManager().cannotSell());
@@ -794,8 +587,13 @@ public class ShopListener implements Listener {
         String currency = plugin.getEconomyManager().getCurrency(mat);
         String itemName = ShopItemNames.getDisplayName(mat, variantTemplate);
         String itemId = variantId != null ? "VARIANT:" + variantId : mat.name();
-        boolean paid = plugin.getEconomyManager().depositSale(p, totalPayout, currency,
-                actuallyRemoved + "x " + itemName + " [" + itemId + "]");
+        boolean paid =
+                plugin.getEconomyManager()
+                        .depositSale(
+                                p,
+                                totalPayout,
+                                currency,
+                                actuallyRemoved + "x " + itemName + " [" + itemId + "]");
         if (paid) {
             Map<String, String> ph = new HashMap<>();
             ph.put("amount", String.valueOf(actuallyRemoved));
@@ -803,22 +601,22 @@ public class ShopListener implements Listener {
             ph.put("price", plugin.getEconomyManager().format(totalPayout, currency));
             p.sendMessage(plugin.getMessageManager().getMessage("sold-item-success", ph));
 
-            plugin.getTransactionLogger().log(Transaction.now(
-                    p.getName(),
-                    Transaction.TransactionType.SELL,
-                    itemId,
-                    actuallyRemoved,
-                    totalPayout,
-                    ShopDataManager.detectCategory(mat).name(),
-                    ""));
+            plugin.getTransactionLogger()
+                    .log(
+                            Transaction.now(
+                                    p.getName(),
+                                    Transaction.TransactionType.SELL,
+                                    itemId,
+                                    actuallyRemoved,
+                                    totalPayout,
+                                    ShopDataManager.detectCategory(mat).name(),
+                                    ""));
         }
 
         recordTransaction(p);
 
-        if (gui instanceof ShopGUI)
-            ((ShopGUI) gui).render();
-        if (gui instanceof SearchResultsGUI)
-            ((SearchResultsGUI) gui).render();
+        if (gui instanceof ShopGUI) ((ShopGUI) gui).render();
+        if (gui instanceof SearchResultsGUI) ((SearchResultsGUI) gui).render();
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> updateSingleItemLore(p, mat), 3L);
     }
@@ -834,7 +632,10 @@ public class ShopListener implements Listener {
     }
 
     private ItemStack createDeliveryPrototype(Material mat, ItemStack deliveryOverride) {
-        ItemStack prototype = deliveryOverride != null ? deliveryOverride.clone() : ShopDataManager.getTemplate(mat);
+        ItemStack prototype =
+                deliveryOverride != null
+                        ? deliveryOverride.clone()
+                        : ShopDataManager.getTemplate(mat);
         if (prototype == null) {
             prototype = new ItemStack(mat, 1);
         } else {
@@ -870,71 +671,77 @@ public class ShopListener implements Listener {
     }
 
     public void updatePlayerInventoryLore(Player player, long delay) {
-        if (!openShop.containsKey(player) && !openSearch.containsKey(player))
-            return;
+        if (!openShop.containsKey(player) && !openSearch.containsKey(player)) return;
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            try {
-                com.comphenix.protocol.ProtocolManager pm = com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
+        Bukkit.getScheduler()
+                .runTaskLater(
+                        plugin,
+                        () -> {
+                            try {
+                                com.comphenix.protocol.ProtocolManager pm =
+                                        com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
 
-                Map<Material, List<String>> loreCache = new HashMap<>();
+                                Map<Material, List<String>> loreCache = new HashMap<>();
 
-                // main inv (0–35)
-                for (int i = 0; i < 36; i++) {
-                    ItemStack item = player.getInventory().getItem(i);
-                    if (item == null || item.getType() == Material.AIR)
-                        continue;
+                                // main inv (0–35)
+                                for (int i = 0; i < 36; i++) {
+                                    ItemStack item = player.getInventory().getItem(i);
+                                    if (item == null || item.getType() == Material.AIR) continue;
 
-                    Material mat = item.getType();
-                    double buyPrice = ShopDataManager.getPrice(mat);
-                    if (buyPrice < 0)
-                        continue; // not in shop
-                    if (!isSellMatch(item, mat, null) || isDamaged(item))
-                        continue; // different item data than the shop item
+                                    Material mat = item.getType();
+                                    double buyPrice = ShopDataManager.getPrice(mat);
+                                    if (buyPrice < 0) continue; // not in shop
+                                    if (!isSellMatch(item, mat, null) || isDamaged(item))
+                                        continue; // different item data than the shop item
 
-                    sendFakeItemWithLore(pm, player, i, item, mat, loreCache);
-                }
-            } catch (Exception ex) {
-                plugin.getLogger().warning("Failed to send fake inventory lore: " + ex.getMessage());
-                ex.printStackTrace();
-            }
-        }, delay);
+                                    sendFakeItemWithLore(pm, player, i, item, mat, loreCache);
+                                }
+                            } catch (Exception ex) {
+                                plugin.getLogger()
+                                        .warning(
+                                                "Failed to send fake inventory lore: "
+                                                        + ex.getMessage());
+                                ex.printStackTrace();
+                            }
+                        },
+                        delay);
     }
 
     // ------------------------------------------------------------------
     // UPDATE LORE FOR ONE MATERIAL
     // ------------------------------------------------------------------
     private void updateSingleItemLore(Player player, Material targetMat) {
-        if (!openShop.containsKey(player) && !openSearch.containsKey(player))
-            return;
+        if (!openShop.containsKey(player) && !openSearch.containsKey(player)) return;
 
         try {
-            com.comphenix.protocol.ProtocolManager pm = com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
+            com.comphenix.protocol.ProtocolManager pm =
+                    com.comphenix.protocol.ProtocolLibrary.getProtocolManager();
             Map<Material, List<String>> loreCache = new HashMap<>();
 
             for (int i = 0; i < 36; i++) {
                 ItemStack item = player.getInventory().getItem(i);
-                if (item == null || item.getType() != targetMat)
-                    continue;
-                if (!isSellMatch(item, targetMat, null) || isDamaged(item))
-                    continue;
+                if (item == null || item.getType() != targetMat) continue;
+                if (!isSellMatch(item, targetMat, null) || isDamaged(item)) continue;
 
                 sendFakeItemWithLore(pm, player, i, item, targetMat, loreCache);
             }
         } catch (Exception ex) {
-            plugin.getLogger().warning("Failed to update lore for " + targetMat + ": " + ex.getMessage());
+            plugin.getLogger()
+                    .warning("Failed to update lore for " + targetMat + ": " + ex.getMessage());
         }
     }
 
     // ------------------------------------------------------------------
     // PROTOCOLLIB: SEND FAKE ITEM WITH DYNAMIC LORE
     // ------------------------------------------------------------------
-    private void sendFakeItemWithLore(com.comphenix.protocol.ProtocolManager pm,
+    private void sendFakeItemWithLore(
+            com.comphenix.protocol.ProtocolManager pm,
             Player player,
             int slot,
             ItemStack item,
             Material mat,
-            Map<Material, List<String>> loreCache) throws Exception {
+            Map<Material, List<String>> loreCache)
+            throws Exception {
 
         List<String> lore = loreCache.get(mat);
         if (lore == null) {
@@ -982,13 +789,13 @@ public class ShopListener implements Listener {
 
         ItemStack fake = item.clone();
         ItemMeta meta = fake.getItemMeta();
-        if (meta == null)
-            return;
-        org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
+        if (meta == null) return;
+        org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(
+                meta, lore.stream().map(s -> MessageManager.parseComponent(s)).toList());
         fake.setItemMeta(meta);
 
-        com.comphenix.protocol.events.PacketContainer packet = pm
-                .createPacket(com.comphenix.protocol.PacketType.Play.Server.SET_SLOT);
+        com.comphenix.protocol.events.PacketContainer packet =
+                pm.createPacket(com.comphenix.protocol.PacketType.Play.Server.SET_SLOT);
 
         int containerSize = 0;
         if (openShop.containsKey(player)) {
@@ -1006,10 +813,7 @@ public class ShopListener implements Listener {
             packetSlot = containerSize + (slot - 9);
         }
 
-        packet.getIntegers()
-                .write(0, getOpenWindowId(player))
-                .write(1, 0)
-                .write(2, packetSlot);
+        packet.getIntegers().write(0, getOpenWindowId(player)).write(1, 0).write(2, packetSlot);
 
         packet.getItemModifier().write(0, fake);
 
@@ -1034,9 +838,13 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     private void clearFakeInventoryLore(Player player) {
         // Force update all inventory slots to remove fake packet-based lore
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            player.updateInventory();
-        }, 1L);
+        Bukkit.getScheduler()
+                .runTaskLater(
+                        plugin,
+                        () -> {
+                            player.updateInventory();
+                        },
+                        1L);
     }
 
     // ------------------------------------------------------------------
@@ -1044,10 +852,8 @@ public class ShopListener implements Listener {
     // ------------------------------------------------------------------
     @EventHandler
     public void onDrag(InventoryDragEvent e) {
-        if (!(e.getWhoClicked() instanceof Player p))
-            return;
-        if (!hasOpenManagedGui(p))
-            return;
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        if (!hasOpenManagedGui(p)) return;
         e.setCancelled(true);
         e.setResult(org.bukkit.event.Event.Result.DENY);
         p.updateInventory();
@@ -1063,55 +869,43 @@ public class ShopListener implements Listener {
 
         // Only clear the GUI that matches the closed inventory
         // This prevents clearing the edit GUI when browse GUI closes to open edit
-        if (openAdminSpecialEdit.containsKey(p)
-                && openAdminSpecialEdit.get(p).getInventory().equals(e.getInventory())) {
-            openAdminSpecialEdit.remove(p);
+        if (removeClosedGui(openAdminSpecialEdit, p, e.getInventory(), gui -> gui.getInventory())) {
             return;
         }
-        if (openAdminEdit.containsKey(p) && openAdminEdit.get(p).getInventory().equals(e.getInventory())) {
-            openAdminEdit.remove(p);
+        if (removeClosedGui(openAdminEdit, p, e.getInventory(), gui -> gui.getInventory())) {
             return;
         }
-        if (openAdminBrowse.containsKey(p) && openAdminBrowse.get(p).getInventory().equals(e.getInventory())) {
-            openAdminBrowse.remove(p);
+        if (removeClosedGui(openAdminBrowse, p, e.getInventory(), gui -> gui.getInventory())) {
             return;
         }
-        if (openItemAction.containsKey(p) && openItemAction.get(p).getInventory().equals(e.getInventory())) {
-            openItemAction.remove(p);
+        if (removeClosedGui(openItemAction, p, e.getInventory(), gui -> gui.getInventory())) {
             return;
         }
-        if (openShop.containsKey(p) && openShop.get(p).getInventory().equals(e.getInventory())) {
-            openShop.remove(p);
+        if (removeClosedGui(openShop, p, e.getInventory(), gui -> gui.getInventory())) {
             clearFakeInventoryLore(p); // Reset items to original state (no fake lore)
             return;
         }
-        if (openCategory.containsKey(p) && openCategory.get(p).getInventory().equals(e.getInventory())) {
-            openCategory.remove(p);
+        if (removeClosedGui(openCategory, p, e.getInventory(), gui -> gui.getInventory())) {
             return;
         }
-        if (openSearch.containsKey(p) && openSearch.get(p).getInventory().equals(e.getInventory())) {
-            openSearch.remove(p);
+        if (removeClosedGui(openSearch, p, e.getInventory(), gui -> gui.getInventory())) {
             clearFakeInventoryLore(p); // Reset items to original state (no fake lore)
             return;
         }
-        if (openAdminConfig.containsKey(p) && openAdminConfig.get(p).getInventory().equals(e.getInventory())) {
-            openAdminConfig.remove(p);
+        if (removeClosedGui(openAdminConfig, p, e.getInventory(), gui -> gui.getInventory())) {
             return;
         }
-        if (openAdminCategoryEdit.containsKey(p)
-                && openAdminCategoryEdit.get(p).getInventory().equals(e.getInventory())) {
-            openAdminCategoryEdit.remove(p);
+        if (removeClosedGui(
+                openAdminCategoryEdit, p, e.getInventory(), gui -> gui.getInventory())) {
             return;
         }
-        if (openAdminCategory.containsKey(p) && openAdminCategory.get(p).getInventory().equals(e.getInventory())) {
-            openAdminCategory.remove(p);
+        if (removeClosedGui(openAdminCategory, p, e.getInventory(), gui -> gui.getInventory())) {
             return;
         }
     }
 
     private boolean isDamaged(ItemStack item) {
-        if (item == null || !item.hasItemMeta())
-            return false;
+        if (item == null || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
         if (meta instanceof Damageable damageable) {
             return damageable.hasDamage();
@@ -1124,7 +918,8 @@ public class ShopListener implements Listener {
             return false;
         }
 
-        ItemStack template = variantTemplate != null ? variantTemplate : ShopDataManager.getTemplate(mat);
+        ItemStack template =
+                variantTemplate != null ? variantTemplate : ShopDataManager.getTemplate(mat);
         if (template == null) {
             template = new ItemStack(mat, 1);
         }
@@ -1163,5 +958,336 @@ public class ShopListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         clear(e.getPlayer());
+    }
+
+    private boolean handleAdminClick(Player p, InventoryClickEvent e) {
+        // -------------------------
+        // ADMIN CATEGORY EDIT GUI
+        // -------------------------
+        if (openAdminCategoryEdit.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminCategoryEdit.get(p).handleClick(e.getRawSlot(), e.isRightClick());
+            return true;
+        }
+
+        // -------------------------
+        // ADMIN CATEGORY GUI
+        // -------------------------
+        if (openAdminCategory.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminCategory
+                    .get(p)
+                    .handleClick(e.getRawSlot(), e.isRightClick(), e.isShiftClick());
+            return true;
+        }
+
+        // -------------------------
+        // ADMIN SPECIAL EDIT GUI
+        // -------------------------
+        if (openAdminSpecialEdit.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminSpecialEdit.get(p).handleClick(e.getRawSlot(), e.isShiftClick());
+            return true;
+        }
+
+        // -------------------------
+        // ADMIN EDIT GUI
+        // -------------------------
+        if (openAdminEdit.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminEdit.get(p).handleClick(e.getRawSlot(), e.isRightClick());
+            return true;
+        }
+
+        // -------------------------
+        // ADMIN CONFIG GUI
+        // -------------------------
+        if (openAdminConfig.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminConfig.get(p).handleClick(e.getRawSlot());
+            return true;
+        }
+
+        // -------------------------
+        // ADMIN BROWSE GUI
+        // -------------------------
+        if (openAdminBrowse.containsKey(p)) {
+            e.setCancelled(true);
+            openAdminBrowse.get(p).handleClick(e.getRawSlot(), e.isRightClick());
+            return true;
+        }
+
+        return false;
+    }
+
+    private void tradeClickedItem(
+            Player p,
+            ShopGUI gui,
+            boolean right,
+            boolean shift,
+            Material mat,
+            ItemStack deliveryOverride,
+            double variantBasePrice,
+            String variantId) {
+        int amount = shift ? 64 : 1;
+
+        if (right) {
+            // SELL
+            int has = 0;
+            if (shift) {
+                for (ItemStack item : p.getInventory().getContents()) {
+                    if (isSellMatch(item, mat, deliveryOverride) && !isDamaged(item)) {
+                        has += item.getAmount();
+                    }
+                }
+                amount = Math.min(has, 64);
+            }
+
+            if (amount <= 0) {
+                Map<String, String> ph = new HashMap<>();
+                ph.put("item", mat.name().replace("_", " ").toLowerCase());
+                p.sendMessage(plugin.getMessageManager().getMessage("not-enough-items", ph));
+                return;
+            }
+
+            sellItem(p, mat, amount, gui, deliveryOverride, variantBasePrice, variantId);
+
+        } else {
+            // BUY — pass delivery override for stored_item variants
+            buyItem(p, mat, amount, gui, deliveryOverride, variantBasePrice, variantId);
+        }
+    }
+
+    private int limitBuyAmount(Player p, Material mat, int amount, String variantId) {
+        if (!p.hasPermission("dynamicshop.bypass.stock")) {
+            boolean canBuy =
+                    variantId != null
+                            ? ShopDataManager.canBuyVariant(variantId, mat, amount)
+                            : ShopDataManager.canBuy(mat, amount);
+            if (!canBuy) {
+                int limit =
+                        variantId != null
+                                ? ShopDataManager.getVariantBuyLimit(variantId, mat)
+                                : ShopDataManager.getBuyLimit(mat);
+                if (limit <= 0) {
+                    p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
+                    return 0;
+                } else {
+                    // Partial buy
+                    amount = limit;
+                    Map<String, String> ph = new HashMap<>();
+                    ph.put("stock", String.valueOf(limit));
+                    p.sendMessage(plugin.getMessageManager().getMessage("shop-stock-limited", ph));
+                }
+            }
+        }
+        return amount;
+    }
+
+    private int limitSellAmount(Player p, Material mat, int removed, String variantId) {
+        if (!p.hasPermission("dynamicshop.bypass.stock")) {
+            boolean canSell =
+                    variantId != null
+                            ? ShopDataManager.canSellVariant(variantId, mat, removed)
+                            : ShopDataManager.canSell(mat, removed);
+            if (!canSell) {
+                int limit =
+                        variantId != null
+                                ? ShopDataManager.getVariantSellLimit(variantId, mat)
+                                : ShopDataManager.getSellLimit(mat);
+                if (limit <= 0) {
+                    p.sendMessage("§cShop storage is full for this item.");
+                    return 0;
+                } else {
+                    // Partial sell
+                    // We need to reclamp 'removed' to 'limit'
+                    removed = Math.min(removed, limit);
+                    p.sendMessage("§eShop storage limited. selling " + removed + " items.");
+                }
+            }
+        }
+        return removed;
+    }
+
+    private void deliverPurchasedItems(
+            Player p, Material mat, int amount, ItemStack deliveryOverride) {
+        // Deliver item: use deliveryOverride (stored_item variant), template, or plain
+        if (deliveryOverride != null) {
+            // stored_item variant — deliver the specific stored ItemStack
+            for (int i = 0; i < amount; i++) {
+                ItemStack clone = deliveryOverride.clone();
+                clone.setAmount(1);
+                p.getInventory().addItem(clone);
+            }
+        } else {
+            ItemStack template = ShopDataManager.getTemplate(mat);
+            if (template != null) {
+                // Template item — clone with all components preserved
+                for (int i = 0; i < amount; i++) {
+                    ItemStack clone = template.clone();
+                    clone.setAmount(1);
+                    p.getInventory().addItem(clone);
+                }
+            } else if (mat == Material.ENCHANTED_BOOK) {
+                for (int i = 0; i < amount; i++) {
+                    p.getInventory().addItem(createRandomEnchantedBook());
+                }
+            } else {
+                p.getInventory().addItem(new ItemStack(mat, amount));
+            }
+        }
+    }
+
+    private int countSaleItems(Player p, Material mat, ItemStack variantTemplate, int amount) {
+        int removed = 0;
+        for (ItemStack item : p.getInventory().getContents()) {
+            if (isSellMatch(item, mat, variantTemplate) && removed < amount && !isDamaged(item)) {
+                removed += Math.min(item.getAmount(), amount - removed);
+            }
+        }
+
+        return removed;
+    }
+
+    private int removeSaleItems(
+            Player p,
+            Material mat,
+            ItemStack variantTemplate,
+            int removed,
+            Map<Integer, ItemStack> originalSlots) {
+        int actuallyRemoved = 0;
+        for (int i = 0; i < p.getInventory().getSize(); i++) {
+            ItemStack item = p.getInventory().getItem(i);
+            if (isSellMatch(item, mat, variantTemplate)
+                    && actuallyRemoved < removed
+                    && !isDamaged(item)) {
+                originalSlots.put(i, item.clone());
+                int take = Math.min(item.getAmount(), removed - actuallyRemoved);
+                int newAmt = item.getAmount() - take;
+                if (newAmt <= 0) {
+                    p.getInventory().setItem(i, null);
+                } else {
+                    item.setAmount(newAmt);
+                }
+                actuallyRemoved += take;
+            }
+        }
+
+        return actuallyRemoved;
+    }
+
+    private double saleValue(Material mat, String variantId, double variantBasePrice, int amount) {
+        return variantId != null && variantBasePrice > 0
+                ? ShopDataManager.getTotalVariantSellValue(variantId, mat, variantBasePrice, amount)
+                : ShopDataManager.getTotalSellValue(mat, amount);
+    }
+
+    private <T> boolean removeClosedGui(
+            Map<Player, T> open,
+            Player player,
+            org.bukkit.inventory.Inventory inventory,
+            java.util.function.Function<T, org.bukkit.inventory.Inventory> inventoryOf) {
+        T gui = open.get(player);
+        if (gui == null || !inventoryOf.apply(gui).equals(inventory)) return false;
+        open.remove(player);
+        return true;
+    }
+
+    private void handleRegularShopClick(
+            Player p, ShopGUI gui, int slot, boolean right, boolean shift) {
+        // REGULAR ITEM
+        Material mat = gui.getItemFromSlot(slot);
+        ItemStack deliveryOverride = null; // For stored_item variants
+        double variantBasePrice = -1; // -1 means use normal pricing
+        String variantId = null;
+
+        SpecialShopItem mixedSpecialItem = gui.getSpecialItemFromSlot(slot);
+        if (mixedSpecialItem != null && mixedSpecialItem.isServerShopItem()) {
+            if (right) {
+                p.sendMessage(plugin.getMessageManager().getMessage("cannot-sell-special-item"));
+                return;
+            }
+
+            plugin.getSpecialShopManager().purchase(p, mixedSpecialItem);
+            gui.render();
+            return;
+        }
+
+        // If no regular item found, check for non-server stored_item variants in this category.
+        if (mat == null) {
+            SpecialShopItem sItem = mixedSpecialItem;
+            if (sItem != null
+                    && sItem.getDisplayMaterial() != null
+                    && "stored_item".equalsIgnoreCase(sItem.getDeliveryMethod())) {
+                mat = sItem.getDisplayMaterial();
+                variantBasePrice = sItem.getPrice();
+                variantId = sItem.getId();
+                ShopDataManager.initializeVariantData(variantId, mat);
+                // Load the specific stored ItemStack so the correct variant is delivered
+                String configPath = "special_items." + sItem.getId() + ".stored_item";
+                deliveryOverride = plugin.getConfig().getItemStack(configPath);
+            }
+        }
+
+        if (mat == null) return;
+
+        // Bedrock players: open ItemActionGUI instead of direct buy/sell
+        if (BedrockUtil.isBedrock(p)) {
+            p.closeInventory();
+            ItemActionGUI actionGUI =
+                    new ItemActionGUI(
+                            plugin, p, mat, gui, deliveryOverride, variantBasePrice, variantId);
+            registerItemAction(p, actionGUI);
+            actionGUI.open();
+            return;
+        }
+
+        // Dialog-based buy/sell (configurable, Java edition only)
+        if (ConfigCacheManager.useDialogGui) {
+            p.closeInventory();
+            plugin.getShopDialogManager()
+                    .openDialog(p, mat, gui, deliveryOverride, variantBasePrice, variantId);
+            return;
+        }
+
+        tradeClickedItem(p, gui, right, shift, mat, deliveryOverride, variantBasePrice, variantId);
+    }
+
+    private boolean validatePurchase(Player p, Material mat, int amount, String variantId) {
+        if (amount <= 0) {
+            p.sendMessage("§cChoose a positive item quantity.");
+            return false;
+        }
+        if (!checkTransactionCooldown(p)) return false;
+
+        if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
+            p.sendMessage(plugin.getMessageManager().getMessage("out-of-stock"));
+            return false;
+        }
+
+        if (ShopDataManager.isBuyDisabled(mat)) {
+            p.sendMessage("§cBuying this item is disabled.");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateSale(Player p, Material mat, int amount, String variantId) {
+        if (amount <= 0) {
+            p.sendMessage("§cChoose a positive item quantity.");
+            return false;
+        }
+        if (!checkTransactionCooldown(p)) return false;
+
+        if (variantId == null && ShopDataManager.isItemDisabled(mat)) {
+            p.sendMessage(plugin.getMessageManager().cannotSell());
+            return false;
+        }
+
+        if (ShopDataManager.isSellDisabled(mat)) {
+            p.sendMessage("§cSelling this item is disabled.");
+            return false;
+        }
+        return true;
     }
 }

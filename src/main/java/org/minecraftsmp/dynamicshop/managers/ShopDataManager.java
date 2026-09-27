@@ -49,7 +49,8 @@ public class ShopDataManager {
     private static final Map<Material, ItemCategory> categoryCache = new ConcurrentHashMap<>();
 
     // materials per-category (cached)
-    private static final Map<ItemCategory, List<Material>> categoryItems = new EnumMap<>(ItemCategory.class);
+    private static final Map<ItemCategory, List<Material>> categoryItems =
+            new EnumMap<>(ItemCategory.class);
 
     // Admin features: category overrides
     private static final Map<Material, ItemCategory> categoryOverrides = new ConcurrentHashMap<>();
@@ -99,8 +100,14 @@ public class ShopDataManager {
         if (ConfigCacheManager.crossServerEnabled) {
             if (saveTimer == null || saveTimer.isCancelled()) {
                 int seconds = ConfigCacheManager.crossServerSaveInterval;
-                saveTimer = plugin.getServer().getScheduler().runTaskTimer(
-                        plugin, ShopDataManager::saveQueuedItems, seconds * 20L, seconds * 20L);
+                saveTimer =
+                        plugin.getServer()
+                                .getScheduler()
+                                .runTaskTimer(
+                                        plugin,
+                                        ShopDataManager::saveQueuedItems,
+                                        seconds * 20L,
+                                        seconds * 20L);
             }
         }
 
@@ -110,8 +117,14 @@ public class ShopDataManager {
         if (shortageTicker != null && !shortageTicker.isCancelled()) {
             shortageTicker.cancel();
         }
-        shortageTicker = plugin.getServer().getScheduler().runTaskTimer(
-                plugin, ShopDataManager::tickAllShortage, 72000L, 72000L); // 1 hour = 72000 ticks
+        shortageTicker =
+                plugin.getServer()
+                        .getScheduler()
+                        .runTaskTimer(
+                                plugin,
+                                ShopDataManager::tickAllShortage,
+                                72000L,
+                                72000L); // 1 hour = 72000 ticks
     }
 
     public static void reload() {
@@ -147,14 +160,15 @@ public class ShopDataManager {
             }
 
             ConfigurationSection data = sec.getConfigurationSection(key);
-            if (data == null)
-                continue;
+            if (data == null) continue;
 
             double base = data.getDouble("base", -1);
             Double maxStock = data.contains("max-stock") ? data.getDouble("max-stock") : null;
             Double minStock = data.contains("min-stock") ? data.getDouble("min-stock") : null;
-            Integer maxStorage = data.contains("max-stock-storage") ? data.getInt("max-stock-storage") : null;
-            Integer minStorage = data.contains("min-stock-storage") ? data.getInt("min-stock-storage") : null;
+            Integer maxStorage =
+                    data.contains("max-stock-storage") ? data.getInt("max-stock-storage") : null;
+            Integer minStorage =
+                    data.contains("min-stock-storage") ? data.getInt("min-stock-storage") : null;
             boolean disableBuy = data.getBoolean("disable-buy", false);
             boolean disableSell = data.getBoolean("disable-sell", false);
             Double stockRate = data.contains("rate") ? data.getDouble("rate") : null;
@@ -176,8 +190,17 @@ public class ShopDataManager {
                 customNames.put(mat, customName);
             }
 
-            ShopItemConfig config = new ShopItemConfig(base, maxStock, minStock, maxStorage, minStorage, disableBuy,
-                    disableSell, overrideCat, stockRate);
+            ShopItemConfig config =
+                    new ShopItemConfig(
+                            base,
+                            maxStock,
+                            minStock,
+                            maxStorage,
+                            minStorage,
+                            disableBuy,
+                            disableSell,
+                            overrideCat,
+                            stockRate);
             itemConfigs.put(mat, config);
 
             loaded++;
@@ -207,7 +230,11 @@ public class ShopDataManager {
             }
             if (migrated > 0) {
                 plugin.saveConfig();
-                Bukkit.getLogger().info("[DynamicShop] Migrated " + migrated + " templates from item_templates.yml to config.yml");
+                Bukkit.getLogger()
+                        .info(
+                                "[DynamicShop] Migrated "
+                                        + migrated
+                                        + " templates from item_templates.yml to config.yml");
             }
             // Rename old file so it's not loaded again
             oldTemplateFile.renameTo(new File(plugin.getDataFolder(), "item_templates.yml.old"));
@@ -229,7 +256,8 @@ public class ShopDataManager {
         }
 
         if (count > 0) {
-            Bukkit.getLogger().info("[DynamicShop] Loaded " + count + " item templates with components");
+            Bukkit.getLogger()
+                    .info("[DynamicShop] Loaded " + count + " item templates with components");
         }
     }
 
@@ -351,14 +379,20 @@ public class ShopDataManager {
         double stock = variantStockMap.getOrDefault(variantId, 0.0);
 
         if (stock <= 0) {
-            long diff = System.currentTimeMillis() - variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis());
+            long diff =
+                    System.currentTimeMillis()
+                            - variantLastUpdateMap.getOrDefault(
+                                    variantId, System.currentTimeMillis());
             stored += (diff / 3600000.0);
         } else if (stored > 0) {
             double decayRate = ConfigCacheManager.shortageDecayPercentPerHour;
             if (decayRate > 0) {
                 double L = ConfigCacheManager.maxStock;
                 double stockRatio = Math.min(stock / L, 1.0);
-                long diff = System.currentTimeMillis() - variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis());
+                long diff =
+                        System.currentTimeMillis()
+                                - variantLastUpdateMap.getOrDefault(
+                                        variantId, System.currentTimeMillis());
                 double hoursSinceUpdate = diff / 3600000.0;
                 double decay = decayRate * stockRatio * hoursSinceUpdate;
                 stored = Math.max(0.0, stored - decay);
@@ -439,20 +473,19 @@ public class ShopDataManager {
         variantLastUpdateMap.put(variantId, now);
 
         if (delta < 0) {
-            variantPurchasesMap.put(variantId, variantPurchasesMap.getOrDefault(variantId, 0.0) + Math.abs(delta));
+            variantPurchasesMap.put(
+                    variantId, variantPurchasesMap.getOrDefault(variantId, 0.0) + Math.abs(delta));
         } else if (delta > 0) {
             applyVariantHighInflationCorrection(variantId, oldStock, newStock);
         }
 
         markVariantDirty(variantId);
 
-        if (plugin != null &&
-                plugin.getP2PCrossServerManager() != null &&
-                plugin.getP2PCrossServerManager().isRunning()) {
-            plugin.getP2PCrossServerManager().publishVariantStockUpdate(
-                    variantId,
-                    newStock,
-                    getVariantPurchases(variantId));
+        if (plugin != null
+                && plugin.getP2PCrossServerManager() != null
+                && plugin.getP2PCrossServerManager().isRunning()) {
+            plugin.getP2PCrossServerManager()
+                    .publishVariantStockUpdate(variantId, newStock, getVariantPurchases(variantId));
         }
     }
 
@@ -473,8 +506,7 @@ public class ShopDataManager {
      */
     public static double getPrice(Material mat) {
         double base = getBasePrice(mat);
-        if (base < 0)
-            return -1.0; // untradeable
+        if (base < 0) return -1.0; // untradeable
         return getTotalBuyCost(mat, 1);
     }
 
@@ -505,15 +537,15 @@ public class ShopDataManager {
     public static boolean canBuy(Material mat, int amount) {
         if (amount <= 0) return false;
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null || cfg.basePrice < 0)
-            return false;
-        if (cfg.disableBuy)
-            return false;
+        if (cfg == null || cfg.basePrice < 0) return false;
+        if (cfg.disableBuy) return false;
 
         // Check min stock storage
         double currentStock = getStock(mat);
-        double minLimit = cfg.minStockStorage != null ? cfg.minStockStorage
-                : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
+        double minLimit =
+                cfg.minStockStorage != null
+                        ? cfg.minStockStorage
+                        : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
 
         return currentStock - amount >= minLimit;
     }
@@ -521,12 +553,13 @@ public class ShopDataManager {
     public static boolean canBuyVariant(String variantId, Material mat, int amount) {
         if (amount <= 0) return false;
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null || cfg.disableBuy)
-            return false;
+        if (cfg == null || cfg.disableBuy) return false;
 
         double currentStock = getVariantStock(variantId);
-        double minLimit = cfg.minStockStorage != null ? cfg.minStockStorage
-                : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
+        double minLimit =
+                cfg.minStockStorage != null
+                        ? cfg.minStockStorage
+                        : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
 
         return currentStock - amount >= minLimit;
     }
@@ -534,10 +567,8 @@ public class ShopDataManager {
     public static boolean canSell(Material mat, int amount) {
         if (amount <= 0) return false;
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null || cfg.basePrice < 0)
-            return false;
-        if (cfg.disableSell)
-            return false;
+        if (cfg == null || cfg.basePrice < 0) return false;
+        if (cfg.disableSell) return false;
 
         // Check max stock storage
         double currentStock = getStock(mat);
@@ -549,8 +580,7 @@ public class ShopDataManager {
     public static boolean canSellVariant(String variantId, Material mat, int amount) {
         if (amount <= 0) return false;
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null || cfg.disableSell)
-            return false;
+        if (cfg == null || cfg.disableSell) return false;
 
         double currentStock = getVariantStock(variantId);
         double maxLimit = cfg.maxStockStorage != null ? cfg.maxStockStorage : Double.MAX_VALUE;
@@ -564,15 +594,15 @@ public class ShopDataManager {
      */
     public static int getBuyLimit(Material mat) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null)
-            return 0;
+        if (cfg == null) return 0;
 
         double currentStock = getStock(mat);
-        double minLimit = cfg.minStockStorage != null ? cfg.minStockStorage
-                : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
+        double minLimit =
+                cfg.minStockStorage != null
+                        ? cfg.minStockStorage
+                        : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
 
-        if (minLimit == -Double.MAX_VALUE)
-            return Integer.MAX_VALUE;
+        if (minLimit == -Double.MAX_VALUE) return Integer.MAX_VALUE;
 
         // maxBuy = current - min
         double maxBuy = currentStock - minLimit;
@@ -581,15 +611,15 @@ public class ShopDataManager {
 
     public static int getVariantBuyLimit(String variantId, Material mat) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null)
-            return 0;
+        if (cfg == null) return 0;
 
         double currentStock = getVariantStock(variantId);
-        double minLimit = cfg.minStockStorage != null ? cfg.minStockStorage
-                : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
+        double minLimit =
+                cfg.minStockStorage != null
+                        ? cfg.minStockStorage
+                        : (ConfigCacheManager.restrictBuyingAtZeroStock ? 0.0 : -Double.MAX_VALUE);
 
-        if (minLimit == -Double.MAX_VALUE)
-            return Integer.MAX_VALUE;
+        if (minLimit == -Double.MAX_VALUE) return Integer.MAX_VALUE;
 
         double maxBuy = currentStock - minLimit;
         return (int) Math.max(0, maxBuy);
@@ -601,14 +631,12 @@ public class ShopDataManager {
      */
     public static int getSellLimit(Material mat) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null)
-            return 0;
+        if (cfg == null) return 0;
 
         double currentStock = getStock(mat);
         double maxLimit = cfg.maxStockStorage != null ? cfg.maxStockStorage : Double.MAX_VALUE;
 
-        if (maxLimit == Double.MAX_VALUE)
-            return Integer.MAX_VALUE;
+        if (maxLimit == Double.MAX_VALUE) return Integer.MAX_VALUE;
 
         // maxSell = max - current
         double maxSell = maxLimit - currentStock;
@@ -617,14 +645,12 @@ public class ShopDataManager {
 
     public static int getVariantSellLimit(String variantId, Material mat) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null)
-            return 0;
+        if (cfg == null) return 0;
 
         double currentStock = getVariantStock(variantId);
         double maxLimit = cfg.maxStockStorage != null ? cfg.maxStockStorage : Double.MAX_VALUE;
 
-        if (maxLimit == Double.MAX_VALUE)
-            return Integer.MAX_VALUE;
+        if (maxLimit == Double.MAX_VALUE) return Integer.MAX_VALUE;
 
         double maxSell = maxLimit - currentStock;
         return (int) Math.max(0, maxSell);
@@ -643,8 +669,7 @@ public class ShopDataManager {
     // ============================================================================
     public static double getTotalBuyCost(Material mat, double amount) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null || validQuote(cfg.basePrice) < 0 || !validQuantity(amount))
-            return -1.0;
+        if (cfg == null || validQuote(cfg.basePrice) < 0 || !validQuantity(amount)) return -1.0;
 
         double B = cfg.basePrice;
 
@@ -656,7 +681,11 @@ public class ShopDataManager {
         double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
         double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
         double k = ConfigCacheManager.useStockCurve ? ConfigCacheManager.curveStrength : 0.0;
-        double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
+        double negPercent =
+                (cfg.stockRate != null
+                                ? cfg.stockRate
+                                : ConfigCacheManager.negativeStockPercentPerItem)
+                        / 100.0;
         double q = 1.0 + negPercent;
         double h = getHoursInShortage(mat);
         double t = getInflationMultiplier(h);
@@ -675,8 +704,10 @@ public class ShopDataManager {
     // ============================================================================
     public static double getTotalSellValue(Material mat, int amount) {
         ShopItemConfig cfg = itemConfigs.get(mat);
-        if (cfg == null || validQuote(cfg.basePrice) < 0 || !validQuantity(amount) || !validSellTax())
-            return -1.0;
+        if (cfg == null
+                || validQuote(cfg.basePrice) < 0
+                || !validQuantity(amount)
+                || !validSellTax()) return -1.0;
 
         double B = cfg.basePrice;
         double tax = ConfigCacheManager.sellTaxPercent;
@@ -689,7 +720,11 @@ public class ShopDataManager {
         double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
         double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
         double k = ConfigCacheManager.useStockCurve ? ConfigCacheManager.curveStrength : 0.0;
-        double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
+        double negPercent =
+                (cfg.stockRate != null
+                                ? cfg.stockRate
+                                : ConfigCacheManager.negativeStockPercentPerItem)
+                        / 100.0;
         double q = 1.0 + negPercent;
         double h = getHoursInShortage(mat);
         double t = getInflationMultiplier(h);
@@ -700,7 +735,8 @@ public class ShopDataManager {
         return validQuote(taxedTotal);
     }
 
-    public static double getTotalVariantBuyCost(String variantId, Material baseMat, double basePrice, double amount) {
+    public static double getTotalVariantBuyCost(
+            String variantId, Material baseMat, double basePrice, double amount) {
         ShopItemConfig cfg = itemConfigs.get(baseMat);
         if (variantId == null || cfg == null || validQuote(basePrice) < 0 || !validQuantity(amount))
             return -1.0;
@@ -713,7 +749,11 @@ public class ShopDataManager {
         double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
         double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
         double k = ConfigCacheManager.useStockCurve ? ConfigCacheManager.curveStrength : 0.0;
-        double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
+        double negPercent =
+                (cfg.stockRate != null
+                                ? cfg.stockRate
+                                : ConfigCacheManager.negativeStockPercentPerItem)
+                        / 100.0;
         double q = 1.0 + negPercent;
         double h = getVariantShortageHours(variantId);
         double t = getInflationMultiplier(h);
@@ -726,11 +766,14 @@ public class ShopDataManager {
         return validQuote(total);
     }
 
-    public static double getTotalVariantSellValue(String variantId, Material baseMat, double basePrice, int amount) {
+    public static double getTotalVariantSellValue(
+            String variantId, Material baseMat, double basePrice, int amount) {
         ShopItemConfig cfg = itemConfigs.get(baseMat);
-        if (variantId == null || cfg == null || validQuote(basePrice) < 0
-                || !validQuantity(amount) || !validSellTax())
-            return -1.0;
+        if (variantId == null
+                || cfg == null
+                || validQuote(basePrice) < 0
+                || !validQuantity(amount)
+                || !validSellTax()) return -1.0;
 
         double tax = ConfigCacheManager.sellTaxPercent;
 
@@ -742,19 +785,26 @@ public class ShopDataManager {
         double L = cfg.maxStock != null ? cfg.maxStock : ConfigCacheManager.maxStock;
         double minStock = cfg.minStock != null ? cfg.minStock : 0.0;
         double k = ConfigCacheManager.useStockCurve ? ConfigCacheManager.curveStrength : 0.0;
-        double negPercent = (cfg.stockRate != null ? cfg.stockRate : ConfigCacheManager.negativeStockPercentPerItem) / 100.0;
+        double negPercent =
+                (cfg.stockRate != null
+                                ? cfg.stockRate
+                                : ConfigCacheManager.negativeStockPercentPerItem)
+                        / 100.0;
         double q = 1.0 + negPercent;
         double h = getVariantShortageHours(variantId);
         double t = getInflationMultiplier(h);
         double total = computeSellIntegral(basePrice, s0, amount, L, minStock, k, q, h);
         if (validQuote(total) < 0) return -1.0;
         double taxedTotal = applySellTax(total, tax);
-        logDynamicPricing("SELL", "variant:" + variantId, basePrice, s0, amount, h, t, k, q, taxedTotal);
+        logDynamicPricing(
+                "SELL", "variant:" + variantId, basePrice, s0, amount, h, t, k, q, taxedTotal);
         return validQuote(taxedTotal);
     }
 
     private static boolean validQuantity(double amount) {
-        return Double.isFinite(amount) && amount > 0 && amount <= Integer.MAX_VALUE
+        return Double.isFinite(amount)
+                && amount > 0
+                && amount <= Integer.MAX_VALUE
                 && amount == Math.floor(amount);
     }
 
@@ -767,8 +817,10 @@ public class ShopDataManager {
         if (validQuote(gross) < 0) return -1.0;
         // Decimal subtraction prevents 80% tax leaving 0.19999999999999996.
         // Preserve sub-cent currencies rather than imposing two-decimal rounding.
-        return validQuote(BigDecimal.valueOf(gross)
-                .multiply(BigDecimal.ONE.subtract(BigDecimal.valueOf(tax))).doubleValue());
+        return validQuote(
+                BigDecimal.valueOf(gross)
+                        .multiply(BigDecimal.ONE.subtract(BigDecimal.valueOf(tax)))
+                        .doubleValue());
     }
 
     private static double validQuote(double value) {
@@ -783,15 +835,27 @@ public class ShopDataManager {
      * item with the pre-recovery multiplier while equivalent smaller sales use
      * the corrected multiplier after crossing zero.
      */
-    static double computeSellIntegral(double basePrice, double startStock, int amount,
-            double maxStock, double minStock, double curveStrength,
-            double negativeStockMultiplier, double shortageHours) {
+    static double computeSellIntegral(
+            double basePrice,
+            double startStock,
+            int amount,
+            double maxStock,
+            double minStock,
+            double curveStrength,
+            double negativeStockMultiplier,
+            double shortageHours) {
         double endStock = startStock + amount;
         double initialTimeMultiplier = getInflationMultiplier(shortageHours);
 
         if (!shouldApplyHighInflationCorrection(startStock, endStock)) {
-            return computeClampedIntegral(basePrice, startStock, endStock,
-                    maxStock, minStock, curveStrength, negativeStockMultiplier,
+            return computeClampedIntegral(
+                    basePrice,
+                    startStock,
+                    endStock,
+                    maxStock,
+                    minStock,
+                    curveStrength,
+                    negativeStockMultiplier,
                     initialTimeMultiplier);
         }
 
@@ -800,44 +864,85 @@ public class ShopDataManager {
         double total = 0.0;
 
         if (startStock < 0.0) {
-            double beforeRecovery = computeClampedIntegral(basePrice, startStock, 0.0,
-                    maxStock, minStock, curveStrength, negativeStockMultiplier,
-                    initialTimeMultiplier);
+            double beforeRecovery =
+                    computeClampedIntegral(
+                            basePrice,
+                            startStock,
+                            0.0,
+                            maxStock,
+                            minStock,
+                            curveStrength,
+                            negativeStockMultiplier,
+                            initialTimeMultiplier);
             if (validQuote(beforeRecovery) < 0) return -1.0;
             total += beforeRecovery;
         }
 
-        double afterRecovery = computeClampedIntegral(basePrice, Math.max(0.0, startStock), endStock,
-                maxStock, minStock, curveStrength, negativeStockMultiplier,
-                correctedTimeMultiplier);
+        double afterRecovery =
+                computeClampedIntegral(
+                        basePrice,
+                        Math.max(0.0, startStock),
+                        endStock,
+                        maxStock,
+                        minStock,
+                        curveStrength,
+                        negativeStockMultiplier,
+                        correctedTimeMultiplier);
         if (validQuote(afterRecovery) < 0) return -1.0;
         return validQuote(total + afterRecovery);
     }
 
-    private static void logDynamicPricing(String action, String itemId, double basePrice, double stock, double amount,
-            double shortageHours, double timeMultiplier, double curveStrength, double negativeStockMultiplier,
+    private static void logDynamicPricing(
+            String action,
+            String itemId,
+            double basePrice,
+            double stock,
+            double amount,
+            double shortageHours,
+            double timeMultiplier,
+            double curveStrength,
+            double negativeStockMultiplier,
             double total) {
         if (!ConfigCacheManager.logDynamicPricing || plugin == null) {
             return;
         }
 
-        plugin.getLogger().info(String.format(
-                "[DynamicPricing] %s %s amount=%.2f stock=%.2f base=%.4f curve=%.4f shortageHours=%.4f timeMultiplier=%.4f negativeStockMultiplier=%.4f total=%.4f",
-                action, itemId, amount, stock, basePrice, curveStrength, shortageHours, timeMultiplier,
-                negativeStockMultiplier, total));
+        plugin.getLogger()
+                .info(
+                        String.format(
+                                "[DynamicPricing] %s %s amount=%.2f stock=%.2f base=%.4f curve=%.4f shortageHours=%.4f timeMultiplier=%.4f negativeStockMultiplier=%.4f total=%.4f",
+                                action,
+                                itemId,
+                                amount,
+                                stock,
+                                basePrice,
+                                curveStrength,
+                                shortageHours,
+                                timeMultiplier,
+                                negativeStockMultiplier,
+                                total));
     }
 
     // ============================================================================
     // CLAMPED INTEGRAL: ∫ clamp(P(s), minPrice, maxPrice) ds
     // Clamping is built into each region's integral so bulk = 1-at-a-time.
     // ============================================================================
-    private static double computeClampedIntegral(double B, double a, double b,
-            double L, double minStock, double k, double q, double t) {
+    private static double computeClampedIntegral(
+            double B, double a, double b, double L, double minStock, double k, double q, double t) {
         // Invalid state must not collapse into a zero-cost quote or an overpayment.
-        if (validQuote(B) < 0 || !Double.isFinite(a) || !Double.isFinite(b) || b < a
-                || !Double.isFinite(L) || !Double.isFinite(minStock) || L <= minStock
-                || !Double.isFinite(k) || k < 0 || k > 1
-                || !Double.isFinite(q) || q < 1 || validQuote(t) < 0
+        if (validQuote(B) < 0
+                || !Double.isFinite(a)
+                || !Double.isFinite(b)
+                || b < a
+                || !Double.isFinite(L)
+                || !Double.isFinite(minStock)
+                || L <= minStock
+                || !Double.isFinite(k)
+                || k < 0
+                || k > 1
+                || !Double.isFinite(q)
+                || q < 1
+                || validQuote(t) < 0
                 || validQuote(ConfigCacheManager.minPriceMultiplier) < 0
                 || validQuote(ConfigCacheManager.maxPriceMultiplier) < 0
                 || ConfigCacheManager.maxPriceMultiplier < ConfigCacheManager.minPriceMultiplier) {
@@ -854,20 +959,29 @@ public class ShopDataManager {
         double negA = Math.min(a, lowerBound);
         double negB = Math.min(b, lowerBound);
         if (negA < negB) {
-            total += integrateNegativeRegionClamped(B, q, t, negA - lowerBound, negB - lowerBound, maxPrice);
+            total +=
+                    integrateNegativeRegionClamped(
+                            B, q, t, negA - lowerBound, negB - lowerBound, maxPrice);
         }
 
         // MID REGION [lowerBound → upperBound]
         // P(s') = B*t*(1 - 0.5*k*s'/L), linear decreasing from B*t to B*t*(1-0.5k)
         double effectiveMax = upperBound - lowerBound;
-        if (effectiveMax <= 0)
-            effectiveMax = 1.0;
+        if (effectiveMax <= 0) effectiveMax = 1.0;
 
         double midA = Math.max(a, lowerBound);
         double midB = Math.min(b, upperBound);
         if (midA < midB) {
-            total += integrateMidRegionClamped(B, k, t, effectiveMax,
-                    midA - lowerBound, midB - lowerBound, maxPrice, minPrice);
+            total +=
+                    integrateMidRegionClamped(
+                            B,
+                            k,
+                            t,
+                            effectiveMax,
+                            midA - lowerBound,
+                            midB - lowerBound,
+                            maxPrice,
+                            minPrice);
         }
 
         // HIGH REGION [upperBound → +∞) — flat price, clamp directly
@@ -891,12 +1005,14 @@ public class ShopDataManager {
      * the integral into a flat-clamped portion + normal exponential portion.
      * This makes bulk identical to 1-at-a-time (no post-hoc clamping needed).
      */
-    private static double integrateNegativeRegionClamped(double B, double q, double t, double a, double b, double maxPrice) {
+    private static double integrateNegativeRegionClamped(
+            double B, double q, double t, double a, double b, double maxPrice) {
         // Price function: P(s) = B * t * q^(-s), increasing as s decreases
         // Find threshold s_thresh where P(s) = maxPrice:
         //   B * t * q^(-s) = maxPrice  =>  s = -ln(maxPrice/(B*t)) / ln(q)
 
-        // Guard: if q == 1 (negativeStockPercent == 0), log(q) == 0 => flat price in negative region
+        // Guard: if q == 1 (negativeStockPercent == 0), log(q) == 0 => flat price in negative
+        // region
         double logQ = Math.log(q);
         if (Math.abs(logQ) < 1e-12) {
             // Flat price at B*t, clamped to maxPrice
@@ -933,8 +1049,15 @@ public class ShopDataManager {
      * Price is linear decreasing: highest at s'=0 (P=B*t), lowest at s'=L (P=B*t*(1-0.5k)).
      * Finds thresholds where price crosses max/min clamps and splits accordingly.
      */
-    private static double integrateMidRegionClamped(double B, double k, double t, double L,
-            double a, double b, double maxPrice, double minPrice) {
+    private static double integrateMidRegionClamped(
+            double B,
+            double k,
+            double t,
+            double L,
+            double a,
+            double b,
+            double maxPrice,
+            double minPrice) {
         // P(s') = B*t*(1 - 0.5*k*s'/L)
         // P decreases as s' increases
         // MAX threshold: P(s') = maxPrice => s' = 2*L*(1 - maxPrice/(B*t)) / k
@@ -951,7 +1074,10 @@ public class ShopDataManager {
         // Find where price crosses maxPrice (above this, clamp to max)
         double sMax = (t > 0 && B * t > maxPrice) ? 2.0 * L * (1.0 - maxPrice / (B * t)) / k : -1.0;
         // Find where price crosses minPrice (below this, clamp to min)
-        double sMin = (t > 0 && B * t * (1.0 - 0.5 * k) < minPrice) ? 2.0 * L * (1.0 - minPrice / (B * t)) / k : L + 1.0;
+        double sMin =
+                (t > 0 && B * t * (1.0 - 0.5 * k) < minPrice)
+                        ? 2.0 * L * (1.0 - minPrice / (B * t)) / k
+                        : L + 1.0;
 
         // Clamp thresholds to valid range
         sMax = Math.max(sMax, 0);
@@ -998,172 +1124,37 @@ public class ShopDataManager {
         String name = mat.name();
 
         // === TOOLS & WEAPONS ===
-        if (name.contains("PICKAXE") || name.contains("AXE") && !name.contains("WAX") ||
-                name.contains("SHOVEL") || name.contains("SWORD") ||
-                name.contains("TRIDENT") || name.contains("BOW") ||
-                name.contains("CROSSBOW") || name.contains("FISHING_ROD") ||
-                name.contains("MACE") || name.contains("SHEARS") ||
-                name.contains("FLINT_AND_STEEL") || name.contains("SHIELD") ||
-                name.contains("BRUSH") || name.equals("ARROW") ||
-                name.contains("SPECTRAL_ARROW") || name.contains("TIPPED_ARROW")) {
+        if (isToolsMaterial(name)) {
             return cacheAndReturn(mat, ItemCategory.TOOLS);
         }
 
         // === ARMOR ===
-        if (name.contains("HELMET") || name.contains("CHESTPLATE") ||
-                name.contains("LEGGINGS") || name.contains("BOOTS") ||
-                name.contains("ELYTRA") || name.equals("TURTLE_SHELL") ||
-                name.equals("TURTLE_SCUTE") || name.contains("HORSE_ARMOR")) {
+        if (isArmorMaterial(name)) {
             return cacheAndReturn(mat, ItemCategory.ARMOR);
         }
 
         // === WOOD ===
-        if ((name.contains("LOG") && !name.equals("MAGMA_BLOCK")) ||
-                name.contains("WOOD") && !name.equals("PETRIFIED_OAK_SLAB") ||
-                name.contains("PLANK") ||
-                name.contains("FENCE") && !name.contains("NETHER") ||
-                name.contains("DOOR") && !name.contains("IRON") && !name.contains("TRAP") ||
-                name.contains("TRAPDOOR") && !name.contains("IRON") ||
-                name.contains("STAIRS") && (name.contains("OAK") || name.contains("SPRUCE") ||
-                        name.contains("BIRCH") || name.contains("JUNGLE") || name.contains("ACACIA") ||
-                        name.contains("DARK_OAK") || name.contains("MANGROVE") || name.contains("CHERRY") ||
-                        name.contains("BAMBOO") || name.contains("CRIMSON") || name.contains("WARPED"))
-                ||
-                name.contains("SLAB") && (name.contains("OAK") || name.contains("SPRUCE") ||
-                        name.contains("BIRCH") || name.contains("JUNGLE") || name.contains("ACACIA") ||
-                        name.contains("DARK_OAK") || name.contains("MANGROVE") || name.contains("CHERRY") ||
-                        name.contains("BAMBOO") || name.contains("CRIMSON") || name.contains("WARPED"))
-                ||
-                name.contains("SIGN") && !name.equals("DESIGN") ||
-                name.contains("BARREL") ||
-                name.contains("CHEST") && (name.contains("OAK") || name.contains("SPRUCE") ||
-                        name.contains("BIRCH") || name.contains("JUNGLE") || name.contains("ACACIA") ||
-                        name.contains("DARK_OAK") || name.contains("MANGROVE") || name.contains("CHERRY") ||
-                        name.contains("BAMBOO") || name.contains("CRIMSON") || name.contains("WARPED"))) {
+        if (isWoodMaterial(name)) {
             return cacheAndReturn(mat, ItemCategory.WOOD);
         }
 
         // === BLOCKS ===
-        if (name.contains("STONE") && !name.contains("REDSTONE") && !name.contains("LODESTONE") ||
-                name.contains("DIRT") || name.contains("SAND") && !name.contains("SANDSTONE") ||
-                name.contains("GRAVEL") || name.contains("COBBLE") ||
-                name.contains("BRICK") && !name.contains("NETHER") ||
-                name.contains("TERRACOTTA") || name.contains("CONCRETE") ||
-                name.contains("GLASS") && !name.contains("BOTTLE") ||
-                name.contains("WOOL") || name.contains("CARPET") ||
-                name.contains("CLAY") && !name.equals("CLAY_BALL") ||
-                name.contains("MUD") || name.equals("MOSS_BLOCK") || name.equals("MOSS_CARPET") ||
-                name.contains("GRANITE") || name.contains("DIORITE") || name.contains("ANDESITE") ||
-                name.contains("DEEPSLATE") || name.contains("TUFF") || name.contains("CALCITE") ||
-                name.contains("BASALT") || name.contains("BLACKSTONE") ||
-                name.contains("PRISMARINE") || name.contains("PURPUR") ||
-                name.equals("QUARTZ_BLOCK") || name.contains("SMOOTH_QUARTZ") ||
-                name.contains("NETHERRACK") || name.contains("SOUL_SAND") || name.contains("SOUL_SOIL") ||
-                name.contains("END_STONE") || name.contains("OBSIDIAN") ||
-                name.contains("ICE") || name.equals("SNOW_BLOCK") || name.contains("PACKED_ICE") ||
-                name.contains("SANDSTONE") || name.contains("SMOOTH_SANDSTONE") ||
-                name.contains("CUT_SANDSTONE") || name.equals("GLOWSTONE") ||
-                name.equals("SEA_LANTERN") || name.equals("MAGMA_BLOCK") ||
-                name.contains("NETHER_BRICK") || name.equals("RED_NETHER_BRICKS") ||
-                name.equals("SPONGE") || name.equals("WET_SPONGE") ||
-                name.equals("SLIME_BLOCK") || name.equals("HONEY_BLOCK") ||
-                name.equals("BEDROCK") || name.contains("SPAWNER")) {
+        if (isBlocksMaterial(name)) {
             return cacheAndReturn(mat, ItemCategory.BLOCKS);
         }
 
         // === FOOD ===
-        if (name.contains("FISH") && !name.contains("FISHING") ||
-                name.contains("APPLE") ||
-                name.contains("CARROT") && !name.equals("CARROT_ON_A_STICK") ||
-                name.contains("POTATO") || name.contains("BEEF") ||
-                name.contains("PORK") ||
-                name.contains("CHICKEN") && !name.equals("CHICKEN_SPAWN_EGG") ||
-                name.contains("BREAD") || name.contains("COOKIE") ||
-                name.contains("MUTTON") ||
-                name.contains("RABBIT") && !name.contains("FOOT") ||
-                name.contains("STEW") || name.contains("SOUP") ||
-                name.contains("MELON_SLICE") || name.contains("BERRIES") ||
-                name.contains("CHORUS") && name.contains("FRUIT") ||
-                name.contains("BEETROOT") && !name.contains("SEEDS") ||
-                name.equals("DRIED_KELP") || name.equals("HONEY_BOTTLE") ||
-                name.equals("MILK_BUCKET") || name.equals("CAKE") ||
-                name.equals("PUMPKIN_PIE") || name.contains("SUSPICIOUS_STEW") ||
-                name.equals("ENCHANTED_GOLDEN_APPLE") || name.equals("GOLDEN_APPLE") ||
-                name.equals("GOLDEN_CARROT") || name.equals("POISONOUS_POTATO") ||
-                name.equals("ROTTEN_FLESH") || name.equals("SPIDER_EYE") ||
-                name.contains("MUSHROOM_STEW") || name.equals("EGG") ||
-                name.equals("SUGAR") || name.contains("SWEET_BERRIES") ||
-                name.contains("GLOW_BERRIES")) {
+        if (isFoodMaterial(name)) {
             return cacheAndReturn(mat, ItemCategory.FOOD);
         }
 
         // === REDSTONE ===
-        if (name.contains("REDSTONE") && !name.contains("REDSTONE_ORE") ||
-                name.contains("PISTON") || name.contains("REPEATER") ||
-                name.contains("COMPARATOR") || name.contains("HOPPER") ||
-                name.contains("OBSERVER") || name.contains("DISPENSER") ||
-                name.contains("DROPPER") || name.contains("LEVER") ||
-                name.contains("BUTTON") && !name.contains("OAK") && !name.contains("SPRUCE") &&
-                        !name.contains("BIRCH") && !name.contains("JUNGLE") && !name.contains("ACACIA") &&
-                        !name.contains("DARK_OAK") && !name.contains("MANGROVE") && !name.contains("CHERRY") &&
-                        !name.contains("BAMBOO") && !name.contains("CRIMSON") && !name.contains("WARPED")
-                ||
-                name.contains("PRESSURE_PLATE") && !name.contains("STONE_PRESSURE_PLATE") &&
-                        !name.contains("OAK") && !name.contains("SPRUCE") && !name.contains("BIRCH") &&
-                        !name.contains("JUNGLE") && !name.contains("ACACIA") && !name.contains("DARK_OAK") &&
-                        !name.contains("MANGROVE") && !name.contains("CHERRY")
-                ||
-                name.contains("RAIL") || name.contains("DETECTOR") && !name.equals("DETECTOR_RAIL") ||
-                name.contains("REDSTONE_TORCH") || name.contains("REDSTONE_LAMP") ||
-                name.contains("DAYLIGHT") || name.contains("TRIPWIRE") ||
-                name.equals("NOTE_BLOCK") || name.equals("JUKEBOX") ||
-                name.equals("TARGET") || name.equals("LIGHTNING_ROD") ||
-                name.contains("SCULK_SENSOR") || name.equals("CRAFTER") ||
-                name.equals("CHEST") && !name.contains("ENDER") ||
-                name.equals("TRAPPED_CHEST") || name.contains("FURNACE") ||
-                name.equals("LECTERN") || name.equals("BELL") ||
-                name.contains("DOOR") && name.equals("IRON_DOOR") ||
-                name.contains("TRAPDOOR") && name.equals("IRON_TRAPDOOR")) {
+        if (isRedstoneMaterial(name)) {
             return cacheAndReturn(mat, ItemCategory.REDSTONE);
         }
 
         // === FARMING ===
-        if (name.contains("WHEAT") && !name.equals("WHEAT") ||
-                name.contains("SEEDS") || name.contains("BONE_MEAL") ||
-                name.equals("BONE_BLOCK") || name.equals("COMPOSTER") ||
-                name.equals("HAY_BLOCK") ||
-                name.equals("PUMPKIN") && !name.equals("PUMPKIN_PIE") ||
-                name.equals("CARVED_PUMPKIN") || name.equals("JACK_O_LANTERN") ||
-                name.equals("SUGAR_CANE") ||
-                name.contains("BAMBOO") && !name.contains("BUTTON") &&
-                        !name.contains("DOOR") && !name.contains("FENCE") &&
-                        !name.contains("SIGN") && !name.contains("STAIRS") &&
-                        !name.contains("SLAB")
-                ||
-                name.equals("CACTUS") || name.equals("COCOA_BEANS") ||
-                name.contains("NETHER_WART") || name.contains("SAPLING") ||
-                name.contains("LEAVES") && !name.contains("BOOK") ||
-                name.equals("VINE") || name.contains("GLOW_LICHEN") ||
-                name.equals("PITCHER_PLANT") || name.equals("TORCHFLOWER") ||
-                name.contains("SPORE_BLOSSOM") || name.contains("AZALEA") ||
-                name.equals("BIG_DRIPLEAF") || name.equals("SMALL_DRIPLEAF") ||
-                name.contains("HOE") || name.contains("FLOWER") ||
-                name.contains("TULIP") || name.equals("DANDELION") ||
-                name.equals("POPPY") || name.equals("BLUE_ORCHID") ||
-                name.equals("ALLIUM") || name.equals("AZURE_BLUET") ||
-                name.equals("OXEYE_DAISY") || name.equals("CORNFLOWER") ||
-                name.equals("LILY_OF_THE_VALLEY") || name.equals("WITHER_ROSE") ||
-                name.equals("SUNFLOWER") || name.equals("LILAC") ||
-                name.equals("ROSE_BUSH") || name.equals("PEONY") ||
-                name.equals("TALL_GRASS") || name.equals("LARGE_FERN") ||
-                name.equals("FERN") || name.equals("GRASS") ||
-                name.contains("MUSHROOM") && !name.contains("STEW") ||
-                name.equals("BROWN_MUSHROOM_BLOCK") || name.equals("RED_MUSHROOM_BLOCK") ||
-                name.equals("MUSHROOM_STEM") || name.contains("FUNGUS") ||
-                name.equals("WARPED_ROOTS") || name.equals("CRIMSON_ROOTS") ||
-                name.equals("WEEPING_VINES") || name.equals("TWISTING_VINES") ||
-                name.equals("MELON") || name.equals("CHORUS_PLANT") ||
-                name.equals("CHORUS_FLOWER")) {
+        if (isFarmingMaterial(name)) {
             return cacheAndReturn(mat, ItemCategory.FARMING);
         }
 
@@ -1218,10 +1209,11 @@ public class ShopDataManager {
         }
 
         // Filter out disabled items (base price < 0) for regular shop display
-        result.removeIf(mat -> {
-            ShopItemConfig c = itemConfigs.get(mat);
-            return c == null || c.basePrice < 0;
-        });
+        result.removeIf(
+                mat -> {
+                    ShopItemConfig c = itemConfigs.get(mat);
+                    return c == null || c.basePrice < 0;
+                });
         return result;
     }
 
@@ -1340,9 +1332,9 @@ public class ShopDataManager {
 
         markDirty(mat);
 
-        if (plugin != null &&
-                plugin.getP2PCrossServerManager() != null &&
-                plugin.getP2PCrossServerManager().isRunning()) {
+        if (plugin != null
+                && plugin.getP2PCrossServerManager() != null
+                && plugin.getP2PCrossServerManager().isRunning()) {
             plugin.getP2PCrossServerManager().publishStockUpdate(mat, newStock, getPurchases(mat));
         }
     }
@@ -1364,8 +1356,7 @@ public class ShopDataManager {
      * normal YAML save cycle persist the data.
      */
     public static void receiveRemoteStockUpdate(Material mat, double stock, double purchases) {
-        if (mat == null)
-            return;
+        if (mat == null) return;
 
         // Update dynamic data without triggering another publish
         setStockDirect(mat, stock);
@@ -1377,9 +1368,9 @@ public class ShopDataManager {
         markDirty(mat);
     }
 
-    public static void receiveRemoteVariantStockUpdate(String variantId, double stock, double purchases) {
-        if (variantId == null || variantId.isEmpty())
-            return;
+    public static void receiveRemoteVariantStockUpdate(
+            String variantId, double stock, double purchases) {
+        if (variantId == null || variantId.isEmpty()) return;
 
         setVariantStockDirect(variantId, stock);
         setVariantPurchasesDirect(variantId, purchases);
@@ -1400,8 +1391,7 @@ public class ShopDataManager {
         for (Material mat : itemConfigs.keySet()) {
             String key = mat.name();
             ConfigurationSection sec = itemsSec.getConfigurationSection(key);
-            if (sec == null)
-                sec = itemsSec.createSection(key);
+            if (sec == null) sec = itemsSec.createSection(key);
 
             sec.set("stock", stockMap.getOrDefault(mat, 0.0));
             sec.set("purchases", purchasesMap.getOrDefault(mat, 0.0));
@@ -1419,7 +1409,9 @@ public class ShopDataManager {
             if (sec == null) sec = variantsSec.createSection(variantId);
             sec.set("stock", variantStockMap.getOrDefault(variantId, 0.0));
             sec.set("purchases", variantPurchasesMap.getOrDefault(variantId, 0.0));
-            sec.set("last_update", variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis()));
+            sec.set(
+                    "last_update",
+                    variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis()));
             sec.set("shortage_hours", variantShortageHoursMap.getOrDefault(variantId, 0.0));
         }
         saveQueue.clear();
@@ -1428,13 +1420,13 @@ public class ShopDataManager {
         try {
             shopDataConfig.save(shopDataFile);
         } catch (IOException e) {
-            Bukkit.getLogger().severe("[DynamicShop] Failed to save shopdata.yml: " + e.getMessage());
+            Bukkit.getLogger()
+                    .severe("[DynamicShop] Failed to save shopdata.yml: " + e.getMessage());
         }
     }
 
     public static void saveQueuedItems() {
-        if (saveQueue.isEmpty() && variantSaveQueue.isEmpty())
-            return;
+        if (saveQueue.isEmpty() && variantSaveQueue.isEmpty()) return;
 
         ConfigurationSection itemsSec = shopDataConfig.getConfigurationSection("items");
         if (itemsSec == null) {
@@ -1471,7 +1463,9 @@ public class ShopDataManager {
 
             sec.set("stock", variantStockMap.getOrDefault(variantId, 0.0));
             sec.set("purchases", variantPurchasesMap.getOrDefault(variantId, 0.0));
-            sec.set("last_update", variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis()));
+            sec.set(
+                    "last_update",
+                    variantLastUpdateMap.getOrDefault(variantId, System.currentTimeMillis()));
             sec.set("shortage_hours", variantShortageHoursMap.getOrDefault(variantId, 0.0));
         }
 
@@ -1482,7 +1476,8 @@ public class ShopDataManager {
         try {
             shopDataConfig.save(shopDataFile);
         } catch (IOException e) {
-            plugin.getLogger().severe("[DynamicShop] Failed to save shopdata.yml: " + e.getMessage());
+            plugin.getLogger()
+                    .severe("[DynamicShop] Failed to save shopdata.yml: " + e.getMessage());
         }
     }
 
@@ -1532,26 +1527,15 @@ public class ShopDataManager {
             String key = mat.name();
 
             ConfigurationSection sec = itemsSec.getConfigurationSection(key);
-            if (sec == null)
-                sec = itemsSec.createSection(key);
+            if (sec == null) sec = itemsSec.createSection(key);
 
             // STOCK
-            double stock = 0.0;
-            if (sec.contains("stock")) {
-                stock = sec.getDouble("stock");
-            } else if (stockSec != null && stockSec.isDouble(key)) {
-                stock = stockSec.getDouble(key);
-            }
+            double stock = migratedDouble(sec, "stock", stockSec, key);
             sec.set("stock", stock);
             stockMap.put(mat, stock);
 
             // PURCHASES
-            double purchases = 0.0;
-            if (sec.contains("purchases")) {
-                purchases = sec.getDouble("purchases");
-            } else if (purchasesSec != null && purchasesSec.isDouble(key)) {
-                purchases = purchasesSec.getDouble(key);
-            }
+            double purchases = migratedDouble(sec, "purchases", purchasesSec, key);
             sec.set("purchases", purchases);
             purchasesMap.put(mat, purchases);
 
@@ -1566,28 +1550,12 @@ public class ShopDataManager {
             lastUpdateMap.put(mat, lastUpdate);
 
             // SHORTAGE HOURS
-            double shortageHours = 0.0;
-            if (sec.contains("shortage_hours")) {
-                shortageHours = sec.getDouble("shortage_hours");
-            } else if (shortageSec != null && shortageSec.isDouble(key)) {
-                shortageHours = shortageSec.getDouble(key);
-            }
+            double shortageHours = migratedDouble(sec, "shortage_hours", shortageSec, key);
             sec.set("shortage_hours", shortageHours);
             shortageHoursMap.put(mat, shortageHours);
         }
 
-        // Load variant dynamic data
-        ConfigurationSection variantsSec = shopDataConfig.getConfigurationSection("variants");
-        if (variantsSec != null) {
-            for (String variantId : variantsSec.getKeys(false)) {
-                ConfigurationSection sec = variantsSec.getConfigurationSection(variantId);
-                if (sec == null) continue;
-                variantStockMap.put(variantId, sec.getDouble("stock", 0.0));
-                variantPurchasesMap.put(variantId, sec.getDouble("purchases", 0.0));
-                variantLastUpdateMap.put(variantId, sec.getLong("last_update", now));
-                variantShortageHoursMap.put(variantId, sec.getDouble("shortage_hours", 0.0));
-            }
-        }
+        loadVariantDynamicData(now);
 
         initializeMissingStoredItemVariants();
 
@@ -1604,7 +1572,8 @@ public class ShopDataManager {
             return;
         }
 
-        ConfigurationSection specialSec = plugin.getConfig().getConfigurationSection("special_items");
+        ConfigurationSection specialSec =
+                plugin.getConfig().getConfigurationSection("special_items");
         if (specialSec == null) {
             return;
         }
@@ -1656,7 +1625,10 @@ public class ShopDataManager {
             double decayRate = ConfigCacheManager.shortageDecayPercentPerHour;
             if (decayRate > 0) {
                 ShopItemConfig cfg = itemConfigs.get(mat);
-                double L = (cfg != null && cfg.maxStock != null) ? cfg.maxStock : ConfigCacheManager.maxStock;
+                double L =
+                        (cfg != null && cfg.maxStock != null)
+                                ? cfg.maxStock
+                                : ConfigCacheManager.maxStock;
                 double stockRatio = Math.min(stock / L, 1.0); // 0.0 → 1.0
 
                 long diff = System.currentTimeMillis() - getLastUpdate(mat);
@@ -1691,7 +1663,10 @@ public class ShopDataManager {
             double decayRate = ConfigCacheManager.shortageDecayPercentPerHour;
             if (decayRate > 0) {
                 ShopItemConfig cfg = itemConfigs.get(mat);
-                double L = (cfg != null && cfg.maxStock != null) ? cfg.maxStock : ConfigCacheManager.maxStock;
+                double L =
+                        (cfg != null && cfg.maxStock != null)
+                                ? cfg.maxStock
+                                : ConfigCacheManager.maxStock;
                 double stockRatio = Math.min(stock / L, 1.0);
                 double decay = decayRate * stockRatio * deltaHours;
                 double newStored = Math.max(0.0, stored - decay);
@@ -1726,7 +1701,8 @@ public class ShopDataManager {
         }
     }
 
-    private static void applyHighInflationCorrection(Material mat, double oldStock, double newStock) {
+    private static void applyHighInflationCorrection(
+            Material mat, double oldStock, double newStock) {
         if (!shouldApplyHighInflationCorrection(oldStock, newStock)) {
             return;
         }
@@ -1739,7 +1715,8 @@ public class ShopDataManager {
         }
     }
 
-    private static void applyVariantHighInflationCorrection(String variantId, double oldStock, double newStock) {
+    private static void applyVariantHighInflationCorrection(
+            String variantId, double oldStock, double newStock) {
         if (!shouldApplyHighInflationCorrection(oldStock, newStock)) {
             return;
         }
@@ -1765,13 +1742,19 @@ public class ShopDataManager {
         }
 
         double currentIncreasePercent = getInflationIncreasePercent(hours);
-        double threshold = Math.max(0.0, ConfigCacheManager.highInflationCorrectionThresholdPercent);
+        double threshold =
+                Math.max(0.0, ConfigCacheManager.highInflationCorrectionThresholdPercent);
         if (currentIncreasePercent < threshold) {
             return hours;
         }
 
-        double reduction = Math.max(0.0, Math.min(100.0,
-                ConfigCacheManager.highInflationCorrectionReductionPercent)) / 100.0;
+        double reduction =
+                Math.max(
+                                0.0,
+                                Math.min(
+                                        100.0,
+                                        ConfigCacheManager.highInflationCorrectionReductionPercent))
+                        / 100.0;
         if (reduction <= 0) {
             return hours;
         }
@@ -1845,8 +1828,7 @@ public class ShopDataManager {
         double total = 0.0;
         for (Material mat : itemConfigs.keySet()) {
             double base = getBasePrice(mat);
-            if (base <= 0)
-                continue;
+            if (base <= 0) continue;
             total += getStock(mat) * base;
         }
         return total;
@@ -1856,8 +1838,7 @@ public class ShopDataManager {
         double total = 0.0;
         for (Material mat : itemConfigs.keySet()) {
             double base = getBasePrice(mat);
-            if (base <= 0)
-                continue;
+            if (base <= 0) continue;
             total += getPurchases(mat) * base;
         }
         return total;
@@ -1894,7 +1875,12 @@ public class ShopDataManager {
         public final int quantityBought;
         public final int quantitySold;
 
-        public ItemStats(String displayName, int timesBought, int timesSold, int quantityBought, int quantitySold) {
+        public ItemStats(
+                String displayName,
+                int timesBought,
+                int timesSold,
+                int quantityBought,
+                int quantitySold) {
             this.displayName = displayName;
             this.timesBought = timesBought;
             this.timesSold = timesSold;
@@ -1911,12 +1897,17 @@ public class ShopDataManager {
         try {
             Material mat = Material.valueOf(materialName.toUpperCase());
 
-            if (!itemConfigs.containsKey(mat))
-                return null;
+            if (!itemConfigs.containsKey(mat)) return null;
 
-            String displayName = Arrays.stream(mat.name().toLowerCase().split("_"))
-                    .map(w -> w.isEmpty() ? "" : Character.toUpperCase(w.charAt(0)) + w.substring(1))
-                    .collect(java.util.stream.Collectors.joining(" "));
+            String displayName =
+                    Arrays.stream(mat.name().toLowerCase().split("_"))
+                            .map(
+                                    w ->
+                                            w.isEmpty()
+                                                    ? ""
+                                                    : Character.toUpperCase(w.charAt(0))
+                                                            + w.substring(1))
+                            .collect(java.util.stream.Collectors.joining(" "));
 
             int timesBought = 0;
             int timesSold = 0;
@@ -1924,16 +1915,19 @@ public class ShopDataManager {
             int quantitySold = 0;
 
             if (plugin != null && plugin.getTransactionLogger() != null) {
-                List<org.minecraftsmp.dynamicshop.transactions.Transaction> transactions = plugin.getTransactionLogger()
-                        .getRecentTransactions();
+                List<org.minecraftsmp.dynamicshop.transactions.Transaction> transactions =
+                        plugin.getTransactionLogger().getRecentTransactions();
 
                 for (org.minecraftsmp.dynamicshop.transactions.Transaction tx : transactions) {
                     if (tx.getItem().equalsIgnoreCase(mat.name())) {
-                        if (tx.getType() == org.minecraftsmp.dynamicshop.transactions.Transaction.TransactionType.BUY) {
+                        if (tx.getType()
+                                == org.minecraftsmp.dynamicshop.transactions.Transaction
+                                        .TransactionType.BUY) {
                             timesBought++;
                             quantityBought += tx.getAmount();
-                        } else if (tx
-                                .getType() == org.minecraftsmp.dynamicshop.transactions.Transaction.TransactionType.SELL) {
+                        } else if (tx.getType()
+                                == org.minecraftsmp.dynamicshop.transactions.Transaction
+                                        .TransactionType.SELL) {
                             timesSold++;
                             quantitySold += tx.getAmount();
                         }
@@ -2009,8 +2003,17 @@ public class ShopDataManager {
             // Should usually not happen if we are enabling/adding, but safe default
             newConfig = new ShopItemConfig(price, null, null, null, null, false, false, null, null);
         } else {
-            newConfig = new ShopItemConfig(price, old.maxStock, old.minStock, old.maxStockStorage, old.minStockStorage,
-                    old.disableBuy, old.disableSell, old.categoryOverride, old.stockRate);
+            newConfig =
+                    new ShopItemConfig(
+                            price,
+                            old.maxStock,
+                            old.minStock,
+                            old.maxStockStorage,
+                            old.minStockStorage,
+                            old.disableBuy,
+                            old.disableSell,
+                            old.categoryOverride,
+                            old.stockRate);
         }
         itemConfigs.put(mat, newConfig);
 
@@ -2025,8 +2028,17 @@ public class ShopDataManager {
     public static void setBuyDisabled(Material mat, boolean disabled) {
         ShopItemConfig old = itemConfigs.get(mat);
         if (old == null) return;
-        ShopItemConfig newConfig = new ShopItemConfig(old.basePrice, old.maxStock, old.minStock,
-                old.maxStockStorage, old.minStockStorage, disabled, old.disableSell, old.categoryOverride, old.stockRate);
+        ShopItemConfig newConfig =
+                new ShopItemConfig(
+                        old.basePrice,
+                        old.maxStock,
+                        old.minStock,
+                        old.maxStockStorage,
+                        old.minStockStorage,
+                        disabled,
+                        old.disableSell,
+                        old.categoryOverride,
+                        old.stockRate);
         itemConfigs.put(mat, newConfig);
 
         plugin.getConfig().set("items." + mat.name() + ".disable-buy", disabled);
@@ -2039,8 +2051,17 @@ public class ShopDataManager {
     public static void setSellDisabled(Material mat, boolean disabled) {
         ShopItemConfig old = itemConfigs.get(mat);
         if (old == null) return;
-        ShopItemConfig newConfig = new ShopItemConfig(old.basePrice, old.maxStock, old.minStock,
-                old.maxStockStorage, old.minStockStorage, old.disableBuy, disabled, old.categoryOverride, old.stockRate);
+        ShopItemConfig newConfig =
+                new ShopItemConfig(
+                        old.basePrice,
+                        old.maxStock,
+                        old.minStock,
+                        old.maxStockStorage,
+                        old.minStockStorage,
+                        old.disableBuy,
+                        disabled,
+                        old.categoryOverride,
+                        old.stockRate);
         itemConfigs.put(mat, newConfig);
 
         plugin.getConfig().set("items." + mat.name() + ".disable-sell", disabled);
@@ -2053,8 +2074,17 @@ public class ShopDataManager {
     public static void setMaxStock(Material mat, Double max) {
         ShopItemConfig old = itemConfigs.get(mat);
         if (old == null) return;
-        ShopItemConfig newConfig = new ShopItemConfig(old.basePrice(), max, old.minStock(),
-                old.maxStockStorage(), old.minStockStorage(), old.disableBuy(), old.disableSell(), old.categoryOverride(), old.stockRate());
+        ShopItemConfig newConfig =
+                new ShopItemConfig(
+                        old.basePrice(),
+                        max,
+                        old.minStock(),
+                        old.maxStockStorage(),
+                        old.minStockStorage(),
+                        old.disableBuy(),
+                        old.disableSell(),
+                        old.categoryOverride(),
+                        old.stockRate());
         itemConfigs.put(mat, newConfig);
 
         plugin.getConfig().set("items." + mat.name() + ".max-stock", max);
@@ -2067,8 +2097,17 @@ public class ShopDataManager {
     public static void setMaxStockStorage(Material mat, Integer max) {
         ShopItemConfig old = itemConfigs.get(mat);
         if (old == null) return;
-        ShopItemConfig newConfig = new ShopItemConfig(old.basePrice(), old.maxStock(), old.minStock(),
-                max, old.minStockStorage(), old.disableBuy(), old.disableSell(), old.categoryOverride(), old.stockRate());
+        ShopItemConfig newConfig =
+                new ShopItemConfig(
+                        old.basePrice(),
+                        old.maxStock(),
+                        old.minStock(),
+                        max,
+                        old.minStockStorage(),
+                        old.disableBuy(),
+                        old.disableSell(),
+                        old.categoryOverride(),
+                        old.stockRate());
         itemConfigs.put(mat, newConfig);
 
         plugin.getConfig().set("items." + mat.name() + ".max-stock-storage", max);
@@ -2081,8 +2120,17 @@ public class ShopDataManager {
     public static void setStockRate(Material mat, Double rate) {
         ShopItemConfig old = itemConfigs.get(mat);
         if (old == null) return;
-        ShopItemConfig newConfig = new ShopItemConfig(old.basePrice, old.maxStock, old.minStock,
-                old.maxStockStorage, old.minStockStorage, old.disableBuy, old.disableSell, old.categoryOverride, rate);
+        ShopItemConfig newConfig =
+                new ShopItemConfig(
+                        old.basePrice,
+                        old.maxStock,
+                        old.minStock,
+                        old.maxStockStorage,
+                        old.minStockStorage,
+                        old.disableBuy,
+                        old.disableSell,
+                        old.categoryOverride,
+                        rate);
         itemConfigs.put(mat, newConfig);
 
         if (rate != null) {
@@ -2117,5 +2165,311 @@ public class ShopDataManager {
 
         // Rebuild category lists to reflect the change
         buildCategoryLists();
+    }
+
+    private static boolean isToolsMaterial(String name) {
+        return name.contains("PICKAXE")
+                || name.contains("AXE") && !name.contains("WAX")
+                || name.contains("SHOVEL")
+                || name.contains("SWORD")
+                || name.contains("TRIDENT")
+                || name.contains("BOW")
+                || name.contains("CROSSBOW")
+                || name.contains("FISHING_ROD")
+                || name.contains("MACE")
+                || name.contains("SHEARS")
+                || name.contains("FLINT_AND_STEEL")
+                || name.contains("SHIELD")
+                || name.contains("BRUSH")
+                || name.equals("ARROW")
+                || name.contains("SPECTRAL_ARROW")
+                || name.contains("TIPPED_ARROW");
+    }
+
+    private static boolean isArmorMaterial(String name) {
+        return name.contains("HELMET")
+                || name.contains("CHESTPLATE")
+                || name.contains("LEGGINGS")
+                || name.contains("BOOTS")
+                || name.contains("ELYTRA")
+                || name.equals("TURTLE_SHELL")
+                || name.equals("TURTLE_SCUTE")
+                || name.contains("HORSE_ARMOR");
+    }
+
+    private static boolean isWoodMaterial(String name) {
+        return (name.contains("LOG") && !name.equals("MAGMA_BLOCK"))
+                || name.contains("WOOD") && !name.equals("PETRIFIED_OAK_SLAB")
+                || name.contains("PLANK")
+                || name.contains("FENCE") && !name.contains("NETHER")
+                || name.contains("DOOR") && !name.contains("IRON") && !name.contains("TRAP")
+                || name.contains("TRAPDOOR") && !name.contains("IRON")
+                || name.contains("STAIRS")
+                        && (name.contains("OAK")
+                                || name.contains("SPRUCE")
+                                || name.contains("BIRCH")
+                                || name.contains("JUNGLE")
+                                || name.contains("ACACIA")
+                                || name.contains("DARK_OAK")
+                                || name.contains("MANGROVE")
+                                || name.contains("CHERRY")
+                                || name.contains("BAMBOO")
+                                || name.contains("CRIMSON")
+                                || name.contains("WARPED"))
+                || name.contains("SLAB")
+                        && (name.contains("OAK")
+                                || name.contains("SPRUCE")
+                                || name.contains("BIRCH")
+                                || name.contains("JUNGLE")
+                                || name.contains("ACACIA")
+                                || name.contains("DARK_OAK")
+                                || name.contains("MANGROVE")
+                                || name.contains("CHERRY")
+                                || name.contains("BAMBOO")
+                                || name.contains("CRIMSON")
+                                || name.contains("WARPED"))
+                || name.contains("SIGN") && !name.equals("DESIGN")
+                || name.contains("BARREL")
+                || name.contains("CHEST")
+                        && (name.contains("OAK")
+                                || name.contains("SPRUCE")
+                                || name.contains("BIRCH")
+                                || name.contains("JUNGLE")
+                                || name.contains("ACACIA")
+                                || name.contains("DARK_OAK")
+                                || name.contains("MANGROVE")
+                                || name.contains("CHERRY")
+                                || name.contains("BAMBOO")
+                                || name.contains("CRIMSON")
+                                || name.contains("WARPED"));
+    }
+
+    private static boolean isBlocksMaterial(String name) {
+        return name.contains("STONE") && !name.contains("REDSTONE") && !name.contains("LODESTONE")
+                || name.contains("DIRT")
+                || name.contains("SAND") && !name.contains("SANDSTONE")
+                || name.contains("GRAVEL")
+                || name.contains("COBBLE")
+                || name.contains("BRICK") && !name.contains("NETHER")
+                || name.contains("TERRACOTTA")
+                || name.contains("CONCRETE")
+                || name.contains("GLASS") && !name.contains("BOTTLE")
+                || name.contains("WOOL")
+                || name.contains("CARPET")
+                || name.contains("CLAY") && !name.equals("CLAY_BALL")
+                || name.contains("MUD")
+                || name.equals("MOSS_BLOCK")
+                || name.equals("MOSS_CARPET")
+                || name.contains("GRANITE")
+                || name.contains("DIORITE")
+                || name.contains("ANDESITE")
+                || name.contains("DEEPSLATE")
+                || name.contains("TUFF")
+                || name.contains("CALCITE")
+                || name.contains("BASALT")
+                || name.contains("BLACKSTONE")
+                || name.contains("PRISMARINE")
+                || name.contains("PURPUR")
+                || name.equals("QUARTZ_BLOCK")
+                || name.contains("SMOOTH_QUARTZ")
+                || name.contains("NETHERRACK")
+                || name.contains("SOUL_SAND")
+                || name.contains("SOUL_SOIL")
+                || name.contains("END_STONE")
+                || name.contains("OBSIDIAN")
+                || name.contains("ICE")
+                || name.equals("SNOW_BLOCK")
+                || name.contains("PACKED_ICE")
+                || name.contains("SANDSTONE")
+                || name.contains("SMOOTH_SANDSTONE")
+                || name.contains("CUT_SANDSTONE")
+                || name.equals("GLOWSTONE")
+                || name.equals("SEA_LANTERN")
+                || name.equals("MAGMA_BLOCK")
+                || name.contains("NETHER_BRICK")
+                || name.equals("RED_NETHER_BRICKS")
+                || name.equals("SPONGE")
+                || name.equals("WET_SPONGE")
+                || name.equals("SLIME_BLOCK")
+                || name.equals("HONEY_BLOCK")
+                || name.equals("BEDROCK")
+                || name.contains("SPAWNER");
+    }
+
+    private static boolean isFoodMaterial(String name) {
+        return name.contains("FISH") && !name.contains("FISHING")
+                || name.contains("APPLE")
+                || name.contains("CARROT") && !name.equals("CARROT_ON_A_STICK")
+                || name.contains("POTATO")
+                || name.contains("BEEF")
+                || name.contains("PORK")
+                || name.contains("CHICKEN") && !name.equals("CHICKEN_SPAWN_EGG")
+                || name.contains("BREAD")
+                || name.contains("COOKIE")
+                || name.contains("MUTTON")
+                || name.contains("RABBIT") && !name.contains("FOOT")
+                || name.contains("STEW")
+                || name.contains("SOUP")
+                || name.contains("MELON_SLICE")
+                || name.contains("BERRIES")
+                || name.contains("CHORUS") && name.contains("FRUIT")
+                || name.contains("BEETROOT") && !name.contains("SEEDS")
+                || name.equals("DRIED_KELP")
+                || name.equals("HONEY_BOTTLE")
+                || name.equals("MILK_BUCKET")
+                || name.equals("CAKE")
+                || name.equals("PUMPKIN_PIE")
+                || name.contains("SUSPICIOUS_STEW")
+                || name.equals("ENCHANTED_GOLDEN_APPLE")
+                || name.equals("GOLDEN_APPLE")
+                || name.equals("GOLDEN_CARROT")
+                || name.equals("POISONOUS_POTATO")
+                || name.equals("ROTTEN_FLESH")
+                || name.equals("SPIDER_EYE")
+                || name.contains("MUSHROOM_STEW")
+                || name.equals("EGG")
+                || name.equals("SUGAR")
+                || name.contains("SWEET_BERRIES")
+                || name.contains("GLOW_BERRIES");
+    }
+
+    private static boolean isRedstoneMaterial(String name) {
+        return name.contains("REDSTONE") && !name.contains("REDSTONE_ORE")
+                || name.contains("PISTON")
+                || name.contains("REPEATER")
+                || name.contains("COMPARATOR")
+                || name.contains("HOPPER")
+                || name.contains("OBSERVER")
+                || name.contains("DISPENSER")
+                || name.contains("DROPPER")
+                || name.contains("LEVER")
+                || name.contains("BUTTON")
+                        && !name.contains("OAK")
+                        && !name.contains("SPRUCE")
+                        && !name.contains("BIRCH")
+                        && !name.contains("JUNGLE")
+                        && !name.contains("ACACIA")
+                        && !name.contains("DARK_OAK")
+                        && !name.contains("MANGROVE")
+                        && !name.contains("CHERRY")
+                        && !name.contains("BAMBOO")
+                        && !name.contains("CRIMSON")
+                        && !name.contains("WARPED")
+                || name.contains("PRESSURE_PLATE")
+                        && !name.contains("STONE_PRESSURE_PLATE")
+                        && !name.contains("OAK")
+                        && !name.contains("SPRUCE")
+                        && !name.contains("BIRCH")
+                        && !name.contains("JUNGLE")
+                        && !name.contains("ACACIA")
+                        && !name.contains("DARK_OAK")
+                        && !name.contains("MANGROVE")
+                        && !name.contains("CHERRY")
+                || name.contains("RAIL")
+                || name.contains("DETECTOR") && !name.equals("DETECTOR_RAIL")
+                || name.contains("REDSTONE_TORCH")
+                || name.contains("REDSTONE_LAMP")
+                || name.contains("DAYLIGHT")
+                || name.contains("TRIPWIRE")
+                || name.equals("NOTE_BLOCK")
+                || name.equals("JUKEBOX")
+                || name.equals("TARGET")
+                || name.equals("LIGHTNING_ROD")
+                || name.contains("SCULK_SENSOR")
+                || name.equals("CRAFTER")
+                || name.equals("CHEST") && !name.contains("ENDER")
+                || name.equals("TRAPPED_CHEST")
+                || name.contains("FURNACE")
+                || name.equals("LECTERN")
+                || name.equals("BELL")
+                || name.contains("DOOR") && name.equals("IRON_DOOR")
+                || name.contains("TRAPDOOR") && name.equals("IRON_TRAPDOOR");
+    }
+
+    private static boolean isFarmingMaterial(String name) {
+        return name.contains("WHEAT") && !name.equals("WHEAT")
+                || name.contains("SEEDS")
+                || name.contains("BONE_MEAL")
+                || name.equals("BONE_BLOCK")
+                || name.equals("COMPOSTER")
+                || name.equals("HAY_BLOCK")
+                || name.equals("PUMPKIN") && !name.equals("PUMPKIN_PIE")
+                || name.equals("CARVED_PUMPKIN")
+                || name.equals("JACK_O_LANTERN")
+                || name.equals("SUGAR_CANE")
+                || name.contains("BAMBOO")
+                        && !name.contains("BUTTON")
+                        && !name.contains("DOOR")
+                        && !name.contains("FENCE")
+                        && !name.contains("SIGN")
+                        && !name.contains("STAIRS")
+                        && !name.contains("SLAB")
+                || name.equals("CACTUS")
+                || name.equals("COCOA_BEANS")
+                || name.contains("NETHER_WART")
+                || name.contains("SAPLING")
+                || name.contains("LEAVES") && !name.contains("BOOK")
+                || name.equals("VINE")
+                || name.contains("GLOW_LICHEN")
+                || name.equals("PITCHER_PLANT")
+                || name.equals("TORCHFLOWER")
+                || name.contains("SPORE_BLOSSOM")
+                || name.contains("AZALEA")
+                || name.equals("BIG_DRIPLEAF")
+                || name.equals("SMALL_DRIPLEAF")
+                || name.contains("HOE")
+                || name.contains("FLOWER")
+                || name.contains("TULIP")
+                || name.equals("DANDELION")
+                || name.equals("POPPY")
+                || name.equals("BLUE_ORCHID")
+                || name.equals("ALLIUM")
+                || name.equals("AZURE_BLUET")
+                || name.equals("OXEYE_DAISY")
+                || name.equals("CORNFLOWER")
+                || name.equals("LILY_OF_THE_VALLEY")
+                || name.equals("WITHER_ROSE")
+                || name.equals("SUNFLOWER")
+                || name.equals("LILAC")
+                || name.equals("ROSE_BUSH")
+                || name.equals("PEONY")
+                || name.equals("TALL_GRASS")
+                || name.equals("LARGE_FERN")
+                || name.equals("FERN")
+                || name.equals("GRASS")
+                || name.contains("MUSHROOM") && !name.contains("STEW")
+                || name.equals("BROWN_MUSHROOM_BLOCK")
+                || name.equals("RED_MUSHROOM_BLOCK")
+                || name.equals("MUSHROOM_STEM")
+                || name.contains("FUNGUS")
+                || name.equals("WARPED_ROOTS")
+                || name.equals("CRIMSON_ROOTS")
+                || name.equals("WEEPING_VINES")
+                || name.equals("TWISTING_VINES")
+                || name.equals("MELON")
+                || name.equals("CHORUS_PLANT")
+                || name.equals("CHORUS_FLOWER");
+    }
+
+    private static void loadVariantDynamicData(long now) {
+        // Load variant dynamic data
+        ConfigurationSection variantsSec = shopDataConfig.getConfigurationSection("variants");
+        if (variantsSec != null) {
+            for (String variantId : variantsSec.getKeys(false)) {
+                ConfigurationSection sec = variantsSec.getConfigurationSection(variantId);
+                if (sec == null) continue;
+                variantStockMap.put(variantId, sec.getDouble("stock", 0.0));
+                variantPurchasesMap.put(variantId, sec.getDouble("purchases", 0.0));
+                variantLastUpdateMap.put(variantId, sec.getLong("last_update", now));
+                variantShortageHoursMap.put(variantId, sec.getDouble("shortage_hours", 0.0));
+            }
+        }
+    }
+
+    private static double migratedDouble(
+            ConfigurationSection item, String field, ConfigurationSection legacy, String key) {
+        if (item.contains(field)) return item.getDouble(field);
+        if (legacy != null && legacy.isDouble(key)) return legacy.getDouble(key);
+        return 0.0;
     }
 }
