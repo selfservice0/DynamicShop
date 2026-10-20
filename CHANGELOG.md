@@ -1,17 +1,30 @@
 # Release notes
 
-## 3.0.7
+## 4.0.1
 
-- Added `/sell` and `/shop sell` with 45 item slots, confirm/cancel buttons, and a total for each currency.
-- Hover over items in the sell menu or your inventory below to see the per-item price, stack value, and sellable amount. Prices include tax and stock limits; the per-item price is the average for the accepted items in that stack.
-- Price tooltips use fake display copies, so real items keep their original lore and enchantments. Previews are sent directly to fix the ProtocolLib tooltip error on newer Paper servers.
-- Closing or cancelling the sell menu returns unsold items. Only items placed in the menu are sold, and changed prices require another confirmation.
-- Saved enchanted books show their enchantments and levels in game and on the webshop. Bought books keep their saved enchantments.
-- Permission and group upgrades show their configured price and cannot be bought again when already owned. Moving an upgrade to another category keeps its reward behavior.
-- `/shop sellall` and `/shop sellall hand` are now available to operators by default. Other players still need `dynamicshop.use.sellall`.
-- The sell menu is enabled by default. Disable it with `gui.sell_menu_enabled: false`, or control access with `dynamicshop.use.sellgui` (default: `true`).
+- Included the owner's corrected category-chooser textures for Moonstone, Christmas, New Year, Valentine's Day, Easter, St. Patrick's Day and Summer in both Oraxen and Nexo packs and their bundled automatic installers. Original image dimensions, identifiers and slot positions are retained.
+- Packaging now reapplies edited texture files after generation steps so future builds preserve these corrections. Installation retains existing custom-file protection and the backup-first force-update command.
 
-Replace the JAR and restart. Existing configs are preserved, and missing settings are added without resetting them. Use `/dynamicshop:sell` if another plugin owns `/sell`. `/shop sell <price>` still creates a player-shop listing.
+## 4.0.0
+
+- Added eight optional GUI themes: Moonstone/Moonlit, Halloween, Christmas, New Year, Valentine's Day, Easter, St. Patrick's Day and Summer Festival. Both Nexo and Oraxen are supported across shop/category showcases, admin editors, `/sell`, search, player-shop menus and supported native quantity-dialog backgrounds. Each theme includes 11 animated default-category icons and 11 matching controls. `default` retains the existing appearance and installs nothing.
+- Added `/shopadmin theme [list|name]` for admins and console, with tab completion and common holiday aliases. Selecting a theme changes only `gui.theme`, preserving other config values and comments. Existing custom category names, slots, visibility and icon overrides are retained. Reopen menus after switching.
+- The selected theme's native files install from the JAR on startup, `/shopadmin reload` and theme selection. `gui.custom_item_provider: auto` prefers enabled Nexo, then Oraxen. Independent `gui.auto_install_nexo_theme` and `gui.auto_install_oraxen_theme` flags default to true. Nexo uses an isolated external pack; both providers preserve custom files and update unchanged managed files while retaining readable glyph characters.
+- Added `/shopadmin theme install [force]` for the selected provider. Normal installation preserves custom files; force backs up every replaced file under `DynamicShop/theme-installation/backups/` before any theme writes. Explicit installation works with automatic installation disabled and leaves other themes and settings untouched. Commands report the provider's reload/send instructions.
+- Themed Java browsing stays at 54 slots to match the category chooser. Choosers and item pages share their theme's exterior and common visible frame dimensions across all eight themes. Standard menus and Bedrock retain the configured size. Category showcases adapt to central, wider and custom edge layouts without moving category slots.
+- Corrected uneven Moonstone button sizes and replaced its stretched side ornament with a compact crystal. Restored decorative category-footer trim across all themes and replaced crossed-pickaxe Tools & Weapons icons with sword-only art, retaining animation timing, identifiers and dimensions.
+- Missing or invalid Oraxen glyphs now fall back to readable titles and log the affected ID. Placeholder spacing no longer pushes titles off-screen. Restored glyphs resolve after an Oraxen reload without restarting DynamicShop. Floodgate-detected Bedrock players retain readable titles and vanilla controls.
+- Added `/sell` and `/shop sell`, with 45 deposit slots, confirmation/cancellation, per-item/stack price previews and totals for each currency. Confirming keeps the menu open and refreshes it for another batch. Closing or cancelling returns unsold items; only deposited items are sold.
+- Sell previews include tax and stock limits, preserve original item lore/enchantments and avoid the newer Paper ProtocolLib tooltip error. A basket uses one pricing timestamp, fixing repeated confirmations caused by time inflation or shortage decay, while live items, permissions, settings and stock limits are rechecked. Changed quotes require another confirmation. Cancelled deaths retain deposited items.
+- Quantity-dialog purchases and sales return to the refreshed originating shop or search page on the next tick, restoring inventory registration/click protection even after rejected transactions.
+- Physical custom items share the normal admin controls for stock, price, shortage increase, category, buying/selling, visibility, pricing max stock and storage limits. Their provider metadata, display-material and required-permission controls are retained. Edits affect only the custom ID. Normal/custom editors include permanent Shift+click deletion; removed entries stay removed after reload and cannot be recreated by pending input.
+- Category restocks include physical custom items and saved variants, using their own stock IDs and storage limits. Positive restocks clear shortage inflation without changing purchase totals.
+- Saved enchanted books show enchantments and levels in game and on the webshop; purchased books retain those enchantments. Category icons hide extra vanilla tooltips while keeping names, counts and browse instructions.
+- Permission/group upgrades use their configured prices and check ownership before charging, including after category changes. Command rewards detect supported permanent LuckPerms grants and support `owned_permission`, `owned_group`, optional `ownership_world` and intentional `allow_repeat_purchase`. Failed command dispatches are refunded.
+- Special reward lore is configurable through `messages.yml`, including type, permission/group, price, stock, ownership and click instructions. Empty lines can hide individual messages; missing defaults preserve existing values. Shortage-increase lore is hidden when dynamic pricing or time inflation is disabled, including custom-item and Bedrock tooltips.
+- The sell menu defaults to enabled, controlled by `gui.sell_menu_enabled` and `dynamicshop.use.sellgui`. `/shop sellall` and `/shop sellall hand` default to operators; other players need `dynamicshop.use.sellall`.
+
+Replace the JAR and restart. Existing configs are preserved and missing settings are added without resetting them. Reload the selected GUI provider and rebuild/send its pack after installing updated theme files. Use `/dynamicshop:sell` if another plugin owns `/sell`; `/shop sell <price>` still creates a player-shop listing.
 
 ## 3.0.6
 

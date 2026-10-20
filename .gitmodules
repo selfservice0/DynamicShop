@@ -1,0 +1,4 @@
+[submodule "wiki"]
+	path = wiki
+	url = https://github.com/selfservice0/DynamicShop.wiki.git
+	branch = master

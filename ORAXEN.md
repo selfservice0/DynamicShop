@@ -1,68 +1,54 @@
-# Oraxen support
+# Oraxen Integration
 
-Oraxen is optional, alongside the existing Nexo integration. Install it before
-starting DynamicShop; both are declared as soft dependencies. The Oraxen API is
-loaded through its plugin classloader and is not bundled into DynamicShop.
+DynamicShop 4.0.1 supports Oraxen as an optional integration for built-in GUI themes, glyph backgrounds, navigation, category icons, fillers and tradeable custom items. Install Oraxen separately before starting DynamicShop. Its API/plugin is not bundled into DynamicShop.
 
-Merge into your existing `gui` section in `plugins/DynamicShop/config.yml`:
+## Built-in themes
+
+Merge settings into the existing `gui:` section:
 
 ```yaml
 gui:
   custom_item_provider: oraxen
-  shop_menu_size: 54
-  filler_material: AIR
-  use_dialog_gui: false
+  theme: halloween
+  auto_install_oraxen_theme: true
 ```
 
-`custom_item_provider` accepts `auto`, `nexo`, `oraxen`, or `none`. The default
-`auto` selects Nexo first, then Oraxen. Select `oraxen` explicitly when both are
-installed and this pack should supply the menu glyphs and navigation items.
-Explicit item identifiers always use their named provider.
+Select `oraxen` explicitly when Nexo is also enabled: `auto` prefers Nexo. Run `/shopadmin theme halloween` to save/select the theme. The JAR installs its files into Oraxen's actual data folder:
 
-## GUI backgrounds and buttons
-
-Install the DynamicShop glyph, item and texture files in Oraxen. Merge the title
-entries from the generated `messages_oraxen_example.yml` into the active
-`messages.yml`; editing the example alone does not change existing menus.
-New installations select a message example based on the configured provider.
-Existing messages are preserved, including titles using raw Unicode characters.
-
-Example title inside `messages`:
-
-```yaml
-gui-category-title: "<white><shift:-48><glyph:dynamicshop_gui_menu><shift:-170><black><bold>Categories"
+```text
+glyphs/dynamicshop_halloween.yml
+items/dynamicshop_halloween.yml
+items/dynamicshop_halloween_categories.yml
+pack/assets/dynamicshop/textures/
 ```
 
-The selected plugin's native MiniMessage resolvers render glyphs and spacing.
-GUI titles are server-authored and do not enforce chat glyph permissions.
-The Oraxen example uses the `dynamicshop_*` glyph IDs in the converted pack.
-Its buttons use `shop_back_button`, `shop_next_button`, `shop_categories_button`,
-`shop_search_button`, `shop_page_button`, and `shop_filter_button`.
-Missing custom items use the existing vanilla icon fallback.
+All eight [GUI Themes](THEMES.md) are included. Automatic installation runs on startup, `/shopadmin reload` and theme selection. It adds missing files, updates unchanged managed files, preserves custom files and retains readable assigned glyph characters. Theme-specific filenames and IDs keep other theme packs separate.
 
-## Category icons, fillers, and purchases
+Run `/shopadmin theme install` to install manually, or `/shopadmin theme install force` to back up and replace the selected theme's bundled files. Both manual commands work with automatic installation disabled and target the selected GUI provider.
 
-- Use `oraxen:shop_food` as a category icon in `categories.yml`, the in-game
-  category editor, or the website's category editor.
-- The in-game category editor also recognizes an Oraxen item held in your hand.
-- `gui.filler_material` accepts `oraxen:item_id` as well as Nexo IDs and materials.
-- Holding an Oraxen item and using `/shopadmin add item <price>` stores its
-  Oraxen ID and sets its delivery method automatically.
-- The website's server-item editor accepts `oraxen` as the delivery method.
-- Manual server-item configurations use `delivery_method: oraxen` and
-  `nbt: item_id`. Here `nbt` is the existing custom-item identifier field.
-- Admin/player shop previews use the registered Oraxen item. Purchases obtain
-  a fresh stack from Oraxen; unavailable items follow the existing failed
-  delivery/refund path.
+Then run `/oraxen reload all`, wait for resource-pack generation/upload, and `/oraxen pack send`. Accept the updated pack and reopen menus. No messages-file replacement or separate theme ZIP is required for named built-in themes. DynamicShop does not reload/send Oraxen automatically.
 
-After replacing the DynamicShop JAR, restart the server. For later configuration
-changes, run `/oraxen reload all`, accept the updated pack, then
-`/shopadmin reload` and reopen `/shop`.
+## Legacy and custom titles
 
-## Validation
+`gui.theme: default` keeps existing configured message titles and legacy navigation IDs. Existing `messages.yml` is preserved; `messages_oraxen_example.yml` is a reference. To change a custom title, edit the existing `messages:` section in active `messages.yml`, then `/shopadmin reload`.
 
-Tests exercise provider selection, current/legacy Oraxen item API signatures,
-independent item stacks, Oraxen-only item/category lookup, native glyph/shift
-resolver routing, legacy title compatibility, missing-provider fallbacks, and
-custom-item delivery. The native resolver routing tests use test-only API
-stand-ins. Actual client rendering still requires an in-game resource-pack test.
+Legacy examples reference `dynamicshop_gui_menu`, `dynamicshop_item_display` and navigation items such as `shop_back_button`. Those IDs require your matching custom/legacy pack. Named themes select their installed `dynamicshop_<theme>_*` glyphs and themed controls automatically, including quantity-dialog backgrounds.
+
+Allow Oraxen to allocate unused glyph characters. Avoid copying fixed character assignments from another pack. Glyph IDs describe backgrounds; item IDs describe buttons or custom items.
+
+## Custom items and icons
+
+Hold the registered item and run `/shopadmin add item <price> [category] [display name...]`. Oraxen's ID and delivery method are detected. Physical custom entries support buying, selling, independent stock and pricing, search, restocking and the normal admin item editor.
+
+For manual special-item configuration, Oraxen entries use `delivery_method: oraxen` and `nbt: item_id`; the legacy field name `nbt` holds the provider item ID. The website's server-item editor supports Oraxen delivery too.
+
+Use `oraxen:watering_can` (your actual item ID) for a category icon or custom filler. The category editor also detects an Oraxen item held in the main hand. See [Custom Items and Templates](https://github.com/selfservice0/DynamicShop/wiki/Custom-Items-and-Templates).
+
+## Troubleshooting
+
+- Replace a JAR with a full server restart; keep only one DynamicShop JAR installed.
+- Verify `gui.theme`, the selected provider and that the client accepted the rebuilt pack.
+- Missing/invalid Oraxen GUI glyphs log their exact ID and fall back to a readable title. Install the matching files, fix texture paths/pack errors and reload Oraxen. Restored glyphs can resolve after reload without restarting DynamicShop.
+- If edited/old files are reported as preserved, merge manually or use the backup-first force command.
+- Check conflicting fixed characters if two glyphs claim the same code.
+- Floodgate-detected Bedrock players use vanilla decoration; Java resource packs do not supply Bedrock textures. See [Bedrock Support](https://github.com/selfservice0/DynamicShop/wiki/Bedrock-Support).

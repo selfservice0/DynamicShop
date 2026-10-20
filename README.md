@@ -3,7 +3,13 @@ DynamicShop — Dynamic Global Trade Market
 
 A fully dynamic, supply-and-demand driven economy system for Minecraft servers.
 
-Current version: **3.0.7** · [Downloads](https://github.com/selfservice0/DynamicShop/releases) · [Wiki](https://github.com/selfservice0/DynamicShop/wiki) · [Interactive website demo](https://selfservice0.github.io/DynamicShop/) · [DSX Exchange preview](https://selfservice0.github.io/DynamicShop/?design=dsx#catalog)
+Current version: **4.0.1** · [Downloads](https://github.com/selfservice0/DynamicShop/releases) · [Wiki](https://github.com/selfservice0/DynamicShop/wiki) · [Interactive website demo](https://selfservice0.github.io/DynamicShop/) · [DSX Exchange preview](https://selfservice0.github.io/DynamicShop/?design=dsx#catalog)
+
+Version **4.0.1** includes corrected category textures for seven themes. The 4.0 release adds eight optional shop themes, animated category icons and matching controls, with automatic installation for the selected **Nexo or Oraxen** provider. It also improves sell confirmation, custom-item editing/deletion, restocking and reward ownership checks. Existing configurations and custom category overrides are preserved.
+
+Select a theme with `/shopadmin theme halloween` (or `moonstone`, `christmas`, `newyear`, `valentines`, `easter`, `stpatricks`, `summer`). `default` retains your existing appearance. Named Java themes use matching 54-slot browsing; Bedrock retains its vanilla fallback. Custom theme files are preserved by normal installation; `/shopadmin theme install force` backs them up before replacement. Reload the selected provider and send its rebuilt pack after installing/updating resources. See the [theme guide](THEMES.md) and [current wiki](https://github.com/selfservice0/DynamicShop/wiki/GUI-Themes).
+
+The sell menu stays open after confirming so players can sell another batch. Buying/selling through a quantity dialog returns to the refreshed shop/search page. Physical custom items share the standard admin controls, including permanent Shift+click deletion, and category restocks update their separate stock without changing purchase totals.
 
 Version 3.0.7 adds a deposit-and-confirm sell menu, fixes permission/group upgrade prices and ownership checks, shows saved enchanted-book enchantments in game and on the webshop, and makes `dynamicshop.use.sellall` default to operators. Purchased books retain their original metadata. Install the updated JAR and restart; no config reset, re-adding of saved books, or website-file update is needed.
 
