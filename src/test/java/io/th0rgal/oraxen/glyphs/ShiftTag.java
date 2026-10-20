@@ -9,7 +9,8 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 public final class ShiftTag {
     public static final TagResolver RESOLVER = TagResolver.resolver("shift", (args, context) -> {
         int value = Integer.parseInt(args.popOr("shift required").value());
-        if (value != -48) throw new IllegalArgumentException("Unexpected shift " + value);
-        return Tag.selfClosingInserting(Component.text("\uf810\uf80f").font(Key.key("oraxen:shift")));
+        if (value != -48 && value != -170) throw new IllegalArgumentException("Unexpected shift " + value);
+        return Tag.selfClosingInserting(Component.text(value == -48 ? "\uf810\uf80f" : "\uf811")
+                .font(Key.key("oraxen:shift")));
     });
 }

@@ -46,7 +46,8 @@ public class AdminShopBrowseGUI {
         this.plugin = plugin;
         this.player = player;
         this.currentCategory = startCategory;
-        String title = plugin.getMessageManager().getMessage("admin-shop-gui-title");
+        String title = org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                "admin-shop-gui-title", "&4&lAdmin Shop", SIZE, java.util.Map.of());
         if (title == null) title = "§4§lAdmin Shop";
         this.inventory =
                 org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(
@@ -155,6 +156,11 @@ public class AdminShopBrowseGUI {
             }
 
             lore.add("§7Price: §e" + plugin.getEconomyManager().format(sItem.getPrice()));
+            if (sItem.isTradeItem()) {
+                lore.add("§7Current Stock: §f" + String.format("%.0f", ShopDataManager.getVariantStock(sItem.getId())));
+                lore.add("§7Status: " + (plugin.getSpecialShopManager().isTradeDisabled(sItem.getId(), "disabled")
+                        ? "§c✗ DISABLED" : "§a✓ ENABLED"));
+            }
 
             if (sItem.hasRequiredPermission()) {
                 lore.add("§7Requires: §c" + sItem.getRequiredPermission());
@@ -281,7 +287,7 @@ public class AdminShopBrowseGUI {
                     pageLore.stream().map(s -> MessageManager.parseComponent(s)).toList());
             pageItem.setItemMeta(pageMeta);
         }
-        inventory.setItem(navRow + 4, pageItem);
+        inventory.setItem(navRow + 4, org.minecraftsmp.dynamicshop.util.GuiTheme.control(plugin, player, pageItem, "moonstone_settings_button"));
 
         // Close button (slot 5)
         inventory.setItem(
@@ -290,7 +296,7 @@ public class AdminShopBrowseGUI {
     }
 
     private ItemStack createCategorySelector() {
-        ItemStack item = new ItemStack(currentCategory.getIcon());
+        ItemStack item = org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getIconItem(currentCategory, player);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(
@@ -352,7 +358,20 @@ public class AdminShopBrowseGUI {
         // Try special item first (works for both pure-special and mixed categories)
         SpecialShopItem sItem = getSpecialItemFromSlot(slot);
         if (sItem != null) {
+            sItem = plugin.getSpecialShopManager().getSpecialItem(sItem.getId());
+            if (sItem == null) {
+                player.sendMessage("§cThis shop entry was removed. The browser has been refreshed.");
+                loadItemsForCategory();
+                render();
+                return;
+            }
             plugin.getShopListener().unregisterAdminBrowse(player);
+            if (sItem.isTradeItem()) {
+                AdminItemEditGUI editGUI = new AdminItemEditGUI(plugin, player, sItem, this);
+                plugin.getShopListener().registerAdminEdit(player, editGUI);
+                editGUI.open();
+                return;
+            }
             AdminSpecialItemEditGUI editGUI =
                     new AdminSpecialItemEditGUI(plugin, player, sItem, this);
             plugin.getShopListener().registerAdminSpecialEdit(player, editGUI);

@@ -101,7 +101,8 @@ public class ShopItemBuilder {
 
         // Method name is retained for compatibility with existing callers.
         if (nexoId != null) {
-            item = org.minecraftsmp.dynamicshop.managers.CustomItemSupport.getMenuItem(nexoId, viewer);
+            String themedId = GuiTheme.itemId(org.minecraftsmp.dynamicshop.DynamicShop.getInstance(), viewer, nexoId);
+            item = org.minecraftsmp.dynamicshop.managers.CustomItemSupport.getMenuItem(themedId, viewer);
             if (item != null) {
                 item = item.clone();
             }

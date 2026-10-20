@@ -22,7 +22,7 @@ commands:
     permission: dynamicshop.use.sellgui
   shopadmin:
     description: Admin commands for managing the shop
-    usage: /shopadmin <reload|setstock|setrate|changerate|resetshortage|setinflation|webadmin|webupdate [check]>
+    usage: /shopadmin <theme [list|name|install [force]]|reload|setstock|setrate|changerate|resetshortage|setinflation|webadmin|webupdate [check]>
     aliases: [dsa, shopadm]
     permission: dynamicshop.admin
 

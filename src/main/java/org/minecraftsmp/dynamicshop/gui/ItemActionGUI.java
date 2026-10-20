@@ -6,6 +6,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
+import org.minecraftsmp.dynamicshop.managers.ConfigCacheManager;
 import org.minecraftsmp.dynamicshop.managers.MessageManager;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 
@@ -60,7 +61,8 @@ public class ItemActionGUI {
         this.variantBasePrice = variantBasePrice;
         this.variantId = variantId;
 
-        String title = plugin.getMessageManager().getMessage("item-action-title");
+        String title = org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                "item-action-title", "&8Buy / Sell", SIZE, java.util.Map.of());
         if (title == null) title = "§8Buy / Sell";
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
                 MessageManager.parseComponent(title, player));
@@ -109,7 +111,8 @@ public class ItemActionGUI {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(backMeta, MessageManager.parseComponent(backName));
             back.setItemMeta(backMeta);
         }
-        inventory.setItem(SLOT_BACK, back);
+        inventory.setItem(SLOT_BACK, org.minecraftsmp.dynamicshop.util.GuiTheme.control(
+                plugin, player, back, "shop_back_button"));
     }
 
     private ItemStack buildDisplayItem() {
@@ -150,33 +153,31 @@ public class ItemActionGUI {
             if (stock <= 0) {
                 lore.add("§7Stock: §c" + String.format("%.0f", stock));
                 
-                // Show price increase if out of stock
-                double hours = variantId != null
-                        ? ShopDataManager.getVariantShortageHours(variantId)
-                        : ShopDataManager.getHoursInShortage(targetItem);
-                double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
-                double maxPercent = (org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
-                boolean capped = percentIncrease >= maxPercent;
-                if (capped) percentIncrease = maxPercent;
+                // Shortage price details only apply while time inflation is enabled.
+                if (ConfigCacheManager.dynamicPricingEnabled && ConfigCacheManager.useTimeInflation) {
+                    double hours = variantId != null
+                            ? ShopDataManager.getVariantShortageHours(variantId)
+                            : ShopDataManager.getHoursInShortage(targetItem);
+                    double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
+                    double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
+                    boolean capped = percentIncrease >= maxPercent;
+                    if (capped) percentIncrease = maxPercent;
 
-                java.util.Map<String, String> percentPlaceholders = new java.util.HashMap<>();
-                percentPlaceholders.put(
-                        "percent",
-                        String.format("%,.0f", percentIncrease) + (capped ? " (MAX)" : ""));
-                percentPlaceholders.put(
-                        "hourly_rate",
-                        String.format(
-                                "%.1f",
-                                org.minecraftsmp.dynamicshop.managers.ConfigCacheManager
-                                        .hourlyIncreasePercent));
-                MessageManager.addLoreIfNotEmpty(
-                        lore,
-                        plugin.getMessageManager()
-                                .getMessage("shop-lore-price-increase", percentPlaceholders));
-                MessageManager.addLoreIfNotEmpty(
-                        lore,
-                        plugin.getMessageManager()
-                                .getMessage("shop-lore-price-increase-note", percentPlaceholders));
+                    java.util.Map<String, String> percentPlaceholders = new java.util.HashMap<>();
+                    percentPlaceholders.put(
+                            "percent",
+                            String.format("%,.0f", percentIncrease) + (capped ? " (MAX)" : ""));
+                    percentPlaceholders.put(
+                            "hourly_rate", String.format("%.1f", ConfigCacheManager.hourlyIncreasePercent));
+                    MessageManager.addLoreIfNotEmpty(
+                            lore,
+                            plugin.getMessageManager()
+                                    .getMessage("shop-lore-price-increase", percentPlaceholders));
+                    MessageManager.addLoreIfNotEmpty(
+                            lore,
+                            plugin.getMessageManager()
+                                    .getMessage("shop-lore-price-increase-note", percentPlaceholders));
+                }
 
             } else {
                 lore.add("§7Stock: §a" + String.format("%.0f", stock));

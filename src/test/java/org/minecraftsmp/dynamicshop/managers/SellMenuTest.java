@@ -28,6 +28,7 @@ import org.bukkit.damage.DamageSource;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -622,9 +623,10 @@ public class SellMenuTest {
         assertEquals(Material.LIME_CONCRETE, top.get().getItem(47).getType());
     }
 
-    @Test public void rapidConfirmClicksPayOnceAndReturnCapacityRemainders() throws Exception {
+    @Test public void rapidConfirmClicksPayOnceAndKeepRemaindersUntilClose() throws Exception {
         configure(Material.STONE, 2, 2);
         menu.open(player);
+        Inventory opened = top.get();
         top.get().setItem(0, stack(Material.STONE, 5));
         refresh();
         click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
@@ -632,8 +634,19 @@ public class SellMenuTest {
         tick();
         assertEquals(1, deposits.size());
         assertEquals(3.2, credited, 0.000001);
+        assertSame(opened, top.get());
+        assertEquals(3, top.get().getItem(0).getAmount());
+        assertNull(playerItems[0]);
+        click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        tick();
+        assertEquals(1, deposits.size());
+        assertSame(opened, top.get());
+        player.closeInventory();
+        tick();
         assertEquals(3, playerItems[0].getAmount());
         assertFalse(playerItems[0].getItemMeta().hasLore());
+        menu.shutdown();
+        assertNull(playerItems[1]);
     }
 
     @Test public void sellCommandsOpenTheMenuAndInvalidArgumentsDoNot() {
@@ -662,6 +675,101 @@ public class SellMenuTest {
         assertEquals(expected, quote.lines().stream().mapToDouble(SellBasketService.Line::value).sum(), 0.000001);
         service.sell(player, basket, quote);
         assertEquals(expected, credited, 0.000001);
+    }
+
+    private long enableTimedPricing() {
+        ConfigCacheManager.dynamicPricingEnabled = true;
+        ConfigCacheManager.useTimeInflation = true;
+        ConfigCacheManager.useStockCurve = false;
+        ConfigCacheManager.negativeStockPercentPerItem = 0;
+        ConfigCacheManager.hourlyIncreasePercent = 10;
+        ConfigCacheManager.maxPriceMultiplier = 10;
+        ConfigCacheManager.shortageDecayPercentPerHour = 2;
+        ShopDataManager.setHoursInShortage(Material.STONE, 0);
+        ShopDataManager.setHoursInShortage(Material.DIAMOND, 0);
+        return System.currentTimeMillis() - 1_000;
+    }
+
+    @Test public void multipleStacksWithLiveInflationSellAtTheDisplayedTotal() throws Exception {
+        long pricedAt = enableTimedPricing();
+        stock(Material.STONE, -100);
+        stock(Material.DIAMOND, -100);
+        ShopDataManager.setLastUpdate(Material.STONE, pricedAt - 3_600_000);
+        ShopDataManager.setLastUpdate(Material.DIAMOND, pricedAt - 3_600_000);
+        basket.setItem(0, stack(Material.STONE, 3));
+        basket.setItem(1, stack(Material.STONE, 4));
+        basket.setItem(2, stack(Material.DIAMOND, 2));
+        var approved = service.quote(player, basket, 45, pricedAt);
+        assertEquals(9, approved.accepted());
+        assertEquals(29.92, approved.totals().get("coins"), 0.000001);
+        assertFalse(approved.matches(service.quote(player, basket)));
+        var result = service.sell(player, basket, approved);
+        assertEquals(SellBasketService.Status.SOLD, result.status());
+        assertEquals(9, result.paidItems());
+        assertEquals(approved.totals().get("coins"), credited, 0.0);
+        assertEquals(1, deposits.size());
+        assertEquals(-93.0, ShopDataManager.getStock(Material.STONE), 0.0);
+        assertEquals(-98.0, ShopDataManager.getStock(Material.DIAMOND), 0.0);
+        assertNull(basket.getItem(0));
+        assertNull(basket.getItem(1));
+        assertNull(basket.getItem(2));
+    }
+
+    @Test public void liveShortageDecayDoesNotInvalidateConfirmation() throws Exception {
+        long pricedAt = enableTimedPricing();
+        stock(Material.STONE, 100);
+        ShopDataManager.setHoursInShortage(Material.STONE, 2);
+        ShopDataManager.setLastUpdate(Material.STONE, pricedAt);
+        basket.setItem(0, stack(Material.STONE, 3));
+        basket.setItem(1, stack(Material.STONE, 4));
+        var approved = service.quote(player, basket, 45, pricedAt);
+        assertFalse(approved.matches(service.quote(player, basket)));
+        assertEquals(SellBasketService.Status.SOLD, service.sell(player, basket, approved).status());
+        assertEquals(approved.totals().get("coins"), credited, 0.0);
+    }
+
+    @Test public void customItemsWithLiveInflationOrDecaySellAtTheDisplayedTotal() throws Exception {
+        long pricedAt = enableTimedPricing();
+        configure(Material.ENCHANTED_BOOK, 10, null);
+        var specials = plugin.getSpecialShopManager();
+        specials.addServerShopItem("mending", "Mending", 25, "mending", Material.ENCHANTED_BOOK, null, false);
+        specials.getSpecialItem("mending").setDeliveryMethod("stored_item");
+        var book = new BookTestStack(Map.of(Enchantment.MENDING, 1));
+        plugin.getConfig().set("special_items.mending.stored_item", book);
+        for (double currentStock : new double[] {-100, 100}) {
+            ShopDataManager.variantStockMap.put("mending", currentStock);
+            ShopDataManager.setVariantShortageHours("mending", 1);
+            ShopDataManager.setVariantLastUpdate("mending", pricedAt);
+            basket.setItem(0, book.clone());
+            basket.setItem(1, book.clone());
+            var approved = service.quote(player, basket, 45, pricedAt);
+            assertEquals(2, approved.accepted());
+            assertFalse(approved.matches(service.quote(player, basket)));
+            var result = service.sell(player, basket, approved);
+            assertEquals(SellBasketService.Status.SOLD, result.status());
+            assertEquals(approved.totals(), result.paidTotals());
+            assertEquals(currentStock + 2, ShopDataManager.getVariantStock("mending"), 0.0);
+        }
+        assertEquals(2, deposits.size());
+    }
+
+    @Test public void timedQuotesStillRejectStockAndPricingSettingChanges() throws Exception {
+        long pricedAt = enableTimedPricing();
+        ConfigCacheManager.negativeStockPercentPerItem = 0.1;
+        stock(Material.STONE, -100);
+        ShopDataManager.setLastUpdate(Material.STONE, pricedAt - 3_600_000);
+        basket.setItem(0, stack(Material.STONE, 3));
+        var approved = service.quote(player, basket, 45, pricedAt);
+        stock(Material.STONE, -90);
+        assertEquals(SellBasketService.Status.CHANGED, service.sell(player, basket, approved).status());
+        approved = service.quote(player, basket, 45, pricedAt);
+        ConfigCacheManager.sellTaxPercent = 0.3;
+        assertEquals(SellBasketService.Status.CHANGED, service.sell(player, basket, approved).status());
+        approved = service.quote(player, basket, 45, pricedAt);
+        configure(Material.STONE, 3, null);
+        assertEquals(SellBasketService.Status.CHANGED, service.sell(player, basket, approved).status());
+        assertEquals(3, basket.getItem(0).getAmount());
+        assertTrue(deposits.isEmpty());
     }
 
     @Test public void customBooksUseTheirOwnStockPriceAndCurrentPermissions() throws Exception {
@@ -702,6 +810,7 @@ public class SellMenuTest {
 
     @Test public void immediatelyConfirmingNewDepositsRequiresReviewingTheirTotalFirst() {
         menu.open(player);
+        Inventory opened = top.get();
         click(0, ClickType.LEFT, InventoryAction.PLACE_ALL);
         top.get().setItem(0, stack(Material.STONE, 3));
         click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
@@ -712,6 +821,19 @@ public class SellMenuTest {
         click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
         tick();
         assertEquals(1, deposits.size());
+        assertSame(opened, top.get());
+        assertNull(top.get().getItem(0));
+        assertEquals(0, service.quote(player, top.get()).accepted());
+        playerItems[9] = stack(Material.DIAMOND, 2);
+        click(54, ClickType.SHIFT_LEFT, InventoryAction.MOVE_TO_OTHER_INVENTORY);
+        tick();
+        click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        tick();
+        assertSame(opened, top.get());
+        assertNull(top.get().getItem(0));
+        assertNull(playerItems[9]);
+        assertEquals(2, deposits.size());
+        assertEquals(20.8, credited, 0.000001);
     }
 
     @Test public void saleCooldownIsSharedWithTheExistingShopCommands() {
@@ -743,5 +865,165 @@ public class SellMenuTest {
         menu.onDeath(death);
         assertEquals(4, playerItems[0].getAmount());
         assertTrue(death.getDrops().isEmpty());
+    }
+
+    @Test public void cancelledDeathLeavesDepositsAvailableAndReturnsThemOnceOnClose() {
+        menu.open(player);
+        var original = stack(Material.STONE, 3);
+        top.get().setItem(0, original);
+        var source = PluginTestFixture.proxy(DamageSource.class, (object, method, args) -> { throw new AssertionError(method.getName()); });
+        var death = new PlayerDeathEvent(player, source, new ArrayList<>(), 0, "");
+        death.setKeepInventory(false);
+        death.setCancelled(true);
+        menu.onDeath(death);
+        assertSame(original, top.get().getItem(0));
+        assertTrue(death.getDrops().isEmpty());
+        assertNull(playerItems[0]);
+        player.closeInventory();
+        menu.onQuit(new PlayerQuitEvent(player, ""));
+        menu.shutdown();
+        assertEquals(3, playerItems[0].getAmount());
+        assertNull(playerItems[1]);
+        assertTrue(deposits.isEmpty());
+    }
+
+    @Test public void queuedConfirmationBlocksPickupShiftHotbarOffhandDropAndDrag() {
+        menu.open(player);
+        top.get().setItem(0, stack(Material.STONE, 3));
+        refresh();
+        click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        assertTrue(click(0, ClickType.LEFT, InventoryAction.PICKUP_ALL).isCancelled());
+        assertTrue(click(0, ClickType.SHIFT_LEFT, InventoryAction.MOVE_TO_OTHER_INVENTORY).isCancelled());
+        var hotbar = new InventoryClickEvent(view, InventoryType.SlotType.CONTAINER, 0, ClickType.NUMBER_KEY, InventoryAction.HOTBAR_SWAP, 0);
+        menu.onClick(hotbar);
+        assertTrue(hotbar.isCancelled());
+        assertTrue(click(0, ClickType.SWAP_OFFHAND, InventoryAction.HOTBAR_SWAP).isCancelled());
+        assertTrue(click(0, ClickType.CONTROL_DROP, InventoryAction.DROP_ALL_SLOT).isCancelled());
+        assertTrue(click(-999, ClickType.LEFT, InventoryAction.DROP_ALL_CURSOR).isCancelled());
+        assertTrue(click(54, ClickType.SHIFT_LEFT, InventoryAction.MOVE_TO_OTHER_INVENTORY).isCancelled());
+        var drag = new InventoryDragEvent(view, null, stack(Material.STONE, 1), false, Map.of(0, stack(Material.STONE, 4)));
+        menu.onDrag(drag);
+        assertTrue(drag.isCancelled());
+        tick();
+        assertEquals(1, deposits.size());
+        assertEquals(4.8, credited, 0.000001);
+        assertNull(playerItems[0]);
+    }
+
+    @Test public void footerControlsAndCreativeCopiesCannotBeTaken() {
+        menu.open(player);
+        for (int slot = 45; slot < 54; slot++) {
+            assertTrue(click(slot, ClickType.SHIFT_LEFT, InventoryAction.MOVE_TO_OTHER_INVENTORY).isCancelled());
+            assertTrue(click(slot, ClickType.SWAP_OFFHAND, InventoryAction.HOTBAR_SWAP).isCancelled());
+            assertTrue(click(slot, ClickType.CONTROL_DROP, InventoryAction.DROP_ALL_SLOT).isCancelled());
+        }
+        var creative = new InventoryCreativeEvent(view, InventoryType.SlotType.CONTAINER, 0, stack(Material.DIAMOND, 64));
+        menu.onClick(creative);
+        assertTrue(creative.isCancelled());
+        tick();
+        assertTrue(deposits.isEmpty());
+        assertNull(playerItems[0]);
+    }
+
+    @Test public void anotherViewerCannotMoveItemsOrConfirmAnOwnersSale() throws Exception {
+        menu.open(player);
+        top.get().setItem(0, stack(Material.STONE, 3));
+        refresh();
+        Player stranger = PluginTestFixture.proxy(Player.class, (object, method, args) -> {
+            if (method.getName().equals("getUniqueId")) return UUID.fromString("00000000-0000-0000-0000-000000000004");
+            throw new AssertionError(method.getName());
+        });
+        InventoryView foreignView = PluginTestFixture.proxy(InventoryView.class, (object, method, args) -> {
+            if (method.getName().equals("getPlayer")) return stranger;
+            return method.invoke(view, args);
+        });
+        for (int slot : new int[] {0, 47, 51, 54}) {
+            var event = new InventoryClickEvent(foreignView, InventoryType.SlotType.CONTAINER, slot, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+            menu.onClick(event);
+            assertTrue(event.isCancelled());
+        }
+        var drag = new InventoryDragEvent(foreignView, null, stack(Material.STONE, 1), false, Map.of(0, stack(Material.STONE, 4)));
+        menu.onDrag(drag);
+        assertTrue(drag.isCancelled());
+        tick();
+        assertTrue(deposits.isEmpty());
+        assertEquals(3, top.get().getItem(0).getAmount());
+    }
+
+    @Test public void metadataChangesCannotReuseAPlainItemSaleQuote() {
+        basket.setItem(0, stack(Material.STONE, 3));
+        var approved = service.quote(player, basket);
+        var altered = basket.getItem(0).clone();
+        var meta = altered.getItemMeta();
+        meta.displayName(Component.text("Expensive item"));
+        meta.lore(List.of(Component.text("Stack value: 99999999 coins")));
+        altered.setItemMeta(meta);
+        basket.setItem(0, altered);
+        assertEquals(SellBasketService.Status.CHANGED, service.sell(player, basket, approved).status());
+        assertEquals(SellBasketService.Status.EMPTY, service.sell(player, basket, service.quote(player, basket)).status());
+        assertEquals(3, basket.getItem(0).getAmount());
+        assertTrue(deposits.isEmpty());
+    }
+
+    @Test public void negativeOrNonFinitePricesAndTaxCannotProduceAPayment() throws Exception {
+        basket.setItem(0, stack(Material.STONE, 3));
+        for (double price : new double[] {-1, Double.NaN, Double.POSITIVE_INFINITY, Double.MAX_VALUE}) {
+            configure(Material.STONE, price, null);
+            assertEquals(SellBasketService.Status.EMPTY, service.sell(player, basket, service.quote(player, basket)).status());
+        }
+        configure(Material.STONE, 2, null);
+        for (double tax : new double[] {-1, 2, Double.NaN, Double.POSITIVE_INFINITY}) {
+            ConfigCacheManager.sellTaxPercent = tax;
+            assertEquals(SellBasketService.Status.EMPTY, service.sell(player, basket, service.quote(player, basket)).status());
+        }
+        assertEquals(3, basket.getItem(0).getAmount());
+        assertTrue(deposits.isEmpty());
+    }
+
+    @Test public void twoApprovedBasketsCannotBothUseTheLastStockCapacity() throws Exception {
+        configure(Material.STONE, 2, 2);
+        basket.setItem(0, stack(Material.STONE, 2));
+        Inventory second = inventory(null);
+        second.setItem(0, stack(Material.STONE, 2));
+        var firstQuote = service.quote(player, basket);
+        var secondQuote = service.quote(player, second);
+        assertEquals(SellBasketService.Status.SOLD, service.sell(player, basket, firstQuote).status());
+        assertEquals(SellBasketService.Status.CHANGED, service.sell(player, second, secondQuote).status());
+        assertEquals(SellBasketService.Status.EMPTY, service.sell(player, second, service.quote(player, second)).status());
+        assertEquals(2, second.getItem(0).getAmount());
+        assertEquals(2.0, ShopDataManager.getStock(Material.STONE), 0.0);
+        assertEquals(1, deposits.size());
+        assertEquals(3.2, credited, 0.000001);
+    }
+
+    @Test public void reopeningBeforeQueuedConfirmationCannotPayForReturnedItems() {
+        menu.open(player);
+        top.get().setItem(0, stack(Material.STONE, 3));
+        refresh();
+        click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        menu.open(player);
+        top.get().setItem(0, stack(Material.DIAMOND, 1));
+        tick();
+        assertTrue(deposits.isEmpty());
+        assertEquals(3, playerItems[0].getAmount());
+        refresh();
+        click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        tick();
+        assertEquals(1, deposits.size());
+        assertEquals(8.0, credited, 0.000001);
+        assertEquals(3, playerItems[0].getAmount());
+        assertNull(playerItems[1]);
+    }
+
+    @Test public void revokingBasePermissionAfterConfirmReturnsItemsWithoutPayment() {
+        menu.open(player);
+        top.get().setItem(0, stack(Material.STONE, 3));
+        refresh();
+        click(47, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        permissions.remove("dynamicshop.use");
+        tick();
+        assertTrue(deposits.isEmpty());
+        assertEquals(3, playerItems[0].getAmount());
+        assertNull(playerItems[1]);
     }
 }

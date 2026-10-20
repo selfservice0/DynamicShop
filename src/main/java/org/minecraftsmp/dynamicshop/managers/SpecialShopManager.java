@@ -21,6 +21,9 @@ public class SpecialShopManager {
 
     private final DynamicShop plugin;
     private final Map<String, SpecialShopItem> registry = new ConcurrentHashMap<>();
+    private static final long COMMAND_GRANT_WAIT_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+    private record PendingCommandReward(java.util.UUID player, CommandRewardOwnership ownership) {}
+    private final Map<PendingCommandReward, Long> pendingCommandRewards = new ConcurrentHashMap<>();
 
     public SpecialShopManager(DynamicShop plugin) {
         this.plugin = plugin;
@@ -607,8 +610,44 @@ public class SpecialShopManager {
         if (item.isGroupItem()) {
             return permissions.isInGroup(player, item.getGroupName(), item.getGroupWorld());
         }
-        return item.isPermissionItem()
-                && permissions.hasPermission(player, item.getPermission(), item.getPermissionWorld());
+        if (item.isPermissionItem()) {
+            return permissions.hasPermission(player, item.getPermission(), item.getPermissionWorld());
+        }
+        CommandRewardOwnership ownership = getCommandRewardOwnership(item);
+        if (ownership == null) return false;
+        PendingCommandReward key = new PendingCommandReward(player.getUniqueId(), ownership);
+        boolean owned = (ownership.permission() != null
+                        && permissions.hasPermission(player, ownership.permission(), ownership.world()))
+                || (ownership.group() != null
+                        && permissions.isInGroup(player, ownership.group(), ownership.world()));
+        if (owned) {
+            pendingCommandRewards.remove(key);
+            return true;
+        }
+        Long started = pendingCommandRewards.get(key);
+        if (started == null) return false;
+        if (System.nanoTime() - started < COMMAND_GRANT_WAIT_NANOS) return true;
+        pendingCommandRewards.remove(key, started);
+        return false;
+    }
+
+    private CommandRewardOwnership getCommandRewardOwnership(SpecialShopItem item) {
+        String command = item.isCommandItem() ? item.getCommandOnPurchase()
+                : "command".equalsIgnoreCase(item.getDeliveryMethod()) ? item.getNbt() : null;
+        if (command == null) return null;
+        String path = "special_items." + item.getId() + ".";
+        if (plugin.getConfig().getBoolean(path + "allow_repeat_purchase", false)) return null;
+        String ownedPermission = plugin.getConfig().getString(path + "owned_permission");
+        String ownedGroup = plugin.getConfig().getString(path + "owned_group");
+        String world = plugin.getConfig().getString(path + "ownership_world");
+        if ((ownedPermission == null || ownedPermission.isBlank())
+                && (ownedGroup == null || ownedGroup.isBlank())) {
+            return CommandRewardOwnership.parse(command);
+        }
+        return new CommandRewardOwnership(
+                ownedPermission == null || ownedPermission.isBlank() ? null : ownedPermission,
+                ownedGroup == null || ownedGroup.isBlank() ? null : ownedGroup,
+                world == null || world.isBlank() ? null : world);
     }
 
     public void purchase(Player p, SpecialShopItem requestedItem) {
@@ -683,13 +722,11 @@ public class SpecialShopManager {
                     cmd =
                             cmd.replace("{player}", p.getName())
                                     .replace("{uuid}", p.getUniqueId().toString());
-                    final String finalCmd = cmd;
-                    Bukkit.getScheduler()
-                            .runTask(
-                                    plugin,
-                                    () ->
-                                            Bukkit.dispatchCommand(
-                                                    Bukkit.getConsoleSender(), finalCmd));
+                    if (!executePurchaseCommand(p, item, cmd)) {
+                        plugin.getEconomyManager().deposit(p, price);
+                        p.sendMessage(plugin.getMessageManager().specialPermissionFailed());
+                        return;
+                    }
                     p.sendMessage("§a✔ §7" + item.getName() + " §aapplied!");
                     Transaction tx =
                             Transaction.now(
@@ -972,19 +1009,34 @@ public class SpecialShopManager {
         }
 
         // Replace {player} placeholder
-        command = command.replace("{player}", player.getName());
+        command = command.replace("{player}", player.getName())
+                .replace("{uuid}", player.getUniqueId().toString());
 
+        return executePurchaseCommand(player, item, command);
+    }
+
+    private boolean executePurchaseCommand(Player player, SpecialShopItem item, String command) {
+        command = command.trim().replaceFirst("^/", "");
         plugin.getLogger().info("[DynamicShop] Executing command: /" + command);
-
+        CommandRewardOwnership ownership = getCommandRewardOwnership(item);
+        PendingCommandReward key = ownership == null ? null
+                : new PendingCommandReward(player.getUniqueId(), ownership);
+        if (key != null) {
+            long now = System.nanoTime();
+            pendingCommandRewards.entrySet().removeIf(entry -> now - entry.getValue() >= COMMAND_GRANT_WAIT_NANOS);
+            pendingCommandRewards.put(key, now);
+        }
         try {
             boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
             if (!success) {
+                if (key != null) pendingCommandRewards.remove(key);
                 plugin.getLogger().warning("[DynamicShop] Command returned false: " + command);
             }
             return success;
         } catch (Exception e) {
-            plugin.getLogger().severe("[DynamicShop] Error executing command: " + e.getMessage());
-            e.printStackTrace();
+            if (key != null) pendingCommandRewards.remove(key);
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "[DynamicShop] Error executing purchase command", e);
             return false;
         }
     }

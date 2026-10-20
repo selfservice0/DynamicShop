@@ -49,8 +49,10 @@ public class AdminCategoryEditGUI {
         this.category = category;
         this.parentGUI = parentGUI;
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
-                LegacyComponentSerializer.legacySection()
-                        .deserialize("§4§lEdit: " + CategoryConfigManager.getDisplayName(category)));
+                org.minecraftsmp.dynamicshop.managers.MessageManager.parseComponent(
+                        org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                                "admin-category-edit-title", "&4&lEdit: {category}", SIZE,
+                                java.util.Map.of("category", CategoryConfigManager.getDisplayName(category))), player));
     }
 
     public void open() {
@@ -158,7 +160,8 @@ public class AdminCategoryEditGUI {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, LegacyComponentSerializer.legacySection().deserialize("§c§l◀ Back"));
             backItem.setItemMeta(meta);
         }
-        inventory.setItem(BACK_SLOT, backItem);
+        inventory.setItem(BACK_SLOT, org.minecraftsmp.dynamicshop.util.GuiTheme.control(
+                plugin, player, backItem, "shop_back_button"));
     }
 
     private ItemStack createFiller() {

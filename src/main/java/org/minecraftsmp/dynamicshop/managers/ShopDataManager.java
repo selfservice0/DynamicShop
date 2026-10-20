@@ -375,24 +375,22 @@ public class ShopDataManager {
     }
 
     public static double getVariantShortageHours(String variantId) {
+        return getVariantShortageHours(variantId, System.currentTimeMillis());
+    }
+
+    private static double getVariantShortageHours(String variantId, long pricedAt) {
         double stored = variantShortageHoursMap.getOrDefault(variantId, 0.0);
         double stock = variantStockMap.getOrDefault(variantId, 0.0);
 
         if (stock <= 0) {
-            long diff =
-                    System.currentTimeMillis()
-                            - variantLastUpdateMap.getOrDefault(
-                                    variantId, System.currentTimeMillis());
+            long diff = pricedAt - variantLastUpdateMap.getOrDefault(variantId, pricedAt);
             stored += (diff / 3600000.0);
         } else if (stored > 0) {
             double decayRate = ConfigCacheManager.shortageDecayPercentPerHour;
             if (decayRate > 0) {
                 double L = ConfigCacheManager.maxStock;
                 double stockRatio = Math.min(stock / L, 1.0);
-                long diff =
-                        System.currentTimeMillis()
-                                - variantLastUpdateMap.getOrDefault(
-                                        variantId, System.currentTimeMillis());
+                long diff = pricedAt - variantLastUpdateMap.getOrDefault(variantId, pricedAt);
                 double hoursSinceUpdate = diff / 3600000.0;
                 double decay = decayRate * stockRatio * hoursSinceUpdate;
                 stored = Math.max(0.0, stored - decay);
@@ -722,6 +720,10 @@ public class ShopDataManager {
     // ∫ clamp(P(s), MIN, MAX) ds from s = s0 → s0 + amount, then apply tax
     // ============================================================================
     public static double getTotalSellValue(Material mat, int amount) {
+        return getTotalSellValue(mat, amount, System.currentTimeMillis());
+    }
+
+    static double getTotalSellValue(Material mat, int amount, long pricedAt) {
         ShopItemConfig cfg = itemConfigs.get(mat);
         if (cfg == null
                 || validQuote(cfg.basePrice) < 0
@@ -745,7 +747,7 @@ public class ShopDataManager {
                                 : ConfigCacheManager.negativeStockPercentPerItem)
                         / 100.0;
         double q = 1.0 + negPercent;
-        double h = getHoursInShortage(mat);
+        double h = getHoursInShortage(mat, pricedAt);
         double t = getInflationMultiplier(h);
         double total = computeSellIntegral(B, s0, amount, L, minStock, k, q, h);
         if (validQuote(total) < 0) return -1.0;
@@ -787,6 +789,11 @@ public class ShopDataManager {
 
     public static double getTotalVariantSellValue(
             String variantId, Material baseMat, double basePrice, int amount) {
+        return getTotalVariantSellValue(variantId, baseMat, basePrice, amount, System.currentTimeMillis());
+    }
+
+    static double getTotalVariantSellValue(
+            String variantId, Material baseMat, double basePrice, int amount, long pricedAt) {
         ShopItemConfig cfg = getVariantConfig(variantId, baseMat);
         if (variantId == null
                 || cfg == null
@@ -810,7 +817,7 @@ public class ShopDataManager {
                                 : ConfigCacheManager.negativeStockPercentPerItem)
                         / 100.0;
         double q = 1.0 + negPercent;
-        double h = getVariantShortageHours(variantId);
+        double h = getVariantShortageHours(variantId, pricedAt);
         double t = getInflationMultiplier(h);
         double total = computeSellIntegral(basePrice, s0, amount, L, minStock, k, q, h);
         if (validQuote(total) < 0) return -1.0;
@@ -1634,12 +1641,16 @@ public class ShopDataManager {
      *   effectiveHours = storedHours - (decayRate * timeSinceLastUpdate)
      */
     public static double getHoursInShortage(Material mat) {
+        return getHoursInShortage(mat, System.currentTimeMillis());
+    }
+
+    private static double getHoursInShortage(Material mat, long pricedAt) {
         double stored = shortageHoursMap.getOrDefault(mat, 0.0);
         double stock = getStock(mat);
 
         if (stock <= 0) {
             // Currently out of stock — add live duration since last update
-            long diff = System.currentTimeMillis() - getLastUpdate(mat);
+            long diff = pricedAt - lastUpdateMap.getOrDefault(mat, pricedAt);
             stored += (diff / 3600000.0);
         } else if (stored > 0) {
             // Stock is positive — apply decay based on how full the shop is
@@ -1652,7 +1663,7 @@ public class ShopDataManager {
                                 : ConfigCacheManager.maxStock;
                 double stockRatio = Math.min(stock / L, 1.0); // 0.0 → 1.0
 
-                long diff = System.currentTimeMillis() - getLastUpdate(mat);
+                long diff = pricedAt - lastUpdateMap.getOrDefault(mat, pricedAt);
                 double hoursSinceUpdate = diff / 3600000.0;
 
                 // Decay: the fuller the shop, the faster shortage hours drain
@@ -1996,6 +2007,41 @@ public class ShopDataManager {
     public static boolean isItemDisabled(Material mat) {
         ShopItemConfig cfg = itemConfigs.get(mat);
         return cfg == null || validQuote(cfg.basePrice) < 0;
+    }
+
+    /** Permanently removes a material entry, its cached settings, and its dynamic stock data. */
+    public static boolean removeItem(Material mat) {
+        if (mat == null || itemConfigs.remove(mat) == null) return false;
+        plugin.getConfig().set("items." + mat.name(), null);
+        plugin.saveConfig();
+        itemTemplates.remove(mat);
+        customNames.remove(mat);
+        categoryOverrides.remove(mat);
+        categoryCache.remove(mat);
+        categoryItems.replaceAll((category, items) -> {
+            List<Material> remaining = new ArrayList<>(items);
+            remaining.remove(mat);
+            return remaining;
+        });
+        stockMap.remove(mat);
+        purchasesMap.remove(mat);
+        lastUpdateMap.remove(mat);
+        shortageHoursMap.remove(mat);
+        saveQueue.remove(mat);
+        if (shopDataConfig != null) {
+            shopDataConfig.set("items." + mat.name(), null);
+            for (String legacySection : List.of("stock", "purchases", "last_update", "shortage_hours")) {
+                shopDataConfig.set(legacySection + "." + mat.name(), null);
+            }
+            if (shopDataFile != null) {
+                try {
+                    shopDataConfig.save(shopDataFile);
+                } catch (IOException e) {
+                    plugin.getLogger().severe("[DynamicShop] Failed to save deleted item data: " + e.getMessage());
+                }
+            }
+        }
+        return true;
     }
 
     /**

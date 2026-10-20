@@ -51,8 +51,9 @@ public class AdminCategoryGUI {
                 org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(
                         null,
                         SIZE,
-                        LegacyComponentSerializer.legacySection()
-                                .deserialize("§4§lCategory Editor"));
+                        org.minecraftsmp.dynamicshop.managers.MessageManager.parseComponent(
+                                org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                                        "admin-category-gui-title", "&4&lCategory Editor", SIZE, java.util.Map.of()), player));
     }
 
     public void open() {
@@ -95,7 +96,7 @@ public class AdminCategoryGUI {
         Material icon = CategoryConfigManager.getIcon(category);
         String displayName = CategoryConfigManager.getDisplayName(category);
 
-        ItemStack item = new ItemStack(icon);
+        ItemStack item = CategoryConfigManager.getIconItem(category, player);
         ItemMeta meta = item.getItemMeta();
 
         if (meta != null) {
@@ -186,7 +187,7 @@ public class AdminCategoryGUI {
                             text("§eClick to save")));
             saveItem.setItemMeta(saveMeta);
         }
-        inventory.setItem(SAVE_SLOT, saveItem);
+        inventory.setItem(SAVE_SLOT, org.minecraftsmp.dynamicshop.util.GuiTheme.control(plugin, player, saveItem, "moonstone_save_button"));
 
         // Config Editor button
         ItemStack configItem = new ItemStack(Material.PAPER);
@@ -200,7 +201,7 @@ public class AdminCategoryGUI {
                     List.of(text("§7Edit plugin settings"), text(""), text("§eClick to open")));
             configItem.setItemMeta(configMeta);
         }
-        inventory.setItem(CONFIG_SLOT, configItem);
+        inventory.setItem(CONFIG_SLOT, org.minecraftsmp.dynamicshop.util.GuiTheme.control(plugin, player, configItem, "moonstone_settings_button"));
 
         // Close button
         ItemStack closeItem = new ItemStack(Material.BARRIER);
@@ -212,7 +213,7 @@ public class AdminCategoryGUI {
                     closeMeta, List.of(text("§7Close without saving")));
             closeItem.setItemMeta(closeMeta);
         }
-        inventory.setItem(CLOSE_SLOT, closeItem);
+        inventory.setItem(CLOSE_SLOT, org.minecraftsmp.dynamicshop.util.GuiTheme.control(plugin, player, closeItem, "moonstone_cancel_button"));
 
         // Cancel drag button (if holding)
         if (heldCategory != null) {

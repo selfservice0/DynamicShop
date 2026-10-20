@@ -77,6 +77,9 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase();
 
         switch (sub) {
+            case "theme" -> {
+                return handleTheme(sender, args);
+            }
             case "webupdate" -> {
                 return handleWebupdate(sender, args);
             }
@@ -189,6 +192,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
     // UTILITY
     // --------------------------------------------------------------------
     private void sendHelp(CommandSender sender) {
+        sender.sendMessage("§e/shopadmin theme [list|name|install [force]] §7- Select a theme or install its provider files.");
         sender.sendMessage(
                 "§e/shopadmin webupdate [check] §7- Back up and update the website files, or check their version.");
         sender.sendMessage(plugin.getMessageManager().getMessage("admin-help-header"));
@@ -235,6 +239,7 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1)
             return List.of(
                     "reload",
+                    "theme",
                     "add",
                     "remove",
                     "setstock",
@@ -249,12 +254,84 @@ public class ShopAdminCommand implements CommandExecutor, TabCompleter {
                     "webadmin",
                     "webupdate");
         String command = args[0].toLowerCase(java.util.Locale.ROOT);
+        if ("theme".equals(command)) {
+            if (args.length == 3 && args[1].equalsIgnoreCase("install")) {
+                return "force".startsWith(args[2].toLowerCase(java.util.Locale.ROOT)) ? List.of("force") : List.of();
+            }
+            if (args.length != 2) return List.of();
+            var names = new ArrayList<>(org.minecraftsmp.dynamicshop.util.GuiTheme.names());
+            names.add("list");
+            names.add("install");
+            return names.stream().filter(name -> name.startsWith(args[1].toLowerCase(java.util.Locale.ROOT))).toList();
+        }
         if (args.length == 2) return completeCommandTarget(command, args[1]);
         if (args.length == 3) {
             List<String> result = completeCommandValue(command, args[1]);
             if (result != null) return result;
         }
         return completeAddArgument(args);
+    }
+
+    private boolean handleTheme(CommandSender sender, String[] args) {
+        if (args.length == 1 || args.length == 2 && args[1].equalsIgnoreCase("list")) {
+            sender.sendMessage("§eCurrent GUI theme: §f" + org.minecraftsmp.dynamicshop.util.GuiTheme.selected(plugin));
+            sender.sendMessage("§eAvailable: §f" + String.join(", ", org.minecraftsmp.dynamicshop.util.GuiTheme.names()));
+            sender.sendMessage("§7Usage: /shopadmin theme <name>");
+            sender.sendMessage("§7Provider files: /shopadmin theme install [force] (force backs up and replaces bundled theme files)");
+            return true;
+        }
+        if (args[1].equalsIgnoreCase("install")) return handleThemeInstall(sender, args);
+        String theme = org.minecraftsmp.dynamicshop.util.GuiTheme.normalize(args[1]);
+        if (args.length != 2 || !org.minecraftsmp.dynamicshop.util.GuiTheme.names().contains(theme)) {
+            sender.sendMessage("§cUnknown theme or invalid arguments. Available: "
+                    + String.join(", ", org.minecraftsmp.dynamicshop.util.GuiTheme.names()));
+            return true;
+        }
+        try {
+            org.minecraftsmp.dynamicshop.config.ThemeConfigStore.save(plugin.getDataFolder().toPath().resolve("config.yml"), theme);
+        } catch (Exception e) {
+            sender.sendMessage("§cCould not save the theme: " + e.getMessage());
+            return true;
+        }
+        plugin.getConfig().set("gui.theme", theme);
+        org.minecraftsmp.dynamicshop.managers.ThemeInstaller.installSelected(plugin);
+        sender.sendMessage("§aGUI theme saved: §f" + theme + "§a. Close and reopen menus to see it.");
+        if (!theme.equals("default")) {
+            String provider = org.minecraftsmp.dynamicshop.managers.CustomItemSupport.guiProvider();
+            if (provider.equals("oraxen") || provider.equals("nexo")) {
+                sender.sendMessage("§e" + org.minecraftsmp.dynamicshop.managers.ThemeInstaller.reloadInstructions(provider));
+            } else {
+                sender.sendMessage("§eInstall/select Oraxen or Nexo with the matching resource pack to display this theme.");
+            }
+            if ((provider.equals("oraxen") || provider.equals("nexo"))
+                    && !org.minecraftsmp.dynamicshop.managers.ThemeInstaller.autoInstallEnabled(plugin, provider)) {
+                sender.sendMessage("§eAutomatic installation is disabled; use /shopadmin theme install for the selected provider's files.");
+            }
+        }
+        return true;
+    }
+
+    private boolean handleThemeInstall(CommandSender sender, String[] args) {
+        if (args.length > 3 || args.length == 3 && !args[2].equalsIgnoreCase("force")) {
+            sender.sendMessage("§eUsage: /shopadmin theme install [force]");
+            return true;
+        }
+        boolean force = args.length == 3;
+        try {
+            var report = org.minecraftsmp.dynamicshop.managers.ThemeInstaller.installSelectedManually(plugin, force);
+            sender.sendMessage("§a" + org.minecraftsmp.dynamicshop.managers.ThemeInstaller.providerName(report.provider())
+                    + " theme " + org.minecraftsmp.dynamicshop.util.GuiTheme.selected(plugin)
+                    + ": installed " + report.installed() + ", updated " + report.updated() + " file(s).");
+            if (report.backupFolder() != null) sender.sendMessage("§eReplaced files backed up to: §f" + report.backupFolder());
+            if (!report.preserved().isEmpty()) {
+                sender.sendMessage("§ePreserved " + report.preserved().size() + " existing/custom file(s)."
+                        + " Use /shopadmin theme install force to back them up and replace them.");
+            }
+            sender.sendMessage("§e" + org.minecraftsmp.dynamicshop.managers.ThemeInstaller.reloadInstructions(report.provider()));
+        } catch (java.io.IOException e) {
+            sender.sendMessage("§cCould not install the selected provider's theme: " + e.getMessage());
+        }
+        return true;
     }
 
     private boolean handleWebupdate(CommandSender sender, String[] args) {

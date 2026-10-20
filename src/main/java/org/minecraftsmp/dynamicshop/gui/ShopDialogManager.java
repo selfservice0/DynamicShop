@@ -11,12 +11,14 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.util.ShopItemNames;
+import org.minecraftsmp.dynamicshop.util.GuiTheme;
 
 import java.util.List;
 
@@ -82,7 +84,7 @@ public class ShopDialogManager {
 
         Component titleComp =
                 org.minecraftsmp.dynamicshop.managers.MessageManager.parseComponent(
-                        plugin.getMessageManager().getMessage("dialog-title", placeholders),
+                        GuiTheme.dialogTitle(plugin, player, placeholders),
                         player);
 
         Component buyPriceComp =
@@ -228,6 +230,7 @@ public class ShopDialogManager {
                                                                                                         deliveryOverride,
                                                                                                         variantBasePrice,
                                                                                                         variantId);
+                                                                                        returnToShop(p, gui);
                                                                                     }
                                                                                 },
                                                                                 ClickCallback
@@ -270,6 +273,7 @@ public class ShopDialogManager {
                                                                                                     deliveryOverride,
                                                                                                     variantBasePrice,
                                                                                                     variantId);
+                                                                                            returnToShop(p, gui);
                                                                                             return;
                                                                                         }
 
@@ -311,6 +315,7 @@ public class ShopDialogManager {
                                                                                                         deliveryOverride,
                                                                                                         variantBasePrice,
                                                                                                         variantId);
+                                                                                        returnToShop(p, gui);
                                                                                     }
                                                                                 },
                                                                                 ClickCallback
@@ -338,32 +343,7 @@ public class ShopDialogManager {
                                                                                             instanceof
                                                                                             Player
                                                                                                     p) {
-                                                                                        p
-                                                                                                .closeInventory();
-                                                                                        // Re-open
-                                                                                        // the shop
-                                                                                        // GUI
-                                                                                        if (gui
-                                                                                                instanceof
-                                                                                                org
-                                                                                                                .minecraftsmp
-                                                                                                                .dynamicshop
-                                                                                                                .gui
-                                                                                                                .ShopGUI
-                                                                                                        shopGUI) {
-                                                                                            shopGUI
-                                                                                                    .open();
-                                                                                        } else if (gui
-                                                                                                instanceof
-                                                                                                org
-                                                                                                                .minecraftsmp
-                                                                                                                .dynamicshop
-                                                                                                                .gui
-                                                                                                                .SearchResultsGUI
-                                                                                                        searchGUI) {
-                                                                                            searchGUI
-                                                                                                    .open();
-                                                                                        }
+                                                                                        returnToShop(p, gui);
                                                                                     }
                                                                                 },
                                                                                 ClickCallback
@@ -382,6 +362,21 @@ public class ShopDialogManager {
                                                         null,
                                                         3)));
         player.showDialog(dialog);
+    }
+
+    // Dialog actions close their screen after the callback. Wait until the next tick
+    // before opening a fresh inventory so the close cannot discard the refreshed GUI.
+    void returnToShop(Player player, Object gui) {
+        Bukkit.getScheduler()
+                .runTask(plugin, () -> {
+                    if (!player.isOnline()) return;
+                    // open() rebuilds prices/stock and restores inventory and click tracking.
+                    if (gui instanceof ShopGUI shop) {
+                        shop.open();
+                    } else if (gui instanceof SearchResultsGUI search) {
+                        search.open();
+                    }
+                });
     }
 
     private boolean isSellMatch(ItemStack item, Material mat, ItemStack variantTemplate) {

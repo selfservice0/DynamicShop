@@ -43,7 +43,9 @@ public class AdminSpecialItemEditGUI {
         this.item = item;
         this.parentGUI = parentGUI;
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
-                MessageManager.parseComponent("§4§lEdit: " + item.getName()));
+                MessageManager.parseComponent(org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                        "admin-special-edit-title", "&4&lEdit: {item}", SIZE,
+                        java.util.Map.of("item", plugin.getSpecialShopManager().getDisplayName(item))), player));
     }
 
     public void open() {
@@ -72,7 +74,8 @@ public class AdminSpecialItemEditGUI {
         inventory.setItem(DELETE_BUTTON, createDeleteButton());
 
         // Back button
-        inventory.setItem(BACK_BUTTON, createBackButton());
+        inventory.setItem(BACK_BUTTON, org.minecraftsmp.dynamicshop.util.GuiTheme.control(
+                plugin, player, createBackButton(), "shop_back_button"));
     }
 
     private ItemStack createItemDisplay() {

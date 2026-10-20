@@ -45,7 +45,8 @@ public class PlayerShopViewGUI {
 
         java.util.Map<String, String> titlePlaceholders = new java.util.HashMap<>();
         titlePlaceholders.put("player", viewer.getUniqueId().equals(shopOwnerId) ? "Your" : shopOwnerName);
-        String title = plugin.getMessageManager().getMessage("player-shop-view-title", titlePlaceholders);
+        String title = org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, viewer,
+                "player-shop-view-title", "&6&l{player}'s Shop", GUI_SIZE, titlePlaceholders);
         if (title == null) title = "§6§l" + shopOwnerName + "'s Shop";
 
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, GUI_SIZE,

@@ -1,6 +1,7 @@
 package org.minecraftsmp.dynamicshop.managers;
 
 import java.lang.reflect.Method;
+import java.util.regex.Pattern;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -13,6 +14,7 @@ public final class OraxenWrapper {
     private static Plugin boundPlugin;
     private static ItemApi itemApi;
     private static boolean warned;
+    private static final Pattern GLYPH_TAG = Pattern.compile("(?i)<(?:glyph|g):([^:>]+)(?::[^>]*)?>");
 
     private OraxenWrapper() {}
 
@@ -72,6 +74,24 @@ public final class OraxenWrapper {
         if (plugin == null) return null;
         try {
             ClassLoader loader = plugin.getClass().getClassLoader();
+            // Oraxen returns its red "required" glyph for unknown IDs rather than failing.
+            // Applying GUI shifts around that placeholder pushes an otherwise plain title off-screen.
+            var glyphs = GLYPH_TAG.matcher(text);
+            if (glyphs.find()) {
+                Class<?> oraxen = Class.forName("io.th0rgal.oraxen.OraxenPlugin", true, loader);
+                Object instance = oraxen.getMethod("get").invoke(null);
+                Object manager = oraxen.getMethod("getFontManager").invoke(instance);
+                GlyphApi registry = new GlyphApi(manager);
+                do {
+                    String name = glyphs.group(1);
+                    if (!registry.isValid(name)) {
+                        warn(new IllegalArgumentException("GUI glyph '" + name + "' is missing or has an invalid texture. "
+                                + "Install the matching DynamicShop Oraxen glyph/item files, check gui.theme and "
+                                + "gui.custom_item_provider, then run /oraxen reload all"));
+                        return null;
+                    }
+                } while (glyphs.find());
+            }
             // Use Oraxen's native resolvers, including its glyph fonts, colors and spacing.
             // Server-authored GUI titles use the non-player resolver, like the Nexo bridge.
             return MiniMessage.builder().tags(TagResolver.resolver(TagResolver.standard(),
@@ -98,6 +118,43 @@ public final class OraxenWrapper {
             warned = true;
             Bukkit.getLogger().warning("[DynamicShop/Oraxen] Could not access the Oraxen API: "
                     + error + ". Check the Oraxen version and startup errors.");
+        }
+    }
+
+    /** Check identity because the ordinary lookup substitutes "required" for missing IDs. */
+    static final class GlyphApi {
+        private final Object manager;
+        private final Method lookup;
+
+        GlyphApi(Object manager) throws ReflectiveOperationException {
+            this.manager = manager;
+            // getGlyphFromName exists across releases but returns "required" for missing IDs.
+            lookup = manager.getClass().getMethod("getGlyphFromName", String.class);
+        }
+
+        boolean isValid(String name) throws ReflectiveOperationException {
+            Object glyph = lookup.invoke(manager, name);
+            if (glyph != null && name.equals(glyph.getClass().getMethod("getName").invoke(glyph))) {
+                if (name.startsWith("dynamicshop_")) {
+                    try {
+                        String texture = String.valueOf(glyph.getClass().getMethod("getTexture").invoke(glyph));
+                        // Oraxen also substitutes this image when a registered GUI texture fails validation.
+                        if (texture.equals("required/exit_icon.png") || texture.equals("minecraft:required/exit_icon.png")) return false;
+                    } catch (NoSuchMethodException oldVersion) {
+                        // Identity validation remains available if this version has no texture accessor.
+                    }
+                }
+                return true;
+            }
+            // Newer Oraxen versions keep animated/reference glyphs in additional registries.
+            for (String method : new String[] {"getAnimatedGlyphFromID", "getReferenceGlyphFromID"}) {
+                try {
+                    if (manager.getClass().getMethod(method, String.class).invoke(manager, name) != null) return true;
+                } catch (NoSuchMethodException oldVersion) {
+                    // Older releases only have ordinary glyphs.
+                }
+            }
+            return false;
         }
     }
 

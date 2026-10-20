@@ -35,7 +35,8 @@ public class CategorySelectionGUI {
         this.plugin = plugin;
         this.player = player;
         
-        String title = plugin.getMessageManager().getMessage("gui-category-title");
+        String title = org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                "gui-category-title", "&8&lShop Categories", SIZE, java.util.Map.of());
         if (title == null) title = "§8§lShop Categories";
         
         this.inv = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
@@ -80,7 +81,8 @@ public class CategorySelectionGUI {
                         new NamespacedKey(plugin, "category_icon_tooltip"), 0,
                         AttributeModifier.Operation.ADD_NUMBER));
             }
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            // Hide built-in disc descriptions, bundle contents and similar extra tooltips.
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 
             // Apply colors if present
             String formattedName = displayName.contains("&")

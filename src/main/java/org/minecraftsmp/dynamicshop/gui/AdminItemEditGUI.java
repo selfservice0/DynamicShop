@@ -8,6 +8,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
+import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
 import org.minecraftsmp.dynamicshop.managers.ShopDataManager;
 import org.minecraftsmp.dynamicshop.managers.MessageManager;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ public class AdminItemEditGUI {
     private final DynamicShop plugin;
     private final Player player;
     private final Material material;
+    private final String variantId;
     private final AdminShopBrowseGUI parentGUI;
     private final Inventory inventory;
 
@@ -50,16 +52,32 @@ public class AdminItemEditGUI {
     private static final int MAX_STOCK_STORAGE_SLOT = 32; // Row 4
 
     private static final int BACK_BUTTON_SLOT = 40; // Bottom center
+    private static final int DISPLAY_MATERIAL_SLOT = 28;
+    private static final int REQUIRED_PERMISSION_SLOT = 31;
+    private static final int DELETE_SLOT = 34;
 
     public AdminItemEditGUI(DynamicShop plugin, Player player, Material material, AdminShopBrowseGUI parentGUI) {
+        this(plugin, player, material, null, parentGUI);
+    }
+
+    public AdminItemEditGUI(DynamicShop plugin, Player player, SpecialShopItem item, AdminShopBrowseGUI parentGUI) {
+        this(plugin, player, item.getDisplayMaterial(), item.getId(), parentGUI);
+        if (!item.isTradeItem()) throw new IllegalArgumentException("Only physical custom items have stock controls");
+    }
+
+    private AdminItemEditGUI(DynamicShop plugin, Player player, Material material, String variantId,
+            AdminShopBrowseGUI parentGUI) {
         this.plugin = plugin;
         this.player = player;
         this.material = material;
+        this.variantId = variantId;
         this.parentGUI = parentGUI;
 
-        String itemName = material.name().replace("_", " ");
+        String itemName = variantId == null ? material.name().replace("_", " ")
+                : plugin.getSpecialShopManager().getDisplayName(variant());
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
-                MessageManager.parseComponent("§4§lEdit: " + itemName));
+                MessageManager.parseComponent(org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                        "admin-item-edit-title", "&4&lEdit: {item}", SIZE, java.util.Map.of("item", itemName)), player));
     }
 
     public void open() {
@@ -68,6 +86,7 @@ public class AdminItemEditGUI {
     }
 
     public void render() {
+        if (!canEdit()) return;
         inventory.clear();
 
         // Fill with glass panes
@@ -98,27 +117,52 @@ public class AdminItemEditGUI {
         inventory.setItem(MAX_STOCK_SLOT, createMaxStockButton());
         inventory.setItem(MAX_STOCK_STORAGE_SLOT, createMaxStockStorageButton());
 
+        if (variantId != null) {
+            var entry = variant();
+            inventory.setItem(DISPLAY_MATERIAL_SLOT, org.minecraftsmp.dynamicshop.util.ShopItemBuilder.navItem(
+                    "§b§lEdit Display Material", entry.getDisplayMaterial(),
+                    "§7Current: §f" + entry.getDisplayMaterial().name(), "§eHold an item and click to use"));
+            inventory.setItem(REQUIRED_PERMISSION_SLOT, org.minecraftsmp.dynamicshop.util.ShopItemBuilder.navItem(
+                    "§c§lEdit Required Permission", Material.BARRIER,
+                    "§7Current: §e" + (entry.hasRequiredPermission() ? entry.getRequiredPermission() : "None"),
+                    "§eClick to change", "§7Type 'none' to remove requirement"));
+        }
+        inventory.setItem(DELETE_SLOT, org.minecraftsmp.dynamicshop.util.ShopItemBuilder.navItem(
+                "§c§l⚠ DELETE ITEM", Material.TNT,
+                "§7Permanently remove this shop entry", "§c§lSHIFT+CLICK to confirm"));
+
         // Back button
-        inventory.setItem(BACK_BUTTON_SLOT, createBackButton());
+        inventory.setItem(BACK_BUTTON_SLOT, org.minecraftsmp.dynamicshop.util.GuiTheme.control(
+                plugin, player, createBackButton(), "shop_back_button"));
     }
 
     private ItemStack createItemDisplay() {
-        double basePrice = ShopDataManager.getBasePrice(material);
-        double stock = ShopDataManager.getStock(material);
-        boolean disabled = ShopDataManager.isItemDisabled(material);
-        ItemCategory category = ShopDataManager.detectCategory(material);
+        double basePrice = basePrice();
+        double stock = stock();
+        boolean disabled = disabled("disabled");
+        ItemCategory category = category();
 
-        ItemStack item = new ItemStack(material);
+        ItemStack item = variantId == null ? null : plugin.getSpecialShopManager().getTradeTemplate(variant());
+        if (item == null) item = new ItemStack(variantId == null ? material : variant().getDisplayMaterial());
+        else {
+            item = item.clone();
+            item.setAmount(1);
+        }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta,
-                    MessageManager.parseComponent("§e§l" + material.name().replace("_", " ")));
+                    MessageManager.parseComponent("§e§l" + (variantId == null
+                            ? material.name().replace("_", " ") : plugin.getSpecialShopManager().getDisplayName(variant()))));
 
             List<String> lore = new ArrayList<>();
             lore.add("§7═══════════════════════");
             lore.add("§7Base Price: §e" + plugin.getEconomyManager().format(basePrice));
             lore.add("§7Current Stock: §f" + String.format("%.0f", stock));
             lore.add("§7Category: §b" + category.getDisplayName());
+            if (variantId != null) {
+                lore.add("§7ID: §f" + variantId);
+                lore.add("§7Delivery: §f" + variant().getDeliveryMethod());
+            }
             lore.add("§7Status: " + (disabled ? "§c✗ DISABLED" : "§a✓ ENABLED"));
             lore.add("§7═══════════════════════");
 
@@ -138,9 +182,9 @@ public class AdminItemEditGUI {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent(prefix + delta + " Stock"));
 
             List<String> lore = new ArrayList<>();
-            double currentStock = ShopDataManager.getStock(material);
+            double currentStock = stock();
             lore.add("§7Current: §f" + String.format("%.0f", currentStock));
-            lore.add("§7After: §f" + String.format("%.0f", currentStock + delta));
+            lore.add("§7After: §f" + String.format("%.0f", clampStock(currentStock + delta)));
             lore.add("");
             lore.add("§eClick to adjust");
 
@@ -157,7 +201,7 @@ public class AdminItemEditGUI {
             org.minecraftsmp.dynamicshop.util.PaperCompat.setDisplayName(meta, MessageManager.parseComponent("§e§lChange Base Price"));
 
             List<String> lore = new ArrayList<>();
-            double currentPrice = ShopDataManager.getBasePrice(material);
+            double currentPrice = basePrice();
             lore.add("§7Current: §e" + plugin.getEconomyManager().format(currentPrice));
             lore.add("");
             lore.add("§eClick to change");
@@ -169,7 +213,7 @@ public class AdminItemEditGUI {
     }
 
     private ItemStack createPriceIncreaseButton() {
-        double hours = ShopDataManager.getHoursInShortage(material);
+        double hours = shortageHours();
         double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
         double maxPercent = (org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
 
@@ -197,7 +241,7 @@ public class AdminItemEditGUI {
     }
 
     private ItemStack createCategoryButton() {
-        ItemCategory current = ShopDataManager.detectCategory(material);
+        ItemCategory current = category();
 
         ItemStack item = new ItemStack(org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getIcon(current));
         ItemMeta meta = item.getItemMeta();
@@ -217,7 +261,7 @@ public class AdminItemEditGUI {
     }
 
     private ItemStack createMaxStockButton() {
-        var itemConfig = ShopDataManager.itemConfigs.get(material);
+        var itemConfig = itemConfig();
         Double maxStock = itemConfig != null ? itemConfig.maxStock() : null;
 
         ItemStack item = new ItemStack(Material.CHEST);
@@ -239,7 +283,7 @@ public class AdminItemEditGUI {
     }
 
     private ItemStack createMaxStockStorageButton() {
-        var itemConfig = ShopDataManager.itemConfigs.get(material);
+        var itemConfig = itemConfig();
         Integer maxStockStorage = itemConfig != null ? itemConfig.maxStockStorage() : null;
 
         ItemStack item = new ItemStack(Material.TRAPPED_CHEST);
@@ -261,7 +305,7 @@ public class AdminItemEditGUI {
     }
 
     private ItemStack createToggleButton() {
-        boolean disabled = ShopDataManager.isItemDisabled(material);
+        boolean disabled = disabled("disabled");
 
         Material mat = disabled ? Material.RED_CONCRETE : Material.LIME_CONCRETE;
         ItemStack item = new ItemStack(mat);
@@ -288,7 +332,7 @@ public class AdminItemEditGUI {
     }
 
     private ItemStack createBuyToggleButton() {
-        boolean buyDisabled = ShopDataManager.isBuyDisabled(material);
+        boolean buyDisabled = disabled("disable-buy");
 
         Material mat = buyDisabled ? Material.RED_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE;
         ItemStack item = new ItemStack(mat);
@@ -316,7 +360,7 @@ public class AdminItemEditGUI {
     }
 
     private ItemStack createSellToggleButton() {
-        boolean sellDisabled = ShopDataManager.isSellDisabled(material);
+        boolean sellDisabled = disabled("disable-sell");
 
         Material mat = sellDisabled ? Material.RED_STAINED_GLASS_PANE : Material.LIME_STAINED_GLASS_PANE;
         ItemStack item = new ItemStack(mat);
@@ -364,6 +408,11 @@ public class AdminItemEditGUI {
      * Handle click events in this GUI
      */
     public void handleClick(int slot, boolean rightClick) {
+        handleClick(slot, rightClick, false);
+    }
+
+    public void handleClick(int slot, boolean rightClick, boolean shiftClick) {
+        if (!canEdit()) return;
         switch (slot) {
             // Stock adjustments
             case STOCK_MINUS_64 -> adjustStock(-64);
@@ -382,34 +431,49 @@ public class AdminItemEditGUI {
             case SELL_TOGGLE_SLOT -> toggleSell();
             case MAX_STOCK_SLOT -> openMaxStockEditor(rightClick);
             case MAX_STOCK_STORAGE_SLOT -> openMaxStockStorageEditor(rightClick);
+            case DISPLAY_MATERIAL_SLOT -> { if (variantId != null) editDisplayMaterial(); }
+            case REQUIRED_PERMISSION_SLOT -> { if (variantId != null) editRequiredPermission(); }
+            case DELETE_SLOT -> {
+                if (shiftClick) {
+                    boolean removed = variantId == null ? ShopDataManager.removeItem(material)
+                            : plugin.getSpecialShopManager().removeSpecialItem(variantId);
+                    if (removed) {
+                        player.sendMessage("§a✓ §7Shop entry permanently deleted.");
+                        goBack();
+                    } else player.sendMessage("§cThis shop entry could not be deleted.");
+                } else player.sendMessage("§c⚠ Shift+click to confirm deletion!");
+            }
             case BACK_BUTTON_SLOT -> goBack();
         }
     }
 
     private void adjustStock(int delta) {
-        ShopDataManager.updateStock(material, delta);
+        if (variantId == null) ShopDataManager.updateStock(material, delta);
+        else ShopDataManager.setVariantStock(variantId, clampStock(stock() + delta));
         player.sendMessage("§a✓ §7Stock adjusted by §e" + (delta > 0 ? "+" : "") + delta);
         render();
     }
 
     private void openPriceEditor() {
-        double currentPrice = ShopDataManager.getBasePrice(material);
+        double currentPrice = basePrice();
 
         plugin.getInputManager().requestNumber(player,
-                "Enter new base price for " + material.name(),
+                "Enter new base price for " + (variantId == null ? material.name() : variant().getName()),
                 currentPrice,
                 newPrice -> {
+                    if (!canEdit()) return;
                     if (newPrice != null) {
-                        if (newPrice < 0) {
-                            player.sendMessage("§c✗ §7Price cannot be negative!");
+                        if (!Double.isFinite(newPrice) || newPrice < 0) {
+                            player.sendMessage("§c✗ §7Price must be a finite, nonnegative number!");
                         } else {
-                            ShopDataManager.setBasePrice(material, newPrice);
+                            setOption("price", newPrice);
                             player.sendMessage("§a✓ §7Base price set to §e" + plugin.getEconomyManager().format(newPrice));
                         }
                     }
                     // Reopen this GUI with a NEW instance to avoid stale onClose handler
                     Bukkit.getScheduler().runTask(plugin, () -> {
-                        AdminItemEditGUI newGUI = new AdminItemEditGUI(plugin, player, material, parentGUI);
+                        if (!canEdit()) return;
+                        AdminItemEditGUI newGUI = newEditor();
                         plugin.getShopListener().registerAdminEdit(player, newGUI);
                         newGUI.open();
                     });
@@ -417,16 +481,17 @@ public class AdminItemEditGUI {
     }
 
     private void openPriceIncreaseEditor() {
-        double hours = ShopDataManager.getHoursInShortage(material);
+        double hours = shortageHours();
         double hourlyRate = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.hourlyIncreasePercent / 100.0;
         double currentPercent = ShopDataManager.getInflationIncreasePercent(hours);
         double maxPercent = (org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
         if (currentPercent > maxPercent) currentPercent = maxPercent;
 
         plugin.getInputManager().requestInt(player,
-                "Enter price increase % for " + material.name(),
+                "Enter price increase % for " + (variantId == null ? material.name() : variant().getName()),
                 (int) currentPercent,
                 percent -> {
+                    if (!canEdit()) return;
                     if (percent != null) {
                         if (percent < 0) {
                             player.sendMessage("§c✗ §7Percentage cannot be negative!");
@@ -439,15 +504,21 @@ public class AdminItemEditGUI {
                                 newHours = Math.log(targetMultiplier) / Math.log(1.0 + hourlyRate);
                             }
 
-                            ShopDataManager.setLastUpdate(material, System.currentTimeMillis());
-                            ShopDataManager.setHoursInShortage(material, newHours);
+                            if (variantId == null) {
+                                ShopDataManager.setLastUpdate(material, System.currentTimeMillis());
+                                ShopDataManager.setHoursInShortage(material, newHours);
+                            } else {
+                                ShopDataManager.setVariantLastUpdate(variantId, System.currentTimeMillis());
+                                ShopDataManager.setVariantShortageHours(variantId, newHours);
+                            }
 
                             player.sendMessage("§a✓ §7Price increase set to §c+" + percent + "%");
                         }
                     }
                     // Reopen this GUI with a NEW instance to avoid stale onClose handler
                     Bukkit.getScheduler().runTask(plugin, () -> {
-                        AdminItemEditGUI newGUI = new AdminItemEditGUI(plugin, player, material, parentGUI);
+                        if (!canEdit()) return;
+                        AdminItemEditGUI newGUI = newEditor();
                         plugin.getShopListener().registerAdminEdit(player, newGUI);
                         newGUI.open();
                     });
@@ -456,14 +527,14 @@ public class AdminItemEditGUI {
 
     private void openMaxStockEditor(boolean rightClick) {
         if (rightClick) {
-            ShopDataManager.setMaxStock(material, null);
+            setOption("max-stock", null);
             player.sendMessage("§a✓ §7Max stock (pricing limit) reset to global default.");
             render();
             return;
         }
 
         double current = org.minecraftsmp.dynamicshop.managers.ConfigCacheManager.maxStock;
-        var config = ShopDataManager.itemConfigs.get(material);
+        var config = itemConfig();
         if (config != null && config.maxStock() != null) {
             current = config.maxStock();
         }
@@ -472,12 +543,18 @@ public class AdminItemEditGUI {
                 "Enter max stock pricing curve limit",
                 current,
                 newVal -> {
+                    if (!canEdit()) return;
                     if (newVal != null) {
-                        ShopDataManager.setMaxStock(material, newVal < 0 ? null : newVal);
-                        player.sendMessage("§a✓ §7Max stock (pricing limit) updated.");
+                        if (!Double.isFinite(newVal) || newVal == 0) {
+                            player.sendMessage("§cPricing max stock must be positive, or negative to reset.");
+                        } else {
+                            setOption("max-stock", newVal < 0 ? null : newVal);
+                            player.sendMessage("§a✓ §7Max stock (pricing limit) updated.");
+                        }
                     }
                     Bukkit.getScheduler().runTask(plugin, () -> {
-                        AdminItemEditGUI newGUI = new AdminItemEditGUI(plugin, player, material, parentGUI);
+                        if (!canEdit()) return;
+                        AdminItemEditGUI newGUI = newEditor();
                         plugin.getShopListener().registerAdminEdit(player, newGUI);
                         newGUI.open();
                     });
@@ -486,14 +563,14 @@ public class AdminItemEditGUI {
 
     private void openMaxStockStorageEditor(boolean rightClick) {
         if (rightClick) {
-            ShopDataManager.setMaxStockStorage(material, null);
+            setOption("max-stock-storage", null);
             player.sendMessage("§a✓ §7Max stock storage (hard limit) reset to unlimited.");
             render();
             return;
         }
 
         int current = 1000000; // placeholder for unlimited
-        var config = ShopDataManager.itemConfigs.get(material);
+        var config = itemConfig();
         if (config != null && config.maxStockStorage() != null) {
             current = config.maxStockStorage();
         }
@@ -502,12 +579,14 @@ public class AdminItemEditGUI {
                 "Enter hard storage limit (negative for unlimited)",
                 current,
                 newVal -> {
+                    if (!canEdit()) return;
                     if (newVal != null) {
-                        ShopDataManager.setMaxStockStorage(material, newVal < 0 ? null : newVal);
+                        setOption("max-stock-storage", newVal < 0 ? null : newVal);
                         player.sendMessage("§a✓ §7Max stock storage (hard limit) updated.");
                     }
                     Bukkit.getScheduler().runTask(plugin, () -> {
-                        AdminItemEditGUI newGUI = new AdminItemEditGUI(plugin, player, material, parentGUI);
+                        if (!canEdit()) return;
+                        AdminItemEditGUI newGUI = newEditor();
                         plugin.getShopListener().registerAdminEdit(player, newGUI);
                         newGUI.open();
                     });
@@ -515,29 +594,34 @@ public class AdminItemEditGUI {
     }
 
     private void cycleCategory() {
-        ItemCategory current = ShopDataManager.detectCategory(material);
+        ItemCategory current = category();
         ItemCategory[] categories = ItemCategory.values();
         int currentIndex = current.ordinal();
 
         // Find next valid category (skip special categories, but include visible custom
         // categories)
-        do {
+        for (int attempts = 0; attempts < categories.length; attempts++) {
             currentIndex = (currentIndex + 1) % categories.length;
-        } while (categories[currentIndex] == ItemCategory.PERMISSIONS ||
-                categories[currentIndex] == ItemCategory.SERVER_SHOP ||
-                categories[currentIndex] == ItemCategory.PLAYER_SHOPS ||
-                org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getSlot(categories[currentIndex]) < 0);
+            ItemCategory candidate = categories[currentIndex];
+            if (candidate != ItemCategory.PERMISSIONS && candidate != ItemCategory.PLAYER_SHOPS
+                    && (variantId != null || candidate != ItemCategory.SERVER_SHOP)
+                    && org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getSlot(candidate) >= 0) break;
+            if (attempts == categories.length - 1) {
+                player.sendMessage("§cNo visible shop category is available.");
+                return;
+            }
+        }
 
         ItemCategory newCategory = categories[currentIndex];
-        ShopDataManager.setCategoryOverride(material, newCategory);
+        setOption("category", newCategory.name());
         player.sendMessage("§a✓ §7Category changed to §b"
                 + org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getDisplayName(newCategory));
         render();
     }
 
     private void toggleEnabled() {
-        boolean currentlyDisabled = ShopDataManager.isItemDisabled(material);
-        ShopDataManager.setItemDisabled(material, !currentlyDisabled);
+        boolean currentlyDisabled = disabled("disabled");
+        setOption("disabled", !currentlyDisabled);
 
         if (currentlyDisabled) {
             player.sendMessage("§a✓ §7Item §aenabled§7 in the shop");
@@ -548,8 +632,8 @@ public class AdminItemEditGUI {
     }
 
     private void toggleBuy() {
-        boolean currentlyDisabled = ShopDataManager.isBuyDisabled(material);
-        ShopDataManager.setBuyDisabled(material, !currentlyDisabled);
+        boolean currentlyDisabled = disabled("disable-buy");
+        setOption("disable-buy", !currentlyDisabled);
 
         if (currentlyDisabled) {
             player.sendMessage("§a✓ §7Buying §aenabled§7 for this item");
@@ -560,8 +644,8 @@ public class AdminItemEditGUI {
     }
 
     private void toggleSell() {
-        boolean currentlyDisabled = ShopDataManager.isSellDisabled(material);
-        ShopDataManager.setSellDisabled(material, !currentlyDisabled);
+        boolean currentlyDisabled = disabled("disable-sell");
+        setOption("disable-sell", !currentlyDisabled);
 
         if (currentlyDisabled) {
             player.sendMessage("§a✓ §7Selling §aenabled§7 for this item");
@@ -575,6 +659,7 @@ public class AdminItemEditGUI {
         // Return to parent browse GUI
         plugin.getShopListener().unregisterAdminEdit(player);
         plugin.getShopListener().registerAdminBrowse(player, parentGUI);
+        parentGUI.loadItemsForCategory();
         parentGUI.render();
         player.openInventory(parentGUI.getInventory());
     }
@@ -585,5 +670,114 @@ public class AdminItemEditGUI {
 
     public Material getMaterial() {
         return material;
+    }
+
+    public String getVariantId() { return variantId; }
+
+    private SpecialShopItem variant() {
+        return plugin.getSpecialShopManager().getSpecialItem(variantId);
+    }
+
+    private boolean canEdit() {
+        if (variantId == null ? ShopDataManager.itemConfigs.containsKey(material)
+                : variant() != null && variant().isTradeItem()) return true;
+        player.sendMessage("§cThis shop item was removed or changed. Reopen the shop editor.");
+        return false;
+    }
+
+    private double basePrice() {
+        return variantId == null ? ShopDataManager.getBasePrice(material) : variant().getPrice();
+    }
+
+    private double stock() {
+        return variantId == null ? ShopDataManager.getStock(material) : ShopDataManager.getVariantStock(variantId);
+    }
+
+    private double shortageHours() {
+        return variantId == null ? ShopDataManager.getHoursInShortage(material)
+                : ShopDataManager.getVariantShortageHours(variantId);
+    }
+
+    private ItemCategory category() {
+        return variantId == null ? ShopDataManager.detectCategory(material) : variant().getCategory();
+    }
+
+    private ShopDataManager.ShopItemConfig itemConfig() {
+        return variantId == null ? ShopDataManager.itemConfigs.get(material)
+                : ShopDataManager.getVariantConfig(variantId, material);
+    }
+
+    private boolean disabled(String option) {
+        if (variantId != null) return plugin.getSpecialShopManager().isTradeDisabled(variantId, option);
+        return switch (option) {
+            case "disabled" -> ShopDataManager.isItemDisabled(material);
+            case "disable-buy" -> ShopDataManager.isBuyDisabled(material);
+            case "disable-sell" -> ShopDataManager.isSellDisabled(material);
+            default -> throw new IllegalArgumentException(option);
+        };
+    }
+
+    private double clampStock(double stock) {
+        var config = itemConfig();
+        if (config != null) {
+            if (config.maxStockStorage() != null) stock = Math.min(stock, config.maxStockStorage());
+            if (config.minStockStorage() != null) stock = Math.max(stock, config.minStockStorage());
+        }
+        return stock;
+    }
+
+    private void setOption(String option, Object value) {
+        if (variantId != null) {
+            if (!canEdit()) return;
+            plugin.getConfig().set("special_items." + variantId + "." + option, value);
+            plugin.saveConfig();
+            plugin.getSpecialShopManager().reload();
+            return;
+        }
+        switch (option) {
+            case "price" -> ShopDataManager.setBasePrice(material, (Double) value);
+            case "max-stock" -> ShopDataManager.setMaxStock(material, (Double) value);
+            case "max-stock-storage" -> ShopDataManager.setMaxStockStorage(material, (Integer) value);
+            case "category" -> ShopDataManager.setCategoryOverride(material, ItemCategory.valueOf((String) value));
+            case "disabled" -> ShopDataManager.setItemDisabled(material, (Boolean) value);
+            case "disable-buy" -> ShopDataManager.setBuyDisabled(material, (Boolean) value);
+            case "disable-sell" -> ShopDataManager.setSellDisabled(material, (Boolean) value);
+            default -> throw new IllegalArgumentException(option);
+        }
+    }
+
+    private AdminItemEditGUI newEditor() {
+        return variantId == null ? new AdminItemEditGUI(plugin, player, material, parentGUI)
+                : new AdminItemEditGUI(plugin, player, variant(), parentGUI);
+    }
+
+    private void reopenEditor() {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!canEdit()) return;
+            AdminItemEditGUI next = newEditor();
+            plugin.getShopListener().registerAdminEdit(player, next);
+            next.open();
+        });
+    }
+
+    private void editDisplayMaterial() {
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held == null || held.getType() == Material.AIR) {
+            player.sendMessage("§cHold an item to set as the display material!");
+            return;
+        }
+        setOption("display_material", held.getType().name());
+        render();
+    }
+
+    private void editRequiredPermission() {
+        var entry = variant();
+        plugin.getInputManager().requestText(player, "Required Permission",
+                entry.hasRequiredPermission() ? entry.getRequiredPermission() : "none", permission -> {
+                    if (!canEdit()) return;
+                    if (permission != null) setOption("required_permission",
+                            permission.isBlank() || permission.equalsIgnoreCase("none") ? null : permission);
+                    reopenEditor();
+                });
     }
 }

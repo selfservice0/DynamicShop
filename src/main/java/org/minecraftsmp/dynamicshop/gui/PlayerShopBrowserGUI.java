@@ -26,7 +26,8 @@ public class PlayerShopBrowserGUI {
     public PlayerShopBrowserGUI(DynamicShop plugin, Player viewer) {
         this.plugin = plugin;
         this.viewer = viewer;
-        String title = plugin.getMessageManager().getMessage("player-shop-browser-title");
+        String title = org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, viewer,
+                "player-shop-browser-title", "&6&lPlayer Shops", GUI_SIZE, java.util.Map.of());
         if (title == null) title = "§6§lPlayer Shops";
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, GUI_SIZE,
                 MessageManager.parseComponent(title, viewer));

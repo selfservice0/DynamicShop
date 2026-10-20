@@ -52,7 +52,7 @@ public class ShopGUI {
         this.commandOpened = commandOpened;
         this.category = category;
 
-        this.size = plugin.getConfig().getInt("gui.shop_menu_size", 54);
+        this.size = org.minecraftsmp.dynamicshop.util.GuiTheme.shopMenuSize(plugin, player);
         this.pm = plugin.getProtocolShopManager();
 
         // Build item slot list: inner columns (1-7) on rows 1 through (totalRows-2)
@@ -116,7 +116,8 @@ public class ShopGUI {
                 "category",
                 org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getDisplayName(
                         category));
-        String title = plugin.getMessageManager().getMessage("shop-gui-title", titlePlaceholders);
+        String title = org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                "shop-gui-title", "&3&l{category}", size, titlePlaceholders);
         if (title == null)
             title =
                     org.minecraftsmp.dynamicshop.managers.CategoryConfigManager.getDisplayName(
@@ -255,33 +256,37 @@ public class ShopGUI {
                 return item;
             }
 
-            // --- Original special item lore (permissions, server-shop, nexo, etc.) ---
+            // Reward lore uses messages separately from physical custom-item trading lore.
             List<String> lore = new ArrayList<>();
-            lore.add("§7───────────────────");
+            MessageManager messages = plugin.getMessageManager();
+            MessageManager.addLoreIfNotEmpty(lore, messages.getMessage("special-lore-separator"));
 
             // A reward's icon is decorative; its material price and sell rules do not apply.
             String priceFormatted = plugin.getEconomyManager().format(specialItem.getPrice());
-            lore.add("§a§lBUY: §f" + priceFormatted);
+            MessageManager.addLoreIfNotEmpty(lore, messages.getMessage(
+                    "special-lore-buy-price", java.util.Map.of("price", priceFormatted)));
 
-            lore.add("§7");
+            MessageManager.addLoreIfNotEmpty(lore, messages.getMessage("special-lore-spacer"));
 
             // Type-specific info
             if (specialItem.isPermissionItem()) {
-                lore.add("§7Type: §dPermission");
-                lore.add("§7Node: §f" + specialItem.getPermission());
+                MessageManager.addLoreIfNotEmpty(lore, messages.getMessage("special-lore-type-permission"));
+                MessageManager.addLoreIfNotEmpty(lore, messages.getMessage(
+                        "special-lore-permission-node", java.util.Map.of("permission", specialItem.getPermission())));
             } else if (specialItem.isGroupItem()) {
-                lore.add("§7Type: §dGroup");
-                lore.add("§7Group: §f" + specialItem.getGroupName());
+                MessageManager.addLoreIfNotEmpty(lore, messages.getMessage("special-lore-type-group"));
+                MessageManager.addLoreIfNotEmpty(lore, messages.getMessage(
+                        "special-lore-group-name", java.util.Map.of("group", specialItem.getGroupName())));
             } else if (specialItem.isServerShopItem()) {
-                lore.add("\u00A77Stock: \u00A7aUnlimited");
+                MessageManager.addLoreIfNotEmpty(lore, messages.getMessage("special-lore-stock-unlimited"));
             }
 
-            lore.add("§7───────────────────");
+            MessageManager.addLoreIfNotEmpty(lore, messages.getMessage("special-lore-separator"));
 
             if (plugin.getSpecialShopManager().ownsReward(player, specialItem)) {
-                lore.add("§a✔ You already own this!");
+                MessageManager.addLoreIfNotEmpty(lore, messages.getMessage("special-lore-already-owned"));
             } else {
-                lore.add("§eLeft-click to BUY");
+                MessageManager.addLoreIfNotEmpty(lore, messages.getMessage("special-lore-click-to-buy"));
             }
 
             org.minecraftsmp.dynamicshop.util.PaperCompat.setLore(
@@ -779,6 +784,7 @@ public class ShopGUI {
     }
 
     private void appendInflationLore(List<String> lore, double hours) {
+        if (!ConfigCacheManager.dynamicPricingEnabled || !ConfigCacheManager.useTimeInflation) return;
         double percentIncrease = ShopDataManager.getInflationIncreasePercent(hours);
         double maxPercent = (ConfigCacheManager.maxPriceMultiplier - 1.0) * 100.0;
         boolean capped = percentIncrease >= maxPercent;

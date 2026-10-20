@@ -6,6 +6,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.scheduler.BukkitTask;
 import org.minecraftsmp.dynamicshop.DynamicShop;
 import org.minecraftsmp.dynamicshop.category.ItemCategory;
+import org.minecraftsmp.dynamicshop.category.SpecialShopItem;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -87,6 +88,26 @@ public class RestockManager {
             for (Material mat : items) {
                 ShopDataManager.setStockDirect(mat, rule.targetStock());
                 count++;
+            }
+            SpecialShopManager specials = plugin.getSpecialShopManager();
+            if (specials != null) {
+                for (SpecialShopItem item : specials.getAllSpecialItems().values()) {
+                    if (!item.isTradeItem()
+                            || (rule.category() != ItemCategory.MISC && item.getCategory() != rule.category())
+                            || specials.isTradeDisabled(item.getId(), "disabled")
+                            || !Double.isFinite(item.getPrice()) || item.getPrice() < 0) continue;
+
+                    double stock = rule.targetStock();
+                    ShopDataManager.ShopItemConfig config =
+                            ShopDataManager.getVariantConfig(item.getId(), item.getDisplayMaterial());
+                    if (config != null) {
+                        if (config.maxStockStorage() != null) stock = Math.min(stock, config.maxStockStorage());
+                        if (config.minStockStorage() != null) stock = Math.max(stock, config.minStockStorage());
+                    }
+                    ShopDataManager.setVariantStock(item.getId(), stock);
+                    if (stock > 0) ShopDataManager.setVariantShortageHours(item.getId(), 0);
+                    count++;
+                }
             }
             Bukkit.getLogger().info("[DynamicShop] Restocked " + count + " items in "
                     + rule.category().getDisplayName() + " to " + (int) rule.targetStock());

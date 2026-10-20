@@ -37,11 +37,31 @@ gui:
 
   # Size of shop menu (must be multiple of 9: 27, 36, 45, 54)
   # Bottom 9 slots are reserved for navigation
+  # Built-in Java themes keep category browsing at 54 slots to match the category chooser.
+  # This size applies to standard menus and Bedrock fallback.
   shop_menu_size: 54
 
   # Provider for GUI glyphs and custom navigation buttons: auto, nexo, oraxen, none.
   # Auto preserves Nexo priority when both plugins are enabled.
   custom_item_provider: "auto"
+
+  # Available themes: default, moonstone, halloween, christmas, newyear, valentines, easter, stpatricks, summer.
+  # default keeps your existing GUI appearance and installs no theme files.
+  # Select a named theme to apply it, or use /shopadmin theme <name>.
+  # Supports 27/36/45/54 slots. Matching files install for the selected provider.
+  theme: "default"
+
+  # Install the selected bundled theme into Oraxen on startup, reload, and theme selection.
+  # Requires the Oraxen GUI provider. Preserves custom files; updates unchanged managed files.
+  # Manual install: /shopadmin theme install. Add force to back up and replace older/custom theme files.
+  # After new/updated files are installed, reload Oraxen and rebuild/send its pack.
+  auto_install_oraxen_theme: true
+
+  # Install the selected bundled theme into Nexo when it is the GUI provider.
+  # Runs on startup, /shopadmin reload, and /shopadmin theme <name>.
+  # Preserves custom files; updates unchanged managed files. Manual install/force also supports Nexo.
+  # After installation run /nexo reload, wait for generation/upload, then /nexo pack <player>.
+  auto_install_nexo_theme: true
 
   # Item used to fill empty slots in GUIs.
   # Can be a Material name (e.g. AIR, GRAY_STAINED_GLASS_PANE)
@@ -1214,6 +1234,8 @@ items:
 # AUTOMATIC CATEGORY RESTOCK
 # ================================================================
 # Periodically resets stock for all items in a category to a target level.
+# Includes physical custom items and saved variants assigned to that category.
+# MISC applies to all categories. Permission, group, and command rewards are excluded.
 # Useful for ensuring essential items always remain available.
 restock:
   enabled: false
@@ -1222,7 +1244,7 @@ restock:
   #  - category: FOOD
   #    stock: 200
   #    interval-minutes: 30
-  # Valid categories: MISC, BLOCKS, REDSTONE, TOOLS, ARMOR, FOOD, FARMING, WOOD
+  # Valid categories: MISC, BLOCKS, REDSTONE, TOOLS, ARMOR, FOOD, FARMING, WOOD, SERVER_SHOP
   # Also supports custom categories: CUSTOM_1 through CUSTOM_10
 
 # ================================================================

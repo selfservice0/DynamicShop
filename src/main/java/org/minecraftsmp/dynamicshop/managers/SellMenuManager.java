@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -91,12 +92,13 @@ public final class SellMenuManager implements Listener {
         addDisplays(displays, sales.quote(session.owner, session.owner.getInventory(), 36), true);
         session.displays = Map.copyOf(displays);
         for (int slot = SellBasketService.INPUT_SLOTS; slot < 54; slot++)
-            session.inventory.setItem(slot, ShopItemBuilder.navItem(" ", Material.GRAY_STAINED_GLASS_PANE));
-        session.inventory.setItem(ACCEPT, ShopItemBuilder.navItem(
-                text("sell-gui-accept", "&a&lConfirm sale", Map.of()), Material.LIME_CONCRETE,
+            session.inventory.setItem(slot, org.minecraftsmp.dynamicshop.util.GuiTheme.enabled(plugin, session.owner)
+                    ? new ItemStack(Material.AIR) : ShopItemBuilder.navItem(" ", Material.GRAY_STAINED_GLASS_PANE));
+        session.inventory.setItem(ACCEPT, org.minecraftsmp.dynamicshop.util.GuiTheme.button(plugin, session.owner,
+                text("sell-gui-accept", "&a&lConfirm sale", Map.of()), "moonstone_confirm_button", Material.LIME_CONCRETE,
                 text("sell-gui-accept-lore", "&7Sell the items placed above.", Map.of())));
-        session.inventory.setItem(CANCEL, ShopItemBuilder.navItem(
-                text("sell-gui-cancel", "&c&lCancel", Map.of()), Material.RED_CONCRETE,
+        session.inventory.setItem(CANCEL, org.minecraftsmp.dynamicshop.util.GuiTheme.button(plugin, session.owner,
+                text("sell-gui-cancel", "&c&lCancel", Map.of()), "moonstone_cancel_button", Material.RED_CONCRETE,
                 text("sell-gui-cancel-lore", "&7Return your items and close.", Map.of())));
         List<String> totals = new ArrayList<>();
         totals.add(text("sell-gui-total-count", "&7Items to sell: &f{count}", Map.of("count", String.valueOf(session.quote.accepted()))));
@@ -104,7 +106,8 @@ public final class SellMenuManager implements Listener {
         if (session.quote.totals().isEmpty()) totals.add(text("sell-gui-empty", "&7Place items in the empty slots above.", Map.of()));
         totals.add(text("sell-gui-tax-note", "&7Prices include sell tax.", Map.of()));
         totals.add(text("sell-gui-return-note", "&7Unsold items will be returned.", Map.of()));
-        session.inventory.setItem(TOTAL, ShopItemBuilder.navItem(text("sell-gui-total", "&e&lTotal worth", Map.of()), Material.PAPER, totals.toArray(String[]::new)));
+        session.inventory.setItem(TOTAL, org.minecraftsmp.dynamicshop.util.GuiTheme.button(plugin, session.owner,
+                text("sell-gui-total", "&e&lTotal worth", Map.of()), "moonstone_total_button", Material.PAPER, totals.toArray(String[]::new)));
         if (session.owner.getOpenInventory().getTopInventory() == session.inventory) {
             session.owner.updateInventory();
             sendDisplaysLater(session);
@@ -204,8 +207,7 @@ public final class SellMenuManager implements Listener {
                         session.owner.sendMessage(text("sell-gui-sold", "&aSold &f{count} &aitems for &f{price}&a.",
                                 Map.of("count", String.valueOf(result.paidItems()), "price", amounts)));
                     }
-                    session.owner.closeInventory();
-                    close(session);
+                    refresh(session);
                 } else if (result.status() == SellBasketService.Status.DENIED) {
                     session.owner.closeInventory();
                     close(session);
@@ -272,7 +274,9 @@ public final class SellMenuManager implements Listener {
         Session session = sessions.get(event.getPlayer().getUniqueId());
         if (session != null) close(session);
     }
-    @EventHandler(priority = EventPriority.HIGHEST) public void onDeath(PlayerDeathEvent event) {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true) public void onDeath(PlayerDeathEvent event) {
+        // Paper deaths can be cancelled; the surviving player still owns the deposited items.
+        if (event instanceof Cancellable && ((Cancellable) event).isCancelled()) return;
         Session session = sessions.get(event.getEntity().getUniqueId());
         if (session == null) return;
         if (event.getKeepInventory()) close(session);
@@ -327,7 +331,8 @@ public final class SellMenuManager implements Listener {
         Session(Player player) {
             owner = player;
             inventory = PaperCompat.createInventory(this, 54,
-                    MessageManager.parseComponent(text("sell-gui-title", "&8Sell Items", Map.of()), player));
+                    MessageManager.parseComponent(org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                            "sell-gui-title", "&8Sell Items", 54, Map.of()), player));
         }
         @Override public Inventory getInventory() { return inventory; }
         ItemStack display(int slot, ItemStack raw) {

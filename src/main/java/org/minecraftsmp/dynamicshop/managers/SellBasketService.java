@@ -28,7 +28,7 @@ public final class SellBasketService {
     }
     public record Line(int slot, ItemStack original, Target target, int accepted, double value, String currency, String reason) {}
     public record Group(Target target, int amount, double value, String currency) {}
-    public record Quote(List<Line> lines, List<Group> groups, Map<String, Double> totals, int accepted) {
+    public record Quote(List<Line> lines, List<Group> groups, Map<String, Double> totals, int accepted, long pricedAt) {
         public boolean matches(Quote other) {
             if (other == null || lines.size() != other.lines.size()) return false;
             for (int i = 0; i < lines.size(); i++) {
@@ -50,6 +50,10 @@ public final class SellBasketService {
     }
 
     Quote quote(Player player, Inventory inventory, int slots) {
+        return quote(player, inventory, slots, System.currentTimeMillis());
+    }
+
+    Quote quote(Player player, Inventory inventory, int slots, long pricedAt) {
         Map<String, List<Line>> candidates = new LinkedHashMap<>();
         List<Line> lines = new ArrayList<>();
         for (int slot = 0; slot < slots; slot++) {
@@ -70,7 +74,7 @@ public final class SellBasketService {
                     : ShopDataManager.getVariantSellLimit(target.variantId, target.material);
             int amount = (int) Math.min(Math.min(requested, Integer.MAX_VALUE), Math.max(0, limit));
             String currency = plugin.getEconomyManager().getCurrency(target.material);
-            double value = amount == 0 ? 0 : value(target, amount);
+            double value = amount == 0 ? 0 : value(target, amount, pricedAt);
             boolean valid = Double.isFinite(value) && value >= 0
                     && Double.isFinite(totals.getOrDefault(currency, 0.0) + value);
             int remaining = valid ? amount : 0;
@@ -80,7 +84,7 @@ public final class SellBasketService {
             for (Line line : stacks) {
                 int take = Math.min(remaining, line.original.getAmount());
                 cumulative += take;
-                double next = cumulative == 0 ? 0 : value(target, cumulative);
+                double next = cumulative == 0 ? 0 : value(target, cumulative, pricedAt);
                 double stackValue = next - previous;
                 if (!Double.isFinite(stackValue) || stackValue < 0) valid = false;
                 allocations.add(new Line(line.slot, line.original, target, take, stackValue, currency,
@@ -100,7 +104,7 @@ public final class SellBasketService {
             }
         }
         lines.sort(java.util.Comparator.comparingInt(Line::slot));
-        return new Quote(List.copyOf(lines), List.copyOf(groups), Collections.unmodifiableMap(totals), accepted);
+        return new Quote(List.copyOf(lines), List.copyOf(groups), Collections.unmodifiableMap(totals), accepted, pricedAt);
     }
 
     private Target target(Player player, ItemStack stack) {
@@ -123,9 +127,9 @@ public final class SellBasketService {
         return new Target(material, null, ShopItemNames.getDisplayName(material), ShopDataManager.getBasePrice(material), ShopDataManager.detectCategory(material).name());
     }
 
-    private double value(Target target, int amount) {
-        return target.variantId == null ? ShopDataManager.getTotalSellValue(target.material, amount)
-                : ShopDataManager.getTotalVariantSellValue(target.variantId, target.material, target.basePrice, amount);
+    private double value(Target target, int amount, long pricedAt) {
+        return target.variantId == null ? ShopDataManager.getTotalSellValue(target.material, amount, pricedAt)
+                : ShopDataManager.getTotalVariantSellValue(target.variantId, target.material, target.basePrice, amount, pricedAt);
     }
 
     public Result sell(Player player, Inventory inventory, Quote approved) {
@@ -133,7 +137,10 @@ public final class SellBasketService {
                 || !player.hasPermission("dynamicshop.use") || !player.hasPermission("dynamicshop.use.sellgui"))
             return new Result(Status.DENIED, 0, Map.of());
         if (!plugin.getShopListener().checkTransactionCooldown(player)) return new Result(Status.COOLDOWN, 0, Map.of());
-        Quote fresh = quote(player, inventory);
+        if (approved == null) return new Result(Status.CHANGED, 0, Map.of());
+        // Recheck live items, stock, permissions and settings at the displayed quote's time.
+        // Inflation/decay advancing between display and click must not invalidate every sale.
+        Quote fresh = quote(player, inventory, INPUT_SLOTS, approved.pricedAt);
         if (!fresh.matches(approved)) return new Result(Status.CHANGED, 0, Map.of());
         if (fresh.accepted == 0) return new Result(Status.EMPTY, 0, Map.of());
 

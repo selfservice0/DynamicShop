@@ -52,7 +52,10 @@ public class PermissionsManager {
     // -------------------------------------------------------------
     public boolean hasPermission(Player p, String permission, String world) {
         String w = (world != null && !world.isBlank()) ? world : null;
-        if (w == null) return p.hasPermission(permission);
+        if (w == null) {
+            return p.hasPermission(permission)
+                    || (vaultPerms != null && vaultPerms.playerHas((String) null, p, permission));
+        }
         return vaultPerms != null && vaultPerms.playerHas(w, p, permission);
     }
 

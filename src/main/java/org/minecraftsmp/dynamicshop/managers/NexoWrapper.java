@@ -25,7 +25,8 @@ public class NexoWrapper {
         try {
             var builder = NexoItems.itemFromId(id);
             if (builder != null) {
-                return builder.build();
+                ItemStack item = builder.build();
+                return item == null ? null : item.clone();
             }
         } catch (Throwable e) {
             org.bukkit.Bukkit.getLogger().warning("[DynamicShop/Nexo] Failed to get Nexo item '" + id + "': " + e.getMessage());

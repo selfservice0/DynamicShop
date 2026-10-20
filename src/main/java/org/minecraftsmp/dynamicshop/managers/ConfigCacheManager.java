@@ -120,6 +120,8 @@ public class ConfigCacheManager {
     }
 
     public static org.bukkit.inventory.ItemStack getFillerItem(org.bukkit.entity.Player viewer) {
+        if (org.minecraftsmp.dynamicshop.util.GuiTheme.enabled(DynamicShop.getInstance(), viewer))
+            return new org.bukkit.inventory.ItemStack(org.bukkit.Material.AIR);
         if (org.minecraftsmp.dynamicshop.util.BedrockUtil.isBedrock(viewer)
                 && CustomItemSupport.isCustomItem(fillerMaterialStr)) {
             return new org.bukkit.inventory.ItemStack(org.bukkit.Material.AIR);

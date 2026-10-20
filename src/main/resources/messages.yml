@@ -61,6 +61,11 @@ messages:
   gui-category-title: "&8&lShop Categories"
   shop-gui-title: "&3&lDynamicShop"
   admin-shop-gui-title: "&4&lAdmin Shop"
+  admin-category-gui-title: "&4&lCategory Editor"
+  admin-category-edit-title: "&4&lEdit: {category}"
+  admin-config-gui-title: "&4&lConfig Editor"
+  admin-item-edit-title: "&4&lEdit: {item}"
+  admin-special-edit-title: "&4&lEdit: {item}"
   gui-nav-previous: "&ePrevious Page"
   gui-nav-previous-lore: "&7Click to go back"
   gui-nav-previous-none: "&cNo previous page"
@@ -104,6 +109,18 @@ messages:
 
   unknown-special-item: "&cUnknown special shop item type."
   cannot-sell-special-item: "&cYou cannot sell special items!"
+
+  # Special reward shop tooltip lines. Set a line to "" to hide it.
+  special-lore-separator: "&7───────────────────"
+  special-lore-spacer: "&7"
+  special-lore-buy-price: "&a&lBUY: &f{price}"
+  special-lore-stock-unlimited: "&7Stock: &aUnlimited"
+  special-lore-already-owned: "&a✔ You already own this!"
+  special-lore-click-to-buy: "&eLeft-click to BUY"
+  special-lore-type-permission: "&7Type: &dPermission"
+  special-lore-permission-node: "&7Node: &f{permission}"
+  special-lore-type-group: "&7Type: &dGroup"
+  special-lore-group-name: "&7Group: &f{group}"
 
   # Inventory messages
   inventory-full: "&cYour inventory is full!"

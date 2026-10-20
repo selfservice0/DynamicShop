@@ -69,7 +69,8 @@ public class AdminConfigGUI {
         this.player = player;
         this.parentGUI = parentGUI;
         this.inventory = org.minecraftsmp.dynamicshop.util.PaperCompat.createInventory(null, SIZE,
-                MessageManager.parseComponent("§4§lConfig Editor"));
+                MessageManager.parseComponent(org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                        "admin-config-gui-title", "&4&lConfig Editor", SIZE, java.util.Map.of()), player));
     }
 
     public void open() {
@@ -147,7 +148,8 @@ public class AdminConfigGUI {
         inventory.setItem(INPUT_METHOD, createInputMethodItem());
 
         // Back button
-        inventory.setItem(BACK_BUTTON, createBackButton());
+        inventory.setItem(BACK_BUTTON, org.minecraftsmp.dynamicshop.util.GuiTheme.control(
+                plugin, player, createBackButton(), "shop_back_button"));
     }
 
     private ItemStack createToggleItem(String name, boolean currentValue, String configPath) {

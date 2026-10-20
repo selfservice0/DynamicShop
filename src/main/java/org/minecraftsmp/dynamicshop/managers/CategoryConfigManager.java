@@ -191,6 +191,11 @@ public class CategoryConfigManager {
             return new org.bukkit.inventory.ItemStack(getIcon(category));
         }
         String iconStr = categoryIcons.get(category);
+        if (iconStr == null || iconStr.equalsIgnoreCase(category.getIcon().name())) {
+            var themed = org.minecraftsmp.dynamicshop.util.GuiTheme.categoryIcon(
+                    DynamicShop.getInstance(), viewer, category);
+            if (themed != null) return themed.clone();
+        }
         if (iconStr != null) {
             if (CustomItemSupport.isCustomItem(iconStr)) {
                 org.bukkit.inventory.ItemStack customItem = CustomItemSupport.getItem(iconStr);

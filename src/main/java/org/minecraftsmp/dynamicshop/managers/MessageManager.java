@@ -57,11 +57,19 @@ public class MessageManager {
 
     /** Configuration signal only; it cannot verify whether clients loaded a resource pack. */
     public boolean hasCustomGuiTitles() {
+        if (org.minecraftsmp.dynamicshop.util.GuiTheme.enabled(plugin, null)) return true;
         for (String key :
                 new String[] {
                     "gui-category-title",
                     "shop-gui-title",
                     "admin-shop-gui-title",
+                    "admin-category-gui-title",
+                    "admin-category-edit-title",
+                    "admin-config-gui-title",
+                    "admin-item-edit-title",
+                    "admin-special-edit-title",
+                    "sell-gui-title",
+                    "search-gui-title",
                     "item-action-title",
                     "player-shop-browser-title",
                     "player-shop-view-title",

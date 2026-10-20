@@ -90,7 +90,8 @@ public class SearchResultsGUI {
         inventory = pm.createVirtualInventory(
                 player,
                 54,
-                plugin.getMessageManager().getMessage("search-gui-title", placeholders));
+                org.minecraftsmp.dynamicshop.util.GuiTheme.title(plugin, player,
+                        "search-gui-title", "&8Search Results: &f{count}", 54, placeholders));
 
         render();
         player.openInventory(inventory);
@@ -145,7 +146,8 @@ public class SearchResultsGUI {
                 plugin.getMessageManager().getMessage("search-gui-back-name"),
                 Material.BARRIER,
                 plugin.getMessageManager().getMessage("search-gui-back-lore"));
-        pm.sendSlot(inventory, 49, back);
+        pm.sendSlot(inventory, 49, org.minecraftsmp.dynamicshop.util.GuiTheme.control(
+                plugin, player, back, "shop_back_button"));
     }
 
     private ItemStack buildResultItem(Material mat) {
